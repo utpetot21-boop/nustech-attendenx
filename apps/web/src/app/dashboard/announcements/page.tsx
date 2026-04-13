@@ -33,7 +33,7 @@ type ReadStats = { read: number; total: number; read_pct: number };
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TYPE_MAP: Record<
   string,
-  { label: string; Icon: React.ComponentType<{ size?: number; className?: string }>; bg: string; text: string; ring: string; cardBorder: string }
+  { label: string; Icon: React.ComponentType<{ size?: number | string; className?: string }>; bg: string; text: string; ring: string; cardBorder: string }
 > = {
   info:    { label: 'Info',      Icon: Info,          bg: 'bg-[#007AFF]/10',  text: 'text-[#007AFF]',  ring: 'ring-[#007AFF]/20',  cardBorder: 'border-l-[#007AFF]' },
   urgent:  { label: 'Urgent',    Icon: AlertTriangle, bg: 'bg-[#FF3B30]/10',  text: 'text-[#FF3B30]',  ring: 'ring-[#FF3B30]/20',  cardBorder: 'border-l-[#FF3B30]' },

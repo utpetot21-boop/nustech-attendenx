@@ -71,7 +71,7 @@ type Tab = 'violations' | 'warning-letters';
 function StatCard({
   icon: Icon, label, value, color,
 }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: React.ComponentType<{ size?: number | string; className?: string }>;
   label: string;
   value: number;
   color: string;

@@ -75,7 +75,7 @@ const TABS: { key: Tab; label: string; Icon: React.ComponentType<{ size?: number
 function StatCard({
   icon: Icon, label, value, color,
 }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: React.ComponentType<{ size?: number | string; className?: string }>;
   label: string;
   value: number | string;
   color: string;
