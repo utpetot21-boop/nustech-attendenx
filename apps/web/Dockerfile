@@ -9,7 +9,7 @@ COPY apps/web/package.json ./apps/web/
 COPY shared/package.json ./shared/
 
 # Install with workspaces
-RUN npm ci --workspace=apps/web --workspace=shared
+RUN npm ci --workspace=apps/web --workspace=shared --legacy-peer-deps
 
 # Copy sources
 COPY shared/ ./shared/

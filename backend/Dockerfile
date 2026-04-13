@@ -9,7 +9,7 @@ COPY backend/package.json ./backend/
 COPY shared/package.json ./shared/
 
 # Install workspace dependencies
-RUN npm ci --workspace=backend --workspace=shared
+RUN npm ci --workspace=backend --workspace=shared --legacy-peer-deps
 
 # Copy source files
 COPY shared/ ./shared/
@@ -31,7 +31,7 @@ COPY package.json package-lock.json* ./
 COPY backend/package.json ./backend/
 COPY shared/package.json ./shared/
 
-RUN npm ci --workspace=backend --workspace=shared --omit=dev
+RUN npm ci --workspace=backend --workspace=shared --legacy-peer-deps --omit=dev
 
 # Copy compiled output
 COPY --from=builder /app/backend/dist ./backend/dist
