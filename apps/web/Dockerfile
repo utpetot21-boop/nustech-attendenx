@@ -6,6 +6,7 @@ WORKDIR /app
 # Copy monorepo root
 COPY package.json package-lock.json* ./
 COPY tsconfig.base.json ./
+COPY .eslintrc.js ./
 COPY apps/web/package.json ./apps/web/
 COPY shared/package.json ./shared/
 
