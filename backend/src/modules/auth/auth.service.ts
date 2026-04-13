@@ -125,11 +125,17 @@ export class AuthService {
     fcm_token: string,
     platform: string,
   ): Promise<void> {
+    const validPlatform = (['android', 'ios', 'web'] as const).includes(
+      platform as 'android' | 'ios' | 'web',
+    )
+      ? (platform as 'android' | 'ios' | 'web')
+      : 'android';
+
     await this.deviceRepo.upsert(
       {
         user_id: userId,
         fcm_token,
-        platform,
+        platform: validPlatform,
         is_active: true,
         last_active_at: new Date(),
       },
