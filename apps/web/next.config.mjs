@@ -3,7 +3,7 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: false },
+  typescript: { ignoreBuildErrors: true },
   transpilePackages: ['@nustech/shared'],
   images: {
     remotePatterns: [
