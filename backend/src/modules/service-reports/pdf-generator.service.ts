@@ -1,0 +1,81 @@
+import { Injectable, Logger } from '@nestjs/common';
+import * as Handlebars from 'handlebars';
+import * as fs from 'fs';
+import * as path from 'path';
+import puppeteer from 'puppeteer';
+
+export interface ServiceReportData {
+  report_number: string;
+  created_at_fmt: string;
+  printed_at: string;
+  technician_name: string;
+  client_name: string;
+  client_pic_name: string;
+  check_in_at_fmt: string;
+  check_out_at_fmt: string;
+  duration_text: string;
+  check_in_address: string;
+  check_in_lat: string;
+  check_in_lng: string;
+  gps_valid: boolean;
+  work_description: string;
+  findings: string;
+  recommendations: string;
+  materials_used: Array<{ name: string; qty: number; unit: string; notes?: string }>;
+  before_photos: Array<{ url: string; caption?: string }>;
+  during_photos: Array<{ url: string; caption?: string }>;
+  after_photos: Array<{ url: string; caption?: string }>;
+  tech_signature_url: string | null;
+  client_signature_url: string | null;
+  is_locked: boolean;
+}
+
+@Injectable()
+export class PdfGeneratorService {
+  private readonly logger = new Logger(PdfGeneratorService.name);
+  private template: HandlebarsTemplateDelegate | null = null;
+
+  constructor() {
+    this.registerHelpers();
+    this.loadTemplate();
+  }
+
+  private registerHelpers() {
+    Handlebars.registerHelper('inc', (value: number) => value + 1);
+  }
+
+  private loadTemplate() {
+    try {
+      const templatePath = path.join(__dirname, 'templates', 'service-report.hbs');
+      const src = fs.readFileSync(templatePath, 'utf-8');
+      this.template = Handlebars.compile(src);
+    } catch (err) {
+      this.logger.error('Failed to load service-report template', err);
+    }
+  }
+
+  async generate(data: ServiceReportData): Promise<Buffer> {
+    if (!this.template) this.loadTemplate();
+    const html = this.template!(data);
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        margin: { top: '0', bottom: '0', left: '0', right: '0' },
+        printBackground: true,
+      });
+
+      return Buffer.from(pdfBuffer);
+    } finally {
+      await browser.close();
+    }
+  }
+}

@@ -1,0 +1,363 @@
+import { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  useColorScheme,
+  ActivityIndicator,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { C, R, B, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
+
+import {
+  scheduleService,
+  getCurrentWeekString,
+  getWeekDates,
+  type UserSchedule,
+} from '@/services/schedule.service';
+
+/** Konversi tanggal arbitrary ke ISO week string (YYYY-Www) */
+function getWeekStringForDate(date: Date): string {
+  const year = date.getFullYear();
+  const jan4  = new Date(year, 0, 4);
+  const startW1 = new Date(jan4);
+  startW1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+  const diff = Math.floor((date.getTime() - startW1.getTime()) / (7 * 24 * 3600 * 1000));
+  const week = diff + 1;
+  if (week < 1)  return getWeekStringForDate(new Date(year - 1, 11, 28));
+  const nextYearW1 = new Date(year + 1, 0, 4);
+  nextYearW1.setDate(nextYearW1.getDate() - ((nextYearW1.getDay() + 6) % 7));
+  if (date >= nextYearW1) return `${year + 1}-W01`;
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+import { WeekView } from '@/components/schedule/WeekView';
+import { AgendaList } from '@/components/schedule/AgendaList';
+
+type ViewMode = 'week' | 'month' | 'agenda';
+
+const VIEW_LABELS: Record<ViewMode, string> = {
+  week: 'Mingguan',
+  month: 'Bulanan',
+  agenda: 'Agenda',
+};
+
+const MONTHS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const DAYS_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+function scheduleToEvent(s: UserSchedule) {
+  if (s.is_holiday) {
+    return { id: s.id, type: 'holiday' as const, title: 'Hari Libur Nasional', color: C.red, time_start: undefined, time_end: undefined };
+  }
+  if (s.is_day_off) {
+    return { id: s.id, type: 'day_off' as const, title: 'Libur', color: '#9CA3AF', time_start: undefined, time_end: undefined };
+  }
+  return {
+    id: s.id,
+    type: 'shift' as const,
+    title: s.shift_type?.name ?? (s.schedule_type === 'office_hours' ? 'Office Hours' : 'Shift'),
+    subtitle: `Toleransi ${s.tolerance_minutes} menit`,
+    time_start: s.start_time,
+    time_end: s.end_time,
+    color: s.shift_type?.color_hex ?? '#007AFF',
+  };
+}
+
+export default function ScheduleScreen() {
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark';
+  const insets = useSafeAreaInsets();
+
+  const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [currentWeek, setCurrentWeek] = useState(getCurrentWeekString());
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
+
+  // Queries
+  const { data: weekSchedules = [], isLoading: loadingWeek } = useQuery({
+    queryKey: ['my-schedule-week', currentWeek],
+    queryFn: () => scheduleService.getMySchedule({ week: currentWeek }),
+    // always enabled — agenda mode needs week data too
+  });
+
+  const { data: monthSchedules = [], isLoading: loadingMonth } = useQuery({
+    queryKey: ['my-schedule-month', currentMonth],
+    queryFn: () => scheduleService.getMySchedule({ month: currentMonth }),
+    enabled: viewMode === 'month',
+  });
+
+  // Map schedules by date
+  const scheduleByDate = useMemo(() => {
+    const map: Record<string, UserSchedule[]> = {};
+    const source = viewMode === 'month' ? monthSchedules : weekSchedules;
+    for (const s of source) {
+      if (!map[s.date]) map[s.date] = [];
+      map[s.date].push(s);
+    }
+    return map;
+  }, [weekSchedules, monthSchedules, viewMode]);
+
+  // Build WeekView data
+  const weekViewDays = weekDates.map((date) => ({
+    date,
+    events: (scheduleByDate[date] ?? []).map(scheduleToEvent),
+  }));
+
+  // Navigate week
+  const prevWeek = () => {
+    const [y, w] = currentWeek.split('-W').map(Number);
+    if (w === 1) setCurrentWeek(`${y - 1}-W52`);
+    else setCurrentWeek(`${y}-W${String(w - 1).padStart(2, '0')}`);
+  };
+  const nextWeek = () => {
+    const [y, w] = currentWeek.split('-W').map(Number);
+    if (w >= 52) setCurrentWeek(`${y + 1}-W01`);
+    else setCurrentWeek(`${y}-W${String(w + 1).padStart(2, '0')}`);
+  };
+
+  // Navigate month
+  const prevMonth = () => {
+    const [y, m] = currentMonth.split('-').map(Number);
+    if (m === 1) setCurrentMonth(`${y - 1}-12`);
+    else setCurrentMonth(`${y}-${String(m - 1).padStart(2, '0')}`);
+  };
+  const nextMonth = () => {
+    const [y, m] = currentMonth.split('-').map(Number);
+    if (m === 12) setCurrentMonth(`${y + 1}-01`);
+    else setCurrentMonth(`${y}-${String(m + 1).padStart(2, '0')}`);
+  };
+
+  // Build month grid
+  const monthGrid = useMemo(() => {
+    const [y, m] = currentMonth.split('-').map(Number);
+    const firstDay = new Date(y, m - 1, 1).getDay();
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const cells: (string | null)[] = Array(firstDay).fill(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [currentMonth]);
+
+  const today = new Date().toISOString().split('T')[0];
+  const [y, m] = currentMonth.split('-').map(Number);
+
+  const isLoading = loadingWeek || loadingMonth;
+
+  const textPrimary = lPrimary(isDark);
+  const textSecondary = lSecondary(isDark);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
+
+      {/* Header */}
+      <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <View>
+            <Text style={{ fontSize: 30, fontWeight: '800', color: textPrimary, letterSpacing: -0.8 }}>
+              Jadwal
+            </Text>
+            <Text style={{ fontSize: 14, color: textSecondary, marginTop: 3 }}>
+              {viewMode === 'month'
+                ? `${MONTHS_ID[m - 1]} ${y}`
+                : `${weekDates[0].slice(5).replace('-', '/')} – ${weekDates[6].slice(5).replace('-', '/')}`}
+            </Text>
+          </View>
+          <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: isDark ? 'rgba(175,82,222,0.18)' : '#EDE9FE', alignItems: 'center', justifyContent: 'center' }}>
+            <Calendar size={24} strokeWidth={1.8} color="#AF52DE" />
+          </View>
+        </View>
+
+        {/* Toolbar nav + segmented */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <TouchableOpacity
+            onPress={viewMode === 'month' ? prevMonth : prevWeek}
+            style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(60,60,67,0.18)' }}
+          >
+            <ChevronLeft size={18} strokeWidth={2} color={isDark ? 'rgba(255,255,255,0.7)' : '#475569'} />
+          </TouchableOpacity>
+
+          <View style={{ flex: 1, flexDirection: 'row', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#E8EDF5', borderRadius: 14, padding: 3 }}>
+          {(['week', 'month', 'agenda'] as ViewMode[]).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              onPress={() => setViewMode(mode)}
+              style={{
+                flex: 1,
+                paddingVertical: 9,
+                borderRadius: 11,
+                alignItems: 'center',
+                backgroundColor: viewMode === mode
+                  ? isDark ? '#1E293B' : '#FFFFFF'
+                  : 'transparent',
+                ...(viewMode === mode ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 6, elevation: 3 } : {}),
+              }}
+            >
+              <Text style={{
+                fontSize: 14,
+                fontWeight: viewMode === mode ? '700' : '500',
+                color: viewMode === mode
+                  ? isDark ? '#FFFFFF' : '#0F172A'
+                  : isDark ? 'rgba(255,255,255,0.50)' : '#64748B',
+              }}>
+                {VIEW_LABELS[mode]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          </View>
+
+          <TouchableOpacity
+            onPress={viewMode === 'month' ? nextMonth : nextWeek}
+            style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(60,60,67,0.18)' }}
+          >
+            <ChevronRight size={18} strokeWidth={2} color={isDark ? 'rgba(255,255,255,0.7)' : '#475569'} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {isLoading && (
+          <View style={{ paddingTop: 40, alignItems: 'center' }}>
+            <ActivityIndicator color={isDark ? '#FFFFFF' : C.blue} />
+          </View>
+        )}
+
+        {!isLoading && (
+          <>
+            {/* ── WEEK VIEW ──────────────────────────── */}
+            {(viewMode === 'week' || viewMode === 'agenda') && (
+              <WeekView
+                days={weekViewDays}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+              />
+            )}
+
+            {/* ── MONTH VIEW ─────────────────────────── */}
+            {viewMode === 'month' && (
+              <View style={{
+                marginHorizontal: 20,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#FFFFFF',
+                borderRadius: R.lg,
+                borderWidth: B.default,
+                borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(60,60,67,0.18)',
+                padding: 16,
+                marginBottom: 12,
+              }}>
+                {/* Day headers */}
+                <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+                  {DAYS_SHORT.map((d) => (
+                    <Text key={d} style={{
+                      flex: 1, textAlign: 'center',
+                      fontSize: 11, fontWeight: '600',
+                      color: isDark ? 'rgba(255,255,255,0.40)' : '#9CA3AF',
+                      textTransform: 'uppercase',
+                    }}>{d}</Text>
+                  ))}
+                </View>
+                {/* Grid */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                  {monthGrid.map((cell, i) => {
+                    if (!cell) return <View key={`empty-${i}`} style={{ width: `${100 / 7}%`, aspectRatio: 1 }} />;
+                    const events = scheduleByDate[cell] ?? [];
+                    const isToday = cell === today;
+                    const isSelected = cell === selectedDate;
+                    const dayNum = new Date(cell).getDate();
+                    const dotColors = events.map((s) => scheduleToEvent(s).color).slice(0, 3);
+
+                    return (
+                      <TouchableOpacity
+                        key={cell}
+                        onPress={() => {
+                          const weekStr = getWeekStringForDate(new Date(cell));
+                          setCurrentWeek(weekStr);
+                          setSelectedDate(cell);
+                          setViewMode('agenda');
+                        }}
+                        style={{
+                          width: `${100 / 7}%`,
+                          aspectRatio: 1,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 2,
+                        }}
+                      >
+                        <View style={{
+                          width: 32, height: 32,
+                          borderRadius: 16,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: isSelected
+                            ? '#007AFF'
+                            : isToday
+                            ? isDark ? 'rgba(0,122,255,0.25)' : 'rgba(0,122,255,0.10)'
+                            : 'transparent',
+                        }}>
+                          <Text style={{
+                            fontSize: 14,
+                            fontWeight: isToday || isSelected ? '700' : '400',
+                            color: isSelected ? '#FFFFFF' : isToday ? '#007AFF' : isDark ? '#FFFFFF' : '#111111',
+                          }}>
+                            {dayNum}
+                          </Text>
+                        </View>
+                        {/* Dots */}
+                        <View style={{ flexDirection: 'row', gap: 2, marginTop: 2, minHeight: 5 }}>
+                          {dotColors.map((c, j) => (
+                            <View key={j} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: isSelected ? 'rgba(255,255,255,0.70)' : c }} />
+                          ))}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* ── AGENDA (detail hari yang dipilih) ─── */}
+            <View style={{ marginTop: 4 }}>
+              <AgendaList
+                date={selectedDate}
+                events={(scheduleByDate[selectedDate] ?? []).map(scheduleToEvent)}
+              />
+            </View>
+
+            {/* Legenda */}
+            <View style={{
+              marginHorizontal: 20,
+              marginTop: 16,
+              flexDirection: 'row',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}>
+              {[
+                { color: C.blue, label: 'Shift' },
+                { color: C.green, label: 'Office Hours' },
+                { color: C.purple, label: 'Piket/On-Call' },
+                { color: C.red, label: 'Hari Libur' },
+              ].map((item) => (
+                <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+                  <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280' }}>
+                    {item.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}

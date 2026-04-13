@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Arial', sans-serif; font-size: 11px; color: #1a1a1a; padding: 24px 32px; }
+  .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #1a56db; padding-bottom: 12px; margin-bottom: 16px; }
+  .header .logo-area { display: flex; flex-direction: column; }
+  .header .company { font-size: 16px; font-weight: 700; color: #1a56db; }
+  .header .company-sub { font-size: 10px; color: #555; }
+  .header .doc-info { text-align: right; }
+  .header .doc-info .ba-number { font-size: 14px; font-weight: 700; color: #1a56db; }
+  .header .doc-info .ba-date { font-size: 10px; color: #666; }
+  .title-row { text-align: center; margin: 12px 0 16px; }
+  .title-row h2 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .title-row p { font-size: 10px; color: #666; }
+  .section { margin-bottom: 14px; }
+  .section-title { font-size: 11px; font-weight: 700; background: #f0f4ff; border-left: 3px solid #1a56db; padding: 4px 8px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.3px; }
+  table.info { width: 100%; border-collapse: collapse; }
+  table.info td { padding: 4px 8px; vertical-align: top; }
+  table.info td:first-child { width: 35%; color: #555; font-size: 10px; }
+  table.info td:nth-child(2) { width: 5%; color: #555; }
+  table.info td:last-child { font-weight: 500; }
+  .description-box { border: 1px solid #ddd; border-radius: 4px; padding: 10px; min-height: 60px; background: #fafafa; line-height: 1.6; white-space: pre-wrap; }
+  .materials-table { width: 100%; border-collapse: collapse; }
+  .materials-table th { background: #1a56db; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
+  .materials-table td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+  .materials-table tr:nth-child(even) td { background: #f8f9fa; }
+  .photos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .photo-item { text-align: center; }
+  .photo-item img { width: 100%; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
+  .photo-item .photo-label { font-size: 9px; color: #666; margin-top: 3px; }
+  .sign-section { display: flex; gap: 16px; margin-top: 16px; }
+  .sign-box { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 12px; text-align: center; }
+  .sign-box .sign-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #555; margin-bottom: 8px; }
+  .sign-box img { max-height: 80px; max-width: 160px; object-fit: contain; }
+  .sign-box .sign-name { font-size: 11px; font-weight: 600; margin-top: 8px; border-top: 1px solid #ddd; padding-top: 6px; }
+  .sign-box .sign-role { font-size: 9px; color: #777; }
+  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; color: #888; font-size: 9px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+  .badge-completed { background: #d1fae5; color: #065f46; }
+  .badge-ongoing { background: #fef3c7; color: #92400e; }
+  .gps-pill { display: inline-flex; align-items: center; gap: 4px; background: #e0f2fe; color: #0369a1; border-radius: 10px; padding: 2px 8px; font-size: 9px; }
+  .gps-invalid { background: #fef2f2; color: #991b1b; }
+  .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-30deg); font-size: 72px; opacity: 0.04; color: #1a56db; font-weight: 900; pointer-events: none; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="watermark">NUSTECH</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-area">
+    <div class="company">NUSTECH ATTENDENX</div>
+    <div class="company-sub">Sistem Manajemen Kunjungan Lapangan</div>
+  </div>
+  <div class="doc-info">
+    <div class="ba-number">{{ report_number }}</div>
+    <div class="ba-date">{{ created_at_fmt }}</div>
+  </div>
+</div>
+
+<div class="title-row">
+  <h2>Berita Acara Kunjungan Teknis</h2>
+  <p>Dokumen ini merupakan bukti resmi pelaksanaan kunjungan lapangan</p>
+</div>
+
+<!-- Informasi Kunjungan -->
+<div class="section">
+  <div class="section-title">Informasi Kunjungan</div>
+  <table class="info">
+    <tr>
+      <td>Teknisi</td><td>:</td><td>{{ technician_name }}</td>
+    </tr>
+    <tr>
+      <td>Klien / Perusahaan</td><td>:</td><td>{{ client_name }}</td>
+    </tr>
+    <tr>
+      <td>PIC Klien</td><td>:</td><td>{{ client_pic_name }}</td>
+    </tr>
+    <tr>
+      <td>Tanggal Check-in</td><td>:</td><td>{{ check_in_at_fmt }}</td>
+    </tr>
+    <tr>
+      <td>Tanggal Check-out</td><td>:</td><td>{{ check_out_at_fmt }}</td>
+    </tr>
+    <tr>
+      <td>Durasi</td><td>:</td><td>{{ duration_text }}</td>
+    </tr>
+    <tr>
+      <td>Lokasi Check-in</td><td>:</td>
+      <td>
+        {{ check_in_address }}
+        &nbsp;
+        <span class="gps-pill {{#unless gps_valid}}gps-invalid{{/unless}}">
+          📍 {{ check_in_lat }}, {{ check_in_lng }}
+          {{#if gps_valid}} ✓{{else}} ⚠ Di luar radius{{/if}}
+        </span>
+      </td>
+    </tr>
+    <tr>
+      <td>Status</td><td>:</td>
+      <td><span class="badge badge-completed">Selesai</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- Deskripsi Pekerjaan -->
+<div class="section">
+  <div class="section-title">Deskripsi Pekerjaan</div>
+  <div class="description-box">{{ work_description }}</div>
+</div>
+
+{{#if findings}}
+<div class="section">
+  <div class="section-title">Temuan</div>
+  <div class="description-box">{{ findings }}</div>
+</div>
+{{/if}}
+
+{{#if recommendations}}
+<div class="section">
+  <div class="section-title">Rekomendasi</div>
+  <div class="description-box">{{ recommendations }}</div>
+</div>
+{{/if}}
+
+{{#if materials_used.length}}
+<div class="section">
+  <div class="section-title">Material / Spare Part</div>
+  <table class="materials-table">
+    <thead>
+      <tr><th>No</th><th>Nama Material</th><th>Qty</th><th>Satuan</th><th>Keterangan</th></tr>
+    </thead>
+    <tbody>
+      {{#each materials_used}}
+      <tr>
+        <td>{{ inc @index }}</td>
+        <td>{{ this.name }}</td>
+        <td>{{ this.qty }}</td>
+        <td>{{ this.unit }}</td>
+        <td>{{ this.notes }}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</div>
+{{/if}}
+
+{{#if before_photos.length}}
+<div class="section">
+  <div class="section-title">Foto Sebelum ({{ before_photos.length }})</div>
+  <div class="photos-grid">
+    {{#each before_photos}}
+    <div class="photo-item">
+      <img src="{{ this.url }}" alt="Before {{ @index }}">
+      {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+    </div>
+    {{/each}}
+  </div>
+</div>
+{{/if}}
+
+{{#if during_photos.length}}
+<div class="section">
+  <div class="section-title">Foto Saat Pengerjaan ({{ during_photos.length }})</div>
+  <div class="photos-grid">
+    {{#each during_photos}}
+    <div class="photo-item">
+      <img src="{{ this.url }}" alt="During {{ @index }}">
+      {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+    </div>
+    {{/each}}
+  </div>
+</div>
+{{/if}}
+
+{{#if after_photos.length}}
+<div class="section">
+  <div class="section-title">Foto Setelah ({{ after_photos.length }})</div>
+  <div class="photos-grid">
+    {{#each after_photos}}
+    <div class="photo-item">
+      <img src="{{ this.url }}" alt="After {{ @index }}">
+      {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+    </div>
+    {{/each}}
+  </div>
+</div>
+{{/if}}
+
+<!-- Tanda Tangan -->
+<div class="sign-section">
+  <div class="sign-box">
+    <div class="sign-title">Teknisi</div>
+    {{#if tech_signature_url}}
+    <img src="{{ tech_signature_url }}" alt="Tanda tangan teknisi">
+    {{else}}
+    <div style="height:80px; display:flex; align-items:center; justify-content:center; color:#ccc; font-size:10px;">Belum ditandatangani</div>
+    {{/if}}
+    <div class="sign-name">{{ technician_name }}</div>
+    <div class="sign-role">Teknisi Lapangan</div>
+  </div>
+  <div class="sign-box">
+    <div class="sign-title">Perwakilan Klien</div>
+    {{#if client_signature_url}}
+    <img src="{{ client_signature_url }}" alt="Tanda tangan klien">
+    {{else}}
+    <div style="height:80px; display:flex; align-items:center; justify-content:center; color:#ccc; font-size:10px;">Belum ditandatangani</div>
+    {{/if}}
+    <div class="sign-name">{{ client_pic_name }}</div>
+    <div class="sign-role">PIC {{ client_name }}</div>
+  </div>
+</div>
+
+<div class="footer">
+  <span>Dicetak: {{ printed_at }}</span>
+  <span>{{ report_number }} — Nustech AttendenX</span>
+  <span>{{#if is_locked}}✓ Dokumen Terkunci &amp; Final{{else}}⚠ Draft — Belum Final{{/if}}</span>
+</div>
+</body>
+</html>

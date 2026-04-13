@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #111; padding: 40px 50px; }
+    .header { text-align: center; border-bottom: 3px solid #111; padding-bottom: 12px; margin-bottom: 20px; }
+    .header h1 { font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+    .header p { font-size: 10pt; color: #444; margin-top: 4px; }
+    .sp-badge {
+      display: inline-block;
+      background: {{#if (eq level "SP3")}}#dc2626{{else if (eq level "SP2")}}#ea580c{{else}}#ca8a04{{/if}};
+      color: white; font-size: 18pt; font-weight: bold;
+      padding: 6px 24px; border-radius: 4px; margin: 16px 0;
+    }
+    .section-title { font-weight: bold; font-size: 11pt; margin: 18px 0 6px; text-decoration: underline; }
+    table.info { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    table.info td { padding: 4px 8px; vertical-align: top; }
+    table.info td:first-child { width: 160px; font-weight: normal; }
+    table.info td:nth-child(2) { width: 12px; }
+    .reason-box {
+      border: 1px solid #aaa; padding: 12px; margin: 12px 0;
+      background: #fafafa; border-radius: 4px; min-height: 80px;
+      white-space: pre-wrap;
+    }
+    .consequence { background: #fff3cd; border: 1px solid #ffc107; padding: 10px 14px; border-radius: 4px; margin: 14px 0; font-size: 10.5pt; }
+    .signature-section { margin-top: 40px; display: flex; justify-content: space-between; }
+    .sig-box { text-align: center; width: 200px; }
+    .sig-line { border-top: 1px solid #333; margin-top: 60px; padding-top: 4px; font-size: 10pt; }
+    .footer { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 8px; font-size: 9pt; color: #666; text-align: center; }
+    @media print { body { padding: 20px 30px; } }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Surat Peringatan Karyawan</h1>
+    <p>PT. Nustech Indonusa · Sistem Manajemen SDM</p>
+  </div>
+
+  <div style="text-align:center;">
+    <div class="sp-badge">{{ level }}</div>
+    <p style="font-size:10pt; color:#666;">{{ #if (eq level "SP1") }}Peringatan Pertama{{ else if (eq level "SP2") }}Peringatan Kedua{{ else }}Peringatan Terakhir{{ /if }}</p>
+  </div>
+
+  <div class="section-title">Data Karyawan</div>
+  <table class="info">
+    <tr><td>Nama Lengkap</td><td>:</td><td><strong>{{ user_name }}</strong></td></tr>
+    <tr><td>NIP / ID Karyawan</td><td>:</td><td>{{ employee_id }}</td></tr>
+    <tr><td>Departemen</td><td>:</td><td>{{ department }}</td></tr>
+  </table>
+
+  <div class="section-title">Detail Peringatan</div>
+  <table class="info">
+    <tr><td>Tanggal Terbit</td><td>:</td><td>{{ issued_at }}</td></tr>
+    <tr><td>Berlaku Sampai</td><td>:</td><td>{{ valid_until }}</td></tr>
+    <tr><td>Diterbitkan Oleh</td><td>:</td><td>{{ issuer_name }}</td></tr>
+  </table>
+
+  <div class="section-title">Alasan Pemberian Surat Peringatan</div>
+  <div class="reason-box">{{ reason }}</div>
+
+  {{#if notes}}
+  <div class="section-title">Catatan Tambahan</div>
+  <div class="reason-box" style="min-height:50px;">{{ notes }}</div>
+  {{/if}}
+
+  <div class="consequence">
+    <strong>Konsekuensi:</strong> Apabila karyawan melakukan pelanggaran lagi dalam masa berlaku surat ini,
+    maka perusahaan berhak memberikan sanksi yang lebih berat sesuai peraturan perusahaan yang berlaku,
+    termasuk pemutusan hubungan kerja.
+  </div>
+
+  <p style="margin: 12px 0; font-size: 10.5pt;">
+    Karyawan yang bersangkutan diwajibkan untuk membaca, memahami, dan menandatangani surat peringatan ini
+    sebagai tanda penerimaan dan kesanggupan untuk memperbaiki perilaku/kinerja.
+  </p>
+
+  <div class="signature-section">
+    <div class="sig-box">
+      <p>Diterbitkan oleh,</p>
+      <div class="sig-line">{{ issuer_name }}<br><span style="font-size:9pt; color:#666;">Admin / HR Manager</span></div>
+    </div>
+    <div class="sig-box">
+      <p>Karyawan yang bersangkutan,</p>
+      <div class="sig-line">{{ user_name }}<br><span style="font-size:9pt; color:#666;">Tanda tangan &amp; nama terang</span></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Dokumen ini digenerate secara digital oleh sistem AttendenX pada {{ generated_at }} WITA<br>
+    Surat Peringatan ini sah tanpa tanda tangan basah sesuai kebijakan perusahaan
+  </div>
+
+</body>
+</html>

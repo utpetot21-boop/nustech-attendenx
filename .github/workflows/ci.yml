@@ -1,0 +1,163 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Lint & Type Check ────────────────────────────────────────
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint (all workspaces)
+        run: npm run lint
+
+      - name: Run TypeScript type check (shared)
+        run: npm run type-check --workspace=shared
+
+      - name: Run TypeScript type check (backend)
+        run: npm run type-check --workspace=backend
+
+      - name: Run TypeScript type check (web)
+        run: npm run type-check --workspace=apps/web
+
+  # ── Backend Tests ─────────────────────────────────────────────
+  test-backend:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run backend tests
+        run: npm run test --workspace=backend
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: test_user
+          DB_PASSWORD: test_pass
+          DB_NAME: test_db
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test_jwt_secret_for_ci_only
+          JWT_REFRESH_SECRET: test_jwt_refresh_secret_for_ci
+
+  # ── Web Build ────────────────────────────────────────────────
+  build-web:
+    name: Web Build Check
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build --workspace=apps/web
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+
+  # ── Deploy to VPS (production only) ──────────────────────────
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: [test-backend, build-web]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Add VPS to known hosts
+        run: ssh-keyscan -H 76.13.23.42 >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        run: |
+          ssh ${{ secrets.VPS_USER }}@76.13.23.42 << 'EOF'
+            set -e
+            cd /opt/nustech-attendenx
+
+            echo "==> Pull kode terbaru"
+            git pull origin main
+
+            echo "==> Build & restart backend"
+            docker compose -f docker-compose.prod.yml up -d --build backend
+
+            echo "==> Tunggu backend sehat"
+            timeout 60 bash -c 'until docker exec attendenx_backend wget -qO- http://localhost:3001/health 2>/dev/null; do sleep 3; done'
+
+            echo "==> Jalankan migrasi DB"
+            docker compose -f docker-compose.prod.yml exec -T backend npm run migration:run
+
+            echo "==> Build & restart web"
+            docker compose -f docker-compose.prod.yml up -d --build web
+
+            echo "==> Cleanup image lama"
+            docker image prune -f
+
+            echo "Deployment selesai: $(date)"
+          EOF
