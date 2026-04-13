@@ -15,8 +15,8 @@ RUN npm ci --workspace=backend --workspace=shared --legacy-peer-deps
 COPY shared/ ./shared/
 COPY backend/ ./backend/
 
-# Build NestJS
-RUN npm run build --workspace=backend
+# Build shared first, then NestJS backend
+RUN npm run build --workspace=shared && npm run build --workspace=backend
 
 # ── Production stage ──────────────────────────────────────────
 FROM node:20-alpine AS production
@@ -35,6 +35,7 @@ RUN npm ci --workspace=backend --workspace=shared --legacy-peer-deps --omit=dev
 
 # Copy compiled output
 COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/shared/dist ./shared/dist
 
 # Copy Handlebars templates for BA PDF
 COPY backend/src/modules/service-reports/templates ./backend/dist/modules/service-reports/templates
