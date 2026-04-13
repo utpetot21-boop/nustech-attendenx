@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy monorepo root + workspace manifests
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json* tsconfig.base.json ./
 COPY backend/package.json ./backend/
 COPY shared/package.json ./shared/
 
