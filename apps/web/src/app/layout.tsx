@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   description: 'Sistem absensi, monitoring lapangan, dispatch tugas, dan manajemen cuti',
   keywords: ['absensi', 'attendance', 'nustech', 'monitoring', 'kunjungan'],
   robots: { index: false, follow: false }, // internal app
+  icons: { icon: '/favicon.svg' },
 };
 
 export const viewport: Viewport = {
