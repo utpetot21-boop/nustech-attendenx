@@ -254,9 +254,32 @@ export default function SchedulePage() {
     },
     onSuccess: (total: number) => {
       qc.invalidateQueries({ queryKey: ['team-schedule', weekStr] });
-      toast.success(`Jadwal office hours di-generate: ${total} entri baru`);
+      toast.success(`Jadwal minggu ini di-generate: ${total} entri baru`);
     },
     onError: () => toast.error('Gagal generate jadwal'),
+  });
+
+  const generateOHMonth = useMutation({
+    mutationFn: async () => {
+      const d0 = parseLocalDate(weekDates[0]);
+      const year = d0.getFullYear();
+      const month = d0.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const allDates = Array.from({ length: daysInMonth }, (_, i) => {
+        const d = new Date(year, month, i + 1);
+        return localDateStr(d);
+      });
+      const results = await Promise.all(
+        allDates.map(date => apiClient.post('/schedules/generate', { date }).then(r => r.data))
+      );
+      return results.reduce((sum: number, r: any) => sum + (r?.generated ?? 0), 0);
+    },
+    onSuccess: (total: number) => {
+      qc.invalidateQueries({ queryKey: ['team-schedule', weekStr] });
+      const d0 = parseLocalDate(weekDates[0]);
+      toast.success(`Jadwal ${d0.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} di-generate: ${total} entri baru`);
+    },
+    onError: () => toast.error('Gagal generate jadwal bulanan'),
   });
   const createHoliday = useMutation({
     mutationFn: (dto: object) => apiClient.post('/schedules/holidays', dto),
@@ -597,12 +620,20 @@ export default function SchedulePage() {
                     {ohUsers.length} karyawan · Hari kerja: {workDays.map(d => ALL_DAYS_LABEL[d] ?? d).join(', ')} · Libur pada hari libur nasional
                   </p>
                 </div>
-                <button
-                  onClick={() => generateOHWeek.mutate()}
-                  disabled={generateOHWeek.isPending}
-                  className="flex-shrink-0 h-9 px-3 rounded-xl text-xs font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-50 transition">
-                  {generateOHWeek.isPending ? 'Generating...' : 'Generate Jadwal'}
-                </button>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => generateOHWeek.mutate()}
+                    disabled={generateOHWeek.isPending || generateOHMonth.isPending}
+                    className="h-9 px-3 rounded-xl text-xs font-semibold text-[#007AFF] bg-[#007AFF]/10 hover:bg-[#007AFF]/20 disabled:opacity-50 transition">
+                    {generateOHWeek.isPending ? 'Generating...' : 'Generate Minggu Ini'}
+                  </button>
+                  <button
+                    onClick={() => generateOHMonth.mutate()}
+                    disabled={generateOHWeek.isPending || generateOHMonth.isPending}
+                    className="h-9 px-3 rounded-xl text-xs font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-50 transition">
+                    {generateOHMonth.isPending ? 'Generating...' : `Generate Bulan Ini`}
+                  </button>
+                </div>
               </div>
 
               <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden overflow-x-auto">
@@ -630,8 +661,9 @@ export default function SchedulePage() {
                       {weekDates.map(date => {
                         const entry = scheduleByUser.get(user.id)?.[date];
                         const isHoliday = holidayDates.has(date);
+                        const notGenerated = !entry;
                         const isDayOff  = entry ? entry.is_day_off : !workDays.includes(DAYS_MAP[parseLocalDate(date).getDay()]);
-                        const cellType  = isHoliday ? 'national_holiday' : isDayOff ? 'day_off' : 'work';
+                        const cellType  = isHoliday ? 'national_holiday' : isDayOff ? 'day_off' : notGenerated ? 'not_generated' : 'work';
                         const isToday   = date === TODAY;
                         return (
                           <div key={date}
@@ -646,6 +678,8 @@ export default function SchedulePage() {
                               </span>
                             ) : cellType === 'day_off' ? (
                               <span className="text-[11px] text-gray-300 dark:text-white/20">—</span>
+                            ) : cellType === 'not_generated' ? (
+                              <span className="text-[11px] text-gray-200 dark:text-white/15">·</span>
                             ) : (
                               <span className="text-[10px] font-medium text-[#15803D] dark:text-[#86EFAC]">Kerja</span>
                             )}
