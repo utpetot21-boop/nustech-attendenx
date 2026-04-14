@@ -440,6 +440,48 @@ export default function BerandaScreen() {
                 </Text>
               </View>
             )}
+
+            {/* ── Ringkasan bulan ini ── */}
+            {monthHistory.length > 0 && (
+              <View style={{
+                marginTop: 16,
+                paddingTop: 14,
+                borderTopWidth: B.default,
+                borderTopColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+              }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: lTertiary(isDark) }}>
+                    Bulan Ini
+                  </Text>
+                  {totalWorkMinutes > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Clock size={11} strokeWidth={2} color={C.green} />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: C.green }}>
+                        {totalWorkHours}j{totalWorkMins > 0 ? ` ${totalWorkMins}m` : ''} kerja
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {attendanceSummary.filter(s => s.count > 0).map(({ key, label, color, count }) => (
+                    <View
+                      key={key}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 5,
+                        backgroundColor: color + '14',
+                        borderRadius: 8, borderWidth: B.default,
+                        borderColor: color + '28',
+                        paddingHorizontal: 8, paddingVertical: 5,
+                      }}
+                    >
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color }}>{count}</Text>
+                      <Text style={{ fontSize: 11, color: lSecondary(isDark) }}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
           </TouchableOpacity>
 
           {/* ── CHECKOUT COUNTDOWN ─────────────────────────────────────────── */}
@@ -545,70 +587,6 @@ export default function BerandaScreen() {
             }}>
               <ChevronRight size={13} strokeWidth={2.2} color={C.purple} />
             </View>
-          </TouchableOpacity>
-
-          {/* ── RINGKASAN KEHADIRAN BULAN INI ─────────────────────────────── */}
-          <TouchableOpacity
-            onPress={() => router.push('/(main)/attendance' as any)}
-            activeOpacity={0.85}
-            style={{
-              backgroundColor: cardBg(isDark),
-              borderRadius: R.lg, borderWidth: B.default,
-              borderColor: isDark ? C.separator.dark : C.separator.light,
-              padding: 16,
-              ...(isDark ? S.cardDark : S.card),
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, color: lTertiary(isDark) }}>
-                Ringkasan Bulan Ini
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>
-                  {monthHistory.length} hari kerja
-                </Text>
-                <ChevronRight size={12} strokeWidth={2} color={lTertiary(isDark)} />
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {attendanceSummary.map(({ key, label, color, count }) => (
-                <View
-                  key={key}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 6,
-                    backgroundColor: color + '14',
-                    borderRadius: 10, borderWidth: B.default,
-                    borderColor: color + '28',
-                    paddingHorizontal: 10, paddingVertical: 6,
-                  }}
-                >
-                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} />
-                  <Text style={{ fontSize: 13, fontWeight: '700', color, lineHeight: 16 }}>{count}</Text>
-                  <Text style={{ fontSize: 12, color: lSecondary(isDark), lineHeight: 16 }}>{label}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Total jam kerja real */}
-            {totalWorkMinutes > 0 && (
-              <View style={{
-                marginTop: 10,
-                paddingTop: 10,
-                borderTopWidth: B.default,
-                borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Clock size={13} strokeWidth={2} color={lTertiary(isDark)} />
-                  <Text style={{ fontSize: 12, color: lSecondary(isDark) }}>
-                    Total Jam Kerja Bulan Ini
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: C.green, letterSpacing: -0.3 }}>
-                  {totalWorkHours}j {totalWorkMins > 0 ? `${totalWorkMins}m` : ''}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
 
           {/* ── BENTO: TUGAS + KUNJUNGAN ───────────────────────────────────── */}
