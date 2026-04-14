@@ -18,6 +18,7 @@ import {
   getWeekDates,
   type UserSchedule,
 } from '@/services/schedule.service';
+import { attendanceService, type AttendanceRecord } from '@/services/attendance.service';
 
 /** Konversi tanggal arbitrary ke ISO week string (YYYY-Www) */
 function getWeekStringForDate(date: Date): string {
@@ -52,7 +53,7 @@ function scheduleToEvent(s: UserSchedule) {
     return { id: s.id, type: 'holiday' as const, title: 'Hari Libur Nasional', color: C.red, time_start: undefined, time_end: undefined };
   }
   if (s.is_day_off) {
-    return { id: s.id, type: 'day_off' as const, title: 'Libur', color: '#9CA3AF', time_start: undefined, time_end: undefined };
+    return { id: s.id, type: 'day_off' as const, title: 'Libur', color: C.red, time_start: undefined, time_end: undefined };
   }
   return {
     id: s.id,
@@ -90,8 +91,18 @@ export default function ScheduleScreen() {
   const { data: monthSchedules = [], isLoading: loadingMonth } = useQuery({
     queryKey: ['my-schedule-month', currentMonth],
     queryFn: () => scheduleService.getMySchedule({ month: currentMonth }),
-    enabled: viewMode === 'month',
   });
+
+  const { data: attendanceHistory = [] } = useQuery({
+    queryKey: ['attendance-history', currentMonth],
+    queryFn: () => attendanceService.getHistory({ month: currentMonth }),
+  });
+
+  const attendanceByDate = useMemo(() => {
+    const map: Record<string, AttendanceRecord> = {};
+    for (const a of attendanceHistory) map[a.date] = a;
+    return map;
+  }, [attendanceHistory]);
 
   // Map schedules by date
   const scheduleByDate = useMemo(() => {
@@ -330,6 +341,7 @@ export default function ScheduleScreen() {
               <AgendaList
                 date={selectedDate}
                 events={(scheduleByDate[selectedDate] ?? []).map(scheduleToEvent)}
+                attendance={attendanceByDate[selectedDate] ?? null}
               />
             </View>
 

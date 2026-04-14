@@ -13,9 +13,17 @@ interface ScheduleEvent {
   is_holiday?: boolean;
 }
 
+interface AttendanceSummary {
+  status: string;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  late_minutes: number;
+}
+
 interface Props {
   date: string;
   events: ScheduleEvent[];
+  attendance?: AttendanceSummary | null;
 }
 
 const TYPE_COLORS: Record<string, { bg: string; bgDark: string; border: string; borderDark: string }> = {
@@ -44,7 +52,21 @@ function formatDayLabel(dateStr: string): string {
   });
 }
 
-export function AgendaList({ date, events }: Props) {
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; bgDark: string }> = {
+  hadir:     { label: 'Hadir',     color: '#34C759', bg: '#F0FDF4', bgDark: 'rgba(52,199,89,0.15)'   },
+  terlambat: { label: 'Terlambat', color: '#FF9500', bg: '#FFF7ED', bgDark: 'rgba(255,149,0,0.15)'   },
+  alfa:      { label: 'Alfa',      color: '#FF3B30', bg: '#FEF2F2', bgDark: 'rgba(255,59,48,0.15)'   },
+  izin:      { label: 'Izin',      color: '#007AFF', bg: '#EFF6FF', bgDark: 'rgba(0,122,255,0.15)'   },
+  sakit:     { label: 'Sakit',     color: '#AF52DE', bg: '#F5F3FF', bgDark: 'rgba(175,82,222,0.15)'  },
+  dinas:     { label: 'Dinas',     color: '#5AC8FA', bg: '#ECFEFF', bgDark: 'rgba(90,200,250,0.15)'  },
+};
+
+function toWITA(d: string | null) {
+  if (!d) return null;
+  return new Date(d).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' });
+}
+
+export function AgendaList({ date, events, attendance }: Props) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
 
@@ -104,56 +126,57 @@ export function AgendaList({ date, events }: Props) {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {/* Color dot */}
-                <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: event.color,
-                    marginTop: 1,
-                  }}
-                />
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: event.color, marginTop: 1 }} />
                 <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: '600',
-                      color: isDark ? '#FFFFFF' : '#111111',
-                      letterSpacing: -0.2,
-                    }}
-                  >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#FFFFFF' : '#111111', letterSpacing: -0.2 }}>
                     {event.title}
                   </Text>
                   {event.subtitle && (
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280',
-                        marginTop: 1,
-                      }}
-                    >
+                    <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280', marginTop: 1 }}>
                       {event.subtitle}
                     </Text>
                   )}
                 </View>
-                {/* Time */}
                 {event.time_start && (
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: '500',
-                      color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280',
-                    }}
-                  >
-                    {event.time_start.slice(0, 5)}
-                    {event.time_end ? `–${event.time_end.slice(0, 5)}` : ''}
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280' }}>
+                    {event.time_start.slice(0, 5)}{event.time_end ? `–${event.time_end.slice(0, 5)}` : ''}
                   </Text>
                 )}
               </View>
             </View>
           );
         })}
+
+        {/* Attendance status card */}
+        {attendance && STATUS_CONFIG[attendance.status] && (
+          <View style={{
+            backgroundColor: isDark ? STATUS_CONFIG[attendance.status].bgDark : STATUS_CONFIG[attendance.status].bg,
+            borderRadius: 14,
+            borderWidth: 0.5,
+            borderColor: STATUS_CONFIG[attendance.status].color + '55',
+            padding: 12,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: STATUS_CONFIG[attendance.status].color }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#FFFFFF' : '#111111' }}>
+                  {STATUS_CONFIG[attendance.status].label}
+                  {attendance.status === 'terlambat' && attendance.late_minutes > 0
+                    ? ` · ${attendance.late_minutes} menit` : ''}
+                </Text>
+                {(attendance.check_in_at || attendance.check_out_at) && (
+                  <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280', marginTop: 1 }}>
+                    {toWITA(attendance.check_in_at) ?? '—'}
+                    {attendance.check_out_at ? ` → ${toWITA(attendance.check_out_at)}` : ''}
+                  </Text>
+                )}
+              </View>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: STATUS_CONFIG[attendance.status].color }}>
+                Absensi
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
