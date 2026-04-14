@@ -31,6 +31,20 @@ import WeatherBanner, { getPeriodLabel } from '@/components/home/WeatherBanner';
 
 import { attendanceService, type AttendanceRecord } from '@/services/attendance.service';
 import { scheduleService, getCurrentWeekString } from '@/services/schedule.service';
+
+const MONTH_NOW = (() => {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
+})();
+
+const STATUS_SUMMARY = [
+  { key: 'hadir',     label: 'Hadir',     color: '#34C759' },
+  { key: 'terlambat', label: 'Terlambat', color: '#FF9500' },
+  { key: 'alfa',      label: 'Alfa',      color: '#FF3B30' },
+  { key: 'izin',      label: 'Izin',      color: '#007AFF' },
+  { key: 'sakit',     label: 'Sakit',     color: '#AF52DE' },
+  { key: 'dinas',     label: 'Dinas',     color: '#5AC8FA' },
+] as const;
 import { useCheckoutTimer } from '@/hooks/useCheckoutTimer';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 
@@ -230,6 +244,17 @@ export default function BerandaScreen() {
     refetchInterval: 10_000,
   });
 
+  const { data: monthHistory = [] } = useQuery<AttendanceRecord[]>({
+    queryKey: ['attendance-history', MONTH_NOW],
+    queryFn: () => attendanceService.getHistory({ month: MONTH_NOW }),
+    staleTime: 5 * 60_000,
+  });
+
+  const attendanceSummary = STATUS_SUMMARY.map(s => ({
+    ...s,
+    count: monthHistory.filter(r => r.status === s.key).length,
+  }));
+
   const todayDate = new Date().toISOString().split('T')[0];
   const { data: todaySchedules = [] } = useQuery({
     queryKey: ['schedule-today', todayDate],
@@ -246,6 +271,7 @@ export default function BerandaScreen() {
   const onRefresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['attendance-today'] });
     qc.invalidateQueries({ queryKey: ['checkout-info'] });
+    qc.invalidateQueries({ queryKey: ['attendance-history', MONTH_NOW] });
   }, [qc]);
 
   const greeting = getPeriodLabel;
@@ -509,6 +535,49 @@ export default function BerandaScreen() {
               alignItems: 'center', justifyContent: 'center',
             }}>
               <ChevronRight size={13} strokeWidth={2.2} color={C.purple} />
+            </View>
+          </TouchableOpacity>
+
+          {/* ── RINGKASAN KEHADIRAN BULAN INI ─────────────────────────────── */}
+          <TouchableOpacity
+            onPress={() => router.push('/(main)/attendance' as any)}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: cardBg(isDark),
+              borderRadius: R.lg, borderWidth: B.default,
+              borderColor: isDark ? C.separator.dark : C.separator.light,
+              padding: 16,
+              ...(isDark ? S.cardDark : S.card),
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, color: lTertiary(isDark) }}>
+                Ringkasan Bulan Ini
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>
+                  {monthHistory.length} hari kerja
+                </Text>
+                <ChevronRight size={12} strokeWidth={2} color={lTertiary(isDark)} />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {attendanceSummary.map(({ key, label, color, count }) => (
+                <View
+                  key={key}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 6,
+                    backgroundColor: color + '14',
+                    borderRadius: 10, borderWidth: B.default,
+                    borderColor: color + '28',
+                    paddingHorizontal: 10, paddingVertical: 6,
+                  }}
+                >
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color, lineHeight: 16 }}>{count}</Text>
+                  <Text style={{ fontSize: 12, color: lSecondary(isDark), lineHeight: 16 }}>{label}</Text>
+                </View>
+              ))}
             </View>
           </TouchableOpacity>
 
