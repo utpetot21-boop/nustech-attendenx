@@ -66,13 +66,12 @@ function AutoBounds({ markers }: { markers: MapMarker[] }) {
 
 function makeOfficeIcon() {
   return L.divIcon({
-    html: `<div style="
-      width:36px;height:36px;border-radius:50%;
-      background:#fff;border:3px solid #1D4ED8;
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 2px 8px rgba(0,0,0,0.25);font-size:18px;line-height:1">🏢</div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
+    html: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">
+      <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 24 14 24S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill="#1D4ED8"/>
+      <circle cx="14" cy="14" r="6" fill="white"/>
+    </svg>`,
+    iconSize: [28, 38],
+    iconAnchor: [14, 38],
     className: '',
   });
 }
