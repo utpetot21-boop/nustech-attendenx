@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   useColorScheme,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, R, B, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -82,21 +84,36 @@ export default function ScheduleScreen() {
   const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
 
   // Queries
-  const { data: weekSchedules = [], isLoading: loadingWeek } = useQuery({
+  const { data: weekSchedules = [], isLoading: loadingWeek, refetch: refetchWeek } = useQuery({
     queryKey: ['my-schedule-week', currentWeek],
     queryFn: () => scheduleService.getMySchedule({ week: currentWeek }),
-    // always enabled — agenda mode needs week data too
   });
 
-  const { data: monthSchedules = [], isLoading: loadingMonth } = useQuery({
+  const { data: monthSchedules = [], isLoading: loadingMonth, refetch: refetchMonth } = useQuery({
     queryKey: ['my-schedule-month', currentMonth],
     queryFn: () => scheduleService.getMySchedule({ month: currentMonth }),
   });
 
-  const { data: attendanceHistory = [] } = useQuery({
+  const { data: attendanceHistory = [], refetch: refetchAttendance } = useQuery({
     queryKey: ['attendance-history', currentMonth],
     queryFn: () => attendanceService.getHistory({ month: currentMonth }),
   });
+
+  // Refetch saat screen kembali fokus
+  useFocusEffect(
+    useCallback(() => {
+      refetchWeek();
+      refetchMonth();
+      refetchAttendance();
+    }, [refetchWeek, refetchMonth, refetchAttendance])
+  );
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.allSettled([refetchWeek(), refetchMonth(), refetchAttendance()]);
+    setRefreshing(false);
+  }, [refetchWeek, refetchMonth, refetchAttendance]);
 
   const attendanceByDate = useMemo(() => {
     const map: Record<string, AttendanceRecord> = {};
@@ -237,6 +254,13 @@ export default function ScheduleScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={isDark ? '#FFFFFF' : C.blue}
+          />
+        }
       >
         {isLoading && (
           <View style={{ paddingTop: 40, alignItems: 'center' }}>
