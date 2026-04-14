@@ -54,8 +54,8 @@ function makePinIcon(color: string) {
         d="M14 1C7.1 1 1.5 6.6 1.5 13.5c0 2 .5 3.9 1.3 5.6C5.3 8.5 9.2 4.5 14 4.5s8.7 4 11.2 10.6c.8-1.7 1.3-3.6 1.3-5.6C26.5 6.6 20.9 1 14 1z"
         fill="rgba(255,255,255,0.25)"
       />
-      <!-- Titik putih tengah -->
-      <circle cx="14" cy="14" r="5.5" fill="white" opacity="0.95"/>
+      <!-- Titik tengah transparan -->
+      <circle cx="14" cy="14" r="5.5" fill="white" opacity="0"/>
     </svg>
   `.trim();
 
