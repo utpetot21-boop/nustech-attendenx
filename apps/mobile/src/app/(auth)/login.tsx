@@ -23,6 +23,7 @@ import { Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react-native';
 import api from '@/services/api';
 import { getCachedPushToken } from '@/services/notifications.service';
 import { useAuthStore } from '@/stores/auth.store';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BANNER_HEIGHT = SCREEN_HEIGHT * 0.42;
@@ -46,6 +47,7 @@ export default function LoginScreen() {
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
   const setUser = useAuthStore((s) => s.setUser);
+  const queryClient = useQueryClient();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -82,6 +84,7 @@ export default function LoginScreen() {
         SecureStore.setItemAsync('user', JSON.stringify(response.data.user)),
       ]);
       setUser(response.data.user as any);
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       if (require_password_change) {
         router.replace('/(auth)/change-password');
       } else {
