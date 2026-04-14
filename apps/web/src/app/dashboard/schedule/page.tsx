@@ -247,14 +247,19 @@ export default function SchedulePage() {
   });
   const generateOHWeek = useMutation({
     mutationFn: async () => {
-      const results = await Promise.allSettled(
-        weekDates.map(date => apiClient.post('/schedules/generate', { date }).then(r => r.data))
-      );
-      return results.reduce((sum: number, r) =>
-        sum + (r.status === 'fulfilled' ? (r.value?.generated ?? 0) : 0), 0);
+      let total = 0;
+      for (const date of weekDates) {
+        try {
+          const r = await apiClient.post('/schedules/generate', { date });
+          total += r.data?.generated ?? 0;
+        } catch {
+          // skip hari yang gagal
+        }
+      }
+      return total;
     },
     onSuccess: (total: number) => {
-      qc.invalidateQueries({ queryKey: ['team-schedule', weekStr] });
+      qc.invalidateQueries({ queryKey: ['team-schedule'] });
       toast.success(total > 0 ? `Jadwal minggu ini di-generate: ${total} entri baru` : 'Jadwal minggu ini sudah ter-generate');
     },
     onError: () => toast.error('Gagal generate jadwal'),
@@ -262,22 +267,30 @@ export default function SchedulePage() {
 
   const generateOHMonth = useMutation({
     mutationFn: async () => {
-      const d0 = parseLocalDate(weekDates[0]);
-      const yr = d0.getFullYear();
-      const mo = d0.getMonth();
+      // Gunakan tanggal hari ini untuk menentukan bulan, bukan weekDates[0]
+      // supaya tidak tergantung pada minggu yang sedang dilihat
+      const now = new Date();
+      const yr = now.getFullYear();
+      const mo = now.getMonth();
       const daysInMonth = new Date(yr, mo + 1, 0).getDate();
       const allDates = Array.from({ length: daysInMonth }, (_, i) =>
         localDateStr(new Date(yr, mo, i + 1))
       );
-      const results = await Promise.allSettled(
-        allDates.map(date => apiClient.post('/schedules/generate', { date }).then(r => r.data))
-      );
-      const total = results.reduce((sum: number, r) =>
-        sum + (r.status === 'fulfilled' ? (r.value?.generated ?? 0) : 0), 0);
+      // Kirim berurutan (serial) untuk menghindari overload DB
+      let total = 0;
+      for (const date of allDates) {
+        try {
+          const r = await apiClient.post('/schedules/generate', { date });
+          total += r.data?.generated ?? 0;
+        } catch {
+          // skip hari yang gagal, lanjut ke hari berikutnya
+        }
+      }
       return { total, month: new Date(yr, mo, 1) };
     },
     onSuccess: ({ total, month }: { total: number; month: Date }) => {
-      qc.invalidateQueries({ queryKey: ['team-schedule', weekStr] });
+      // Invalidate semua minggu yang mungkin terpengaruh
+      qc.invalidateQueries({ queryKey: ['team-schedule'] });
       const label = month.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
       toast.success(total > 0 ? `Jadwal ${label} di-generate: ${total} entri baru` : `Jadwal ${label} sudah ter-generate`);
     },
