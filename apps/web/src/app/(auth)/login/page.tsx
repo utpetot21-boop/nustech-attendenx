@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 import { apiClient } from '@/lib/api';
 import { setToken, setAuthUser, type LoginResponse } from '@/lib/auth';
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -118,18 +120,27 @@ export default function LoginPage() {
               <label className="block text-xs font-semibold uppercase tracking-wider text-light-text-secondary dark:text-white/60 mb-1.5">
                 Password
               </label>
-              <input
-                type="password"
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className={`w-full px-3 py-2.5 rounded-xl text-sm bg-white/85 dark:bg-white/10
-                  border dark:border-white/18 outline-none transition
-                  text-light-text-primary dark:text-white
-                  placeholder:text-light-text-hint dark:placeholder:text-white/35
-                  focus:border-ios-blue focus:ring-2 focus:ring-ios-blue/20
-                  ${errors.password ? 'border-ios-red' : 'border-black/10'}`}
-                {...register('password')}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className={`w-full px-3 py-2.5 pr-10 rounded-xl text-sm bg-white/85 dark:bg-white/10
+                    border dark:border-white/18 outline-none transition
+                    text-light-text-primary dark:text-white
+                    placeholder:text-light-text-hint dark:placeholder:text-white/35
+                    focus:border-ios-blue focus:ring-2 focus:ring-ios-blue/20
+                    ${errors.password ? 'border-ios-red' : 'border-black/10'}`}
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-light-text-hint dark:text-white/40"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               {errors.password && (
                 <p className="text-xs text-ios-red mt-1">{errors.password.message}</p>
               )}
