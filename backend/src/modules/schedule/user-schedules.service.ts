@@ -96,6 +96,27 @@ export class UserSchedulesService {
   }
 
   /**
+   * Generate jadwal untuk seluruh bulan (YYYY-MM)
+   */
+  async generateForMonth(month: string): Promise<{ generated: number; skipped: number }> {
+    const [year, mon] = month.split('-').map(Number);
+    const daysInMonth = new Date(year, mon, 0).getDate();
+    let generated = 0;
+    let skipped = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(mon).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      try {
+        const count = await this.generatorService.generateForDate(dateStr);
+        generated += count;
+        if (count === 0) skipped++;
+      } catch {
+        skipped++;
+      }
+    }
+    return { generated, skipped };
+  }
+
+  /**
    * Assign shift ke karyawan (oleh admin)
    */
   async assignShift(payload: {

@@ -267,26 +267,10 @@ export default function SchedulePage() {
 
   const generateOHMonth = useMutation({
     mutationFn: async () => {
-      // Gunakan tanggal hari ini untuk menentukan bulan, bukan weekDates[0]
-      // supaya tidak tergantung pada minggu yang sedang dilihat
       const now = new Date();
-      const yr = now.getFullYear();
-      const mo = now.getMonth();
-      const daysInMonth = new Date(yr, mo + 1, 0).getDate();
-      const allDates = Array.from({ length: daysInMonth }, (_, i) =>
-        localDateStr(new Date(yr, mo, i + 1))
-      );
-      // Kirim berurutan (serial) untuk menghindari overload DB
-      let total = 0;
-      for (const date of allDates) {
-        try {
-          const r = await apiClient.post('/schedules/generate', { date });
-          total += r.data?.generated ?? 0;
-        } catch {
-          // skip hari yang gagal, lanjut ke hari berikutnya
-        }
-      }
-      return { total, month: new Date(yr, mo, 1) };
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const r = await apiClient.post('/schedules/generate-month', { month: monthStr });
+      return { total: r.data?.generated ?? 0, month: now };
     },
     onSuccess: ({ total, month }: { total: number; month: Date }) => {
       // Invalidate semua minggu yang mungkin terpengaruh

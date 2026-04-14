@@ -155,6 +155,13 @@ export class ScheduleController {
     return this.userSchedulesService.generateForDate(date);
   }
 
+  @Post('generate-month')
+  @RequirePermission('schedule:manage')
+  @ApiOperation({ summary: 'Generate jadwal untuk seluruh bulan (YYYY-MM)' })
+  generateMonth(@Body('month') month: string) {
+    return this.userSchedulesService.generateForMonth(month);
+  }
+
   @Post('assign')
   @RequirePermission('schedule:manage')
   @ApiOperation({ summary: 'Assign shift ke karyawan' })
