@@ -107,32 +107,16 @@ function makeSosPinIcon() {
   });
 }
 
-// ── Office pin — teardrop biru dengan ikon gedung ─────────────────────────────
+// ── Office pin — teardrop merah outline putih, titik putih tengah ─────────────
 function makeOfficePinIcon() {
-  const color = '#1D4ED8';
-  const w = 32, h = 48;
+  const w = 28, h = 38;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-      <defs>
-        <filter id="oshadow" x="-30%" y="-20%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.35)"/>
-        </filter>
-      </defs>
       <path
-        d="M16 1C8.3 1 2 7.3 2 15c0 5 2.5 9.5 6.3 12.2L16 47l7.7-19.8C27.5 24.5 30 20 30 15 30 7.3 23.7 1 16 1z"
-        fill="${color}"
-        filter="url(#oshadow)"
+        d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 24 14 24S28 23.333 28 14C28 6.268 21.732 0 14 0z"
+        fill="#EA4335" stroke="white" stroke-width="2"
       />
-      <path
-        d="M16 1C8.3 1 2 7.3 2 15c0 2.3.5 4.4 1.5 6.3C6.3 11 10.8 6.5 16 6.5s9.7 4.5 12.5 14.8c1-.2 1.5-2 1.5-6.3C30 7.3 23.7 1 16 1z"
-        fill="rgba(255,255,255,0.25)"
-      />
-      <!-- Ikon gedung mini -->
-      <rect x="10" y="9"  width="12" height="12" rx="1" fill="white" opacity="0.9"/>
-      <rect x="12" y="12" width="2"  height="2"  fill="${color}"/>
-      <rect x="15" y="12" width="2"  height="2"  fill="${color}"/>
-      <rect x="18" y="12" width="2"  height="2"  fill="${color}"/>
-      <rect x="14" y="15" width="4"  height="6"  fill="${color}"/>
+      <circle cx="14" cy="14" r="5" fill="white"/>
     </svg>
   `.trim();
 
