@@ -255,6 +255,15 @@ export default function BerandaScreen() {
     count: monthHistory.filter(r => r.status === s.key).length,
   }));
 
+  // Total jam kerja real dari check_in_at → check_out_at
+  const totalWorkMinutes = monthHistory.reduce((sum, r) => {
+    if (!r.check_in_at || !r.check_out_at) return sum;
+    const diff = new Date(r.check_out_at).getTime() - new Date(r.check_in_at).getTime();
+    return sum + Math.max(0, Math.floor(diff / 60000));
+  }, 0);
+  const totalWorkHours = Math.floor(totalWorkMinutes / 60);
+  const totalWorkMins  = totalWorkMinutes % 60;
+
   const todayDate = new Date().toISOString().split('T')[0];
   const { data: todaySchedules = [] } = useQuery({
     queryKey: ['schedule-today', todayDate],
@@ -579,6 +588,27 @@ export default function BerandaScreen() {
                 </View>
               ))}
             </View>
+
+            {/* Total jam kerja real */}
+            {totalWorkMinutes > 0 && (
+              <View style={{
+                marginTop: 10,
+                paddingTop: 10,
+                borderTopWidth: B.default,
+                borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Clock size={13} strokeWidth={2} color={lTertiary(isDark)} />
+                  <Text style={{ fontSize: 12, color: lSecondary(isDark) }}>
+                    Total Jam Kerja Bulan Ini
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: C.green, letterSpacing: -0.3 }}>
+                  {totalWorkHours}j {totalWorkMins > 0 ? `${totalWorkMins}m` : ''}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           {/* ── BENTO: TUGAS + KUNJUNGAN ───────────────────────────────────── */}
