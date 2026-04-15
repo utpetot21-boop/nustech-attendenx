@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Palmtree, Clock, CheckCircle2, XCircle, MessageSquareWarning,
-  Users, Calendar, Check, X, ExternalLink, ChevronRight, Search,
+  Users, Calendar, Check, X, ExternalLink, ChevronRight, Search, ArrowLeftRight,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
@@ -31,6 +31,21 @@ interface Objection {
   created_at: string;
 }
 
+interface SwapRequest {
+  id: string;
+  type: 'with_person' | 'with_own_dayoff';
+  status: 'pending_target' | 'pending_admin' | 'approved' | 'rejected' | 'cancelled';
+  requester_date: string;
+  target_date: string;
+  notes?: string;
+  reject_reason?: string;
+  created_at: string;
+  requester?: { id: string; full_name: string };
+  target_user?: { id: string; full_name: string } | null;
+  requester_shift?: { name: string; start_time: string; end_time: string } | null;
+  target_shift?: { name: string; start_time: string; end_time: string } | null;
+}
+
 interface BalanceRow {
   user?: { id: string; full_name: string };
   balance_days: number;
@@ -52,6 +67,24 @@ const STATUS_MAP: Record<string, { label: string; bg: string; text: string; dot:
   approved: { label: 'Disetujui', bg: 'bg-[#F0FDF4]', text: 'text-[#166534]', dot: 'bg-[#34C759]', ring: 'border-[#34C759]/30' },
   rejected: { label: 'Ditolak',   bg: 'bg-[#FFF1F2]', text: 'text-[#9F1239]', dot: 'bg-[#FF3B30]', ring: 'border-[#FF3B30]/30' },
 };
+
+const SWAP_STATUS_MAP: Record<string, { label: string; bg: string; text: string; dot: string; ring: string }> = {
+  pending_target: { label: 'Menunggu Rekan',  bg: 'bg-[#EFF6FF]', text: 'text-[#1D4ED8]', dot: 'bg-[#007AFF]', ring: 'border-[#007AFF]/30' },
+  pending_admin:  { label: 'Menunggu Admin',  bg: 'bg-[#FFFBEB]', text: 'text-[#92400E]', dot: 'bg-[#FF9500]', ring: 'border-[#FF9500]/30' },
+  approved:       { label: 'Disetujui',       bg: 'bg-[#F0FDF4]', text: 'text-[#166534]', dot: 'bg-[#34C759]', ring: 'border-[#34C759]/30' },
+  rejected:       { label: 'Ditolak',         bg: 'bg-[#FFF1F2]', text: 'text-[#9F1239]', dot: 'bg-[#FF3B30]', ring: 'border-[#FF3B30]/30' },
+  cancelled:      { label: 'Dibatalkan',      bg: 'bg-gray-50 dark:bg-white/[0.04]', text: 'text-gray-400 dark:text-white/30', dot: 'bg-gray-300', ring: 'border-gray-200' },
+};
+
+function SwapStatusBadge({ status }: { status: string }) {
+  const s = SWAP_STATUS_MAP[status] ?? SWAP_STATUS_MAP.pending_admin;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${s.bg} ${s.text} ${s.ring}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+      {s.label}
+    </span>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_MAP[status] ?? STATUS_MAP.pending;
@@ -189,7 +222,7 @@ function ObjectionCard({ obj, onApprove, onReject }: {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function LeavePage() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'requests' | 'objections' | 'balances'>('requests');
+  const [tab, setTab] = useState<'requests' | 'objections' | 'balances' | 'swaps'>('requests');
   const [searchQ, setSearchQ]         = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -200,6 +233,9 @@ export default function LeavePage() {
   // Reject objection
   const [rejectObjId, setRejectObjId]       = useState<string | null>(null);
   const [rejectObjReason, setRejectObjReason] = useState('');
+
+  const [rejectSwapId, setRejectSwapId]     = useState<string | null>(null);
+  const [rejectSwapReason, setRejectSwapReason] = useState('');
 
   const { data: requestsData, isLoading: loadingRequests } = useQuery({
     queryKey: ['leave-requests-web'],
@@ -232,6 +268,21 @@ export default function LeavePage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['leave-objections'] }); setRejectObjId(null); setRejectObjReason(''); },
   });
 
+  const { data: swapsData, isLoading: loadingSwaps } = useQuery({
+    queryKey: ['swap-requests-admin'],
+    queryFn: () => apiClient.get('/schedule-swap/requests').then((r) => r.data as { items: SwapRequest[]; total: number }),
+    enabled: tab === 'swaps',
+  });
+  const approveSwapMutation = useMutation({
+    mutationFn: (id: string) => apiClient.post(`/schedule-swap/requests/${id}/approve`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['swap-requests-admin'] }),
+  });
+  const rejectSwapMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiClient.post(`/schedule-swap/requests/${id}/reject`, { reason }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['swap-requests-admin'] }); setRejectSwapId(null); setRejectSwapReason(''); },
+  });
+
   const requests     = requestsData?.items ?? [];
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
   const approvedCount = requests.filter((r) => r.status === 'approved').length;
@@ -242,7 +293,9 @@ export default function LeavePage() {
     const matchStatus = statusFilter === 'all' || r.status === statusFilter;
     return matchSearch && matchStatus;
   });
-  const pendingObjCount = (objections as Objection[]).filter((o) => o.status === 'pending').length;
+  const pendingObjCount  = (objections as Objection[]).filter((o) => o.status === 'pending').length;
+  const swaps            = swapsData?.items ?? [];
+  const pendingSwapCount = swaps.filter((s) => s.status === 'pending_admin').length;
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-gray-950">
@@ -266,6 +319,7 @@ export default function LeavePage() {
           {([
             { key: 'requests',   label: 'Pengajuan',      count: pendingCount },
             { key: 'objections', label: 'Keberatan',      count: pendingObjCount },
+            { key: 'swaps',      label: 'Tukar Jadwal',   count: pendingSwapCount },
             { key: 'balances',   label: 'Saldo Karyawan', count: 0 },
           ] as const).map(({ key, label, count }) => (
             <button key={key} onClick={() => setTab(key)}
@@ -467,6 +521,92 @@ export default function LeavePage() {
 
         {/* ── BALANCES ── */}
         {tab === 'balances' && <BalancesTab />}
+
+        {/* ── SWAPS ── */}
+        {tab === 'swaps' && (
+          loadingSwaps ? <LoadingSpinner /> : (
+            <div className="space-y-3">
+              {swaps.length === 0 ? (
+                <EmptyState icon={ArrowLeftRight} label="Belum ada permintaan tukar jadwal" />
+              ) : swaps.map((swap) => {
+                const isPendingAdmin = swap.status === 'pending_admin';
+                const fmtDate = (d: string) => new Date(d).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+                return (
+                  <div key={swap.id} className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-[#FF9500]/10 flex items-center justify-center flex-shrink-0">
+                          <ArrowLeftRight size={15} className="text-[#FF9500]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {swap.type === 'with_person' ? 'Tukar dengan Rekan' : 'Tukar dengan Hari Libur'}
+                          </p>
+                          <p className="text-[11px] text-gray-400 dark:text-white/40">
+                            {new Date(swap.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <SwapStatusBadge status={swap.status} />
+                    </div>
+
+                    {/* Jadwal Detail */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.10)] rounded-xl p-3">
+                        <p className="text-[10px] font-semibold text-[#007AFF] uppercase tracking-wide mb-1">
+                          {swap.requester?.full_name ?? '—'}
+                        </p>
+                        <p className="text-xs font-medium text-gray-800 dark:text-white">{fmtDate(swap.requester_date)}</p>
+                        {swap.requester_shift && (
+                          <p className="text-[10px] text-gray-500 dark:text-white/50 mt-0.5">
+                            {swap.requester_shift.name} · {swap.requester_shift.start_time.slice(0,5)}–{swap.requester_shift.end_time.slice(0,5)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.10)] rounded-xl p-3">
+                        <p className="text-[10px] font-semibold text-[#15803D] dark:text-[#86EFAC] uppercase tracking-wide mb-1">
+                          {swap.type === 'with_person' ? (swap.target_user?.full_name ?? '—') : 'Libur Sendiri'}
+                        </p>
+                        <p className="text-xs font-medium text-gray-800 dark:text-white">{fmtDate(swap.target_date)}</p>
+                        {swap.target_shift && (
+                          <p className="text-[10px] text-gray-500 dark:text-white/50 mt-0.5">
+                            {swap.target_shift.name} · {swap.target_shift.start_time.slice(0,5)}–{swap.target_shift.end_time.slice(0,5)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    {swap.notes && (
+                      <p className="text-xs text-gray-500 dark:text-white/40 italic mb-3">"{swap.notes}"</p>
+                    )}
+                    {swap.reject_reason && (
+                      <p className="text-xs text-[#DC2626] mb-3">Alasan ditolak: {swap.reject_reason}</p>
+                    )}
+
+                    {/* Actions */}
+                    {isPendingAdmin && (
+                      <div className="flex gap-2 pt-3 border-t border-black/[0.05] dark:border-white/[0.06]">
+                        <button
+                          onClick={() => { setRejectSwapId(swap.id); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#FFF1F2] hover:bg-[#FFE4E6] text-[#9F1239] border border-[#FECACA] rounded-xl text-xs font-semibold transition">
+                          <X size={13} /> Tolak
+                        </button>
+                        <button
+                          onClick={() => approveSwapMutation.mutate(swap.id)}
+                          disabled={approveSwapMutation.isPending}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#F0FDF4] hover:bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] rounded-xl text-xs font-semibold transition disabled:opacity-50">
+                          <Check size={13} /> {approveSwapMutation.isPending ? 'Memproses...' : 'Setujui & Tukar'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
       </div>
 
       {/* Reject Leave Modal */}
@@ -531,6 +671,45 @@ export default function LeavePage() {
                 disabled={!rejectObjReason.trim() || rejectObjMutation.isPending}
                 className="flex-1 h-10 rounded-xl bg-[#FF3B30] hover:bg-[#D63529] text-white text-sm font-semibold disabled:opacity-50 transition">
                 {rejectObjMutation.isPending ? 'Menolak...' : 'Tolak'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Swap Modal */}
+      {rejectSwapId && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-[#FF9500]/10 flex items-center justify-center flex-shrink-0">
+                  <ArrowLeftRight size={15} className="text-[#FF9500]" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Tolak Tukar Jadwal</h3>
+              </div>
+              <button onClick={() => { setRejectSwapId(null); setRejectSwapReason(''); }}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/[0.08] text-gray-500 hover:bg-gray-200 dark:hover:bg-white/[0.12] transition">
+                <X size={16} />
+              </button>
+            </div>
+            <textarea
+              value={rejectSwapReason}
+              onChange={(e) => setRejectSwapReason(e.target.value)}
+              placeholder="Alasan penolakan (wajib)..."
+              rows={3}
+              className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/25 focus:outline-none focus:border-[#FF3B30] resize-none mb-4"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setRejectSwapId(null); setRejectSwapReason(''); }}
+                className="flex-1 h-10 rounded-xl border border-black/10 dark:border-white/[0.12] text-sm font-medium text-gray-700 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition">
+                Batal
+              </button>
+              <button
+                onClick={() => { if (rejectSwapId && rejectSwapReason.trim()) rejectSwapMutation.mutate({ id: rejectSwapId, reason: rejectSwapReason }); }}
+                disabled={!rejectSwapReason.trim() || rejectSwapMutation.isPending}
+                className="flex-1 h-10 rounded-xl bg-[#FF3B30] hover:bg-[#D63529] text-white text-sm font-semibold disabled:opacity-50 transition">
+                {rejectSwapMutation.isPending ? 'Menolak...' : 'Tolak'}
               </button>
             </div>
           </div>
