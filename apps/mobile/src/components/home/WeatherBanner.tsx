@@ -287,10 +287,10 @@ function RainDrop({ x, delay, duration, opacity }: {
   return (
     <Animated.View style={[{ position: 'absolute', left: x }, style]}>
       <View style={{
-        width: 1.5, height: 11,
+        width: 2, height: 14,
         borderRadius: 1,
-        backgroundColor: `rgba(255,255,255,${opacity})`,
-        transform: [{ rotate: '10deg' }],
+        backgroundColor: `rgba(180,210,255,${opacity})`,
+        transform: [{ rotate: '12deg' }],
       }} />
     </Animated.View>
   );
@@ -298,11 +298,11 @@ function RainDrop({ x, delay, duration, opacity }: {
 
 function RainLayer() {
   const drops = useMemo(() =>
-    Array.from({ length: 16 }, (_, i) => ({
-      x: 8 + i * 24,
+    Array.from({ length: 20 }, (_, i) => ({
+      x: 6 + i * 20,
       delay: Math.floor((i * 137) % 1300),
-      duration: 680 + (i * 83) % 380,
-      opacity: 0.28 + (i % 5) * 0.07,
+      duration: 620 + (i * 83) % 340,
+      opacity: 0.45 + (i % 5) * 0.09,
     })),
   []);
 
@@ -552,7 +552,7 @@ export default function WeatherBanner({
 
   const isNight    = period === 'night' || period === 'dusk';
   const showSun    = !isNight && (condition === 'clear' || condition === 'partly_cloudy' || condition === 'dawn' as any);
-  const showClouds = condition === 'partly_cloudy' || condition === 'cloudy' || condition === 'fog' || condition === 'drizzle';
+  const showClouds = condition === 'partly_cloudy' || condition === 'cloudy' || condition === 'fog' || condition === 'drizzle' || condition === 'rain' || condition === 'storm';
   const showRain   = condition === 'rain' || condition === 'drizzle' || condition === 'storm';
   const showSnow   = condition === 'snow';
   const showStars  = isNight && condition !== 'rain' && condition !== 'storm' && condition !== 'cloudy' && condition !== 'fog';
