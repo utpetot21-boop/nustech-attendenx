@@ -96,6 +96,35 @@ export class UserSchedulesService {
   }
 
   /**
+   * Tandai hari libur manual untuk satu karyawan shift
+   */
+  async markShiftDayOff(userId: string, date: string): Promise<void> {
+    const existing = await this.repo.findOne({ where: { user_id: userId, date } });
+    if (existing) {
+      await this.repo.update(existing.id, {
+        shift_type_id: null,
+        schedule_type: 'shift',
+        is_day_off: true,
+        is_holiday: false,
+      });
+    } else {
+      await this.repo.save(
+        this.repo.create({
+          user_id: userId,
+          schedule_type: 'shift',
+          date,
+          shift_type_id: null,
+          start_time: '00:00',
+          end_time: '00:00',
+          tolerance_minutes: 0,
+          is_day_off: true,
+          is_holiday: false,
+        }),
+      );
+    }
+  }
+
+  /**
    * Generate jadwal shift pola 5-on-1-off untuk semua karyawan shift
    */
   async generateShiftPattern(payload: {

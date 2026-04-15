@@ -162,6 +162,15 @@ export class ScheduleController {
     return this.userSchedulesService.generateForMonth(month);
   }
 
+  @Post('mark-shift-dayoff')
+  @RequirePermission('schedule:manage')
+  @ApiOperation({ summary: 'Tandai hari libur manual untuk karyawan shift' })
+  markShiftDayOff(
+    @Body() body: { user_id: string; date: string },
+  ) {
+    return this.userSchedulesService.markShiftDayOff(body.user_id, body.date);
+  }
+
   @Post('generate-shift')
   @RequirePermission('schedule:manage')
   @ApiOperation({ summary: 'Generate jadwal shift pola 5-on-1-off untuk semua karyawan shift' })

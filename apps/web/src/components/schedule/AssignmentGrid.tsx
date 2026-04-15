@@ -23,6 +23,7 @@ interface Props {
   shiftTypes: ShiftType[];
   onAssign: (userId: string, date: string, shiftTypeId: string) => void;
   onRemove: (userId: string, date: string) => void;
+  onMarkDayOff: (userId: string, date: string) => void;
   loading?: boolean;
 }
 
@@ -36,7 +37,7 @@ function parseLocalDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
-export function AssignmentGrid({ weekDates, rows, shiftTypes, onAssign, onRemove, loading }: Props) {
+export function AssignmentGrid({ weekDates, rows, shiftTypes, onAssign, onRemove, onMarkDayOff, loading }: Props) {
   const [activeCell, setActiveCell] = useState<{ userId: string; date: string } | null>(null);
 
   const openCell = (userId: string, date: string) => {
@@ -202,19 +203,27 @@ export function AssignmentGrid({ weekDates, rows, shiftTypes, onAssign, onRemove
                 ))}
               </div>
 
-              {/* Remove option — only if assigned */}
+              {/* Tandai Libur + Remove */}
+              <div className="my-2 border-t border-black/7 dark:border-white/12" />
+              {!currentCell?.is_day_off && (
+                <button
+                  onClick={() => { onMarkDayOff(activeCell.userId, activeCell.date); setActiveCell(null); }}
+                  disabled={loading}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-gray-600 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/8 transition-colors"
+                >
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/[0.08] text-gray-400 border border-gray-200 dark:border-white/[0.12]">Libur</span>
+                  <span>Tandai Libur</span>
+                </button>
+              )}
               {currentCell?.shift_id && (
-                <>
-                  <div className="my-2 border-t border-black/7 dark:border-white/12" />
-                  <button
-                    onClick={handleRemove}
-                    disabled={loading}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-[#DC2626] hover:bg-[#FEF2F2] dark:hover:bg-[rgba(255,69,58,0.12)] transition-colors"
-                  >
-                    <span className="text-base leading-none">×</span>
-                    <span>Hapus Assignment</span>
-                  </button>
-                </>
+                <button
+                  onClick={handleRemove}
+                  disabled={loading}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-[#DC2626] hover:bg-[#FEF2F2] dark:hover:bg-[rgba(255,69,58,0.12)] transition-colors"
+                >
+                  <span className="text-base leading-none">×</span>
+                  <span>Hapus Assignment</span>
+                </button>
               )}
             </div>
           </>
