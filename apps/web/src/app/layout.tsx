@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 
 import './globals.css';
+import 'leaflet/dist/leaflet.css';
 import { Providers } from './providers';
 import { Toaster } from 'sonner';
 
