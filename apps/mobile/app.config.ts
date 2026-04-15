@@ -75,10 +75,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   // ── EAS & Extra ────────────────────────────────────────────────────────────
   // Setelah eas project:init, isi EAS_PROJECT_ID di .env
-  owner: process.env.EXPO_OWNER ?? 'nustech',
+  owner: process.env.EXPO_OWNER ?? 'panji-artha',
   extra: {
     eas: {
-      projectId: process.env.EAS_PROJECT_ID ?? '',
+      projectId: process.env.EAS_PROJECT_ID ?? '32be1f13-1847-447e-b8f2-8154ce65815b',
     },
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'https://api.appnustech.cloud/api/v1',
   },
