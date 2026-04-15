@@ -94,7 +94,7 @@ export class RealtimeGateway
     void client.join(`user:${userId}`);
 
     // Auto-join role room for admins/managers
-    if (['admin', 'manager'].includes(role)) {
+    if (['admin', 'super_admin', 'manager'].includes(role)) {
       void client.join('role:admin');
     }
 

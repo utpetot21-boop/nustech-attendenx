@@ -288,16 +288,19 @@ export default function SosPage() {
     onSuccess: () => refetchContacts(),
   });
 
-  // Real-time
+  // Real-time — listen via /realtime namespace (web dashboard socket)
   useEffect(() => {
     const socket = getRealtimeSocket();
-    if (!socket?.connected) return;
-    socket.on('sos:activated', () => refetchActive());
-    socket.on('sos:location_update', (data: { alertId?: string }) => {
-      qc.invalidateQueries({ queryKey: ['sos-active'] });
-      if (data?.alertId) qc.invalidateQueries({ queryKey: ['sos-tracks', data.alertId] });
-    });
-    return () => { socket.off('sos:activated'); socket.off('sos:location_update'); };
+    const onAdminAlert = (data: { type?: string; alertId?: string }) => {
+      if (data?.type === 'sos:activated') {
+        refetchActive();
+      } else if (data?.type === 'sos:location_update') {
+        qc.invalidateQueries({ queryKey: ['sos-active'] });
+        if (data.alertId) qc.invalidateQueries({ queryKey: ['sos-tracks', data.alertId] });
+      }
+    };
+    socket.on('admin:alert', onAdminAlert);
+    return () => { socket.off('admin:alert', onAdminAlert); };
   }, []);
 
   const TABS: { key: Tab; label: string; Icon: typeof Siren; badge?: number }[] = [

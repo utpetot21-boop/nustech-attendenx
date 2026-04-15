@@ -220,6 +220,8 @@ export default function SosMap({
     <div
       ref={containerRef}
       style={{ width: '100%', height: `${height}px`, borderRadius: '12px', overflow: 'hidden' }}
+      // Cegah Leaflet menangkap scroll touch di perangkat mobile
+      onTouchStart={(e) => e.stopPropagation()}
     />
   );
 }

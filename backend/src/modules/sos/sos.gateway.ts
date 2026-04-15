@@ -5,6 +5,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { SosService } from './sos.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 interface LocationPayload {
   alertId: string;
@@ -20,7 +21,10 @@ interface LocationPayload {
 export class SosGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
-  constructor(private readonly sosService: SosService) {}
+  constructor(
+    private readonly sosService: SosService,
+    private readonly realtimeGateway: RealtimeGateway,
+  ) {}
 
   handleConnection(client: Socket) {
     const userId = client.handshake.auth?.userId as string;
@@ -49,24 +53,32 @@ export class SosGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload.batteryPct,
     );
 
-    // Broadcast ke admin/manager
-    this.server.to('admins').emit('sos:location_update', {
+    const locationData = {
       alertId: payload.alertId,
       userId,
       lat: payload.lat,
       lng: payload.lng,
       batteryPct: payload.batteryPct,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // Broadcast ke /sos namespace (mobile admin/manager)
+    this.server.to('admins').emit('sos:location_update', locationData);
+    // Forward ke /realtime namespace (web dashboard)
+    this.realtimeGateway.emitAdminAlert({ type: 'sos:location_update', ...locationData });
   }
 
   // Broadcast SOS baru ke semua admin/manager
   broadcastSosActivated(alertId: string, userId: string, lat: number, lng: number) {
-    this.server.to('admins').emit('sos:activated', { alertId, userId, lat, lng });
+    const data = { alertId, userId, lat, lng };
+    this.server.to('admins').emit('sos:activated', data);
+    // Forward ke /realtime namespace (web dashboard)
+    this.realtimeGateway.emitAdminAlert({ type: 'sos:activated', ...data });
   }
 
   // Notify user bahwa SOS telah direspons
   notifyUserResponded(userId: string, alertId: string) {
     this.server.to(`user:${userId}`).emit('sos:responded', { alertId });
+    this.realtimeGateway.emitAdminAlert({ type: 'sos:responded', userId, alertId });
   }
 }

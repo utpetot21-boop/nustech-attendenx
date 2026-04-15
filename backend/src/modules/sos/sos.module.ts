@@ -7,11 +7,13 @@ import { SosAlertEntity } from './entities/sos-alert.entity';
 import { SosLocationTrackEntity } from './entities/sos-location-track.entity';
 import { EmergencyContactEntity } from './entities/emergency-contact.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([SosAlertEntity, SosLocationTrackEntity, EmergencyContactEntity]),
     NotificationsModule,
+    RealtimeModule,
   ],
   controllers: [SosController],
   providers: [SosService, SosGateway],
