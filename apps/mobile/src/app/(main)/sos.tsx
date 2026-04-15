@@ -72,16 +72,16 @@ export default function SosScreen() {
       setAlert(sosAlert);
       setActivating(false);
 
-      // WebSocket connect
-      await connectSosSocket(
+      // Timer elapsed — dimulai segera setelah SOS aktif
+      elapsedInterval.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+
+      // WebSocket connect (non-blocking — tidak await agar timer tidak terhambat)
+      connectSosSocket(
         sosAlert.user_id, 'technician',
         () => {},
         () => {},
         () => setResponded(true),
-      );
-
-      // Timer elapsed
-      elapsedInterval.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+      ).catch((e) => console.warn('[SOS] Socket error:', e));
 
       // Track interval
       trackInterval.current = setInterval(async () => {

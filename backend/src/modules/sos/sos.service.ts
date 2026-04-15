@@ -1,5 +1,5 @@
 import {
-  BadRequestException, Injectable, NotFoundException,
+  BadRequestException, Injectable, NotFoundException, Inject, forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,6 +8,7 @@ import { SosLocationTrackEntity } from './entities/sos-location-track.entity';
 import { EmergencyContactEntity } from './entities/emergency-contact.entity';
 import { ActivateSosDto } from './dto/activate-sos.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SosGateway } from './sos.gateway';
 
 @Injectable()
 export class SosService {
@@ -19,6 +20,8 @@ export class SosService {
     @InjectRepository(EmergencyContactEntity)
     private readonly contactRepo: Repository<EmergencyContactEntity>,
     private readonly notifications: NotificationsService,
+    @Inject(forwardRef(() => SosGateway))
+    private readonly sosGateway: SosGateway,
   ) {}
 
   // ── Aktifkan SOS ──────────────────────────────────────────────────────────
@@ -45,9 +48,14 @@ export class SosService {
       battery_pct: dto.battery_pct ?? null,
     });
 
-    // Notifikasi admin/manager (all — bypass rate limit)
+    const adminIds = await this.getAdminManagerIds();
+
+    // Broadcast WebSocket ke admin/manager yang sedang buka web
+    this.sosGateway.broadcastSosActivated(saved.id, userId, dto.lat, dto.lng);
+
+    // Push notifikasi ke admin/manager
     this.notifications.sendMany(
-      await this.getAdminManagerIds(),
+      adminIds,
       'sos_alert',
       '🚨 SOS Aktif',
       `Karyawan membutuhkan bantuan darurat. Cek panel SOS segera.`,
@@ -179,12 +187,10 @@ export class SosService {
   }
 
   private async getAdminManagerIds(): Promise<string[]> {
-    // Ambil semua user dengan role admin/manager
     const result = await this.alertRepo.manager.query(
       `SELECT u.id FROM users u
-       JOIN user_roles ur ON ur.user_id = u.id
-       JOIN roles r ON r.id = ur.role_id
-       WHERE r.name IN ('admin','manager') AND u.is_active = true`,
+       JOIN roles r ON r.id = u.role_id
+       WHERE r.name IN ('admin','super_admin','manager') AND u.is_active = true`,
     );
     return result.map((r: any) => r.id);
   }
