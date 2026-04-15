@@ -81,10 +81,16 @@ export class NotificationsService {
     }
   }
 
-  async sendMany(userIds: string[], type: string, title: string, body: string): Promise<void> {
+  async sendMany(
+    userIds: string[],
+    type: string,
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ): Promise<void> {
     // Persist for all
     const entities = userIds.map((uid) =>
-      this.notifRepo.create({ user_id: uid, type, title, body, channel: 'in_app' }),
+      this.notifRepo.create({ user_id: uid, type, title, body, data: data ?? null, channel: 'in_app' }),
     );
     const saved = await this.notifRepo.save(entities);
 
@@ -95,12 +101,13 @@ export class NotificationsService {
         type,
         title,
         body,
+        data,
         created_at: n.created_at,
       });
     });
 
     // Push to all
-    await this.fcm.sendToMany(userIds, title, body);
+    await this.fcm.sendToMany(userIds, title, body, data);
   }
 
   async getForUser(userId: string, page = 1, limit = 30) {

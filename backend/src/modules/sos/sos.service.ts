@@ -52,6 +52,15 @@ export class SosService {
     );
     const senderName: string = triggerUser?.[0]?.full_name ?? 'Rekan Anda';
 
+    // Payload data untuk push notification — agar mobile bisa navigasi ke layar SOS
+    const notifData: Record<string, string> = {
+      type:     'sos_alert',
+      alertId:  saved.id,
+      lat:      String(dto.lat),
+      lng:      String(dto.lng),
+      userName: senderName,
+    };
+
     // Notifikasi ke admin/manager — detail lengkap
     const adminIds = await this.getAdminManagerIds();
     this.notifications.sendMany(
@@ -59,6 +68,7 @@ export class SosService {
       'sos_alert',
       'SOS Aktif',
       `${senderName} membutuhkan bantuan darurat. Cek panel SOS segera.`,
+      notifData,
     ).catch(() => null);
 
     // Notifikasi ke semua karyawan aktif (kecuali yg trigger SOS & sudah dapat notif admin)
@@ -69,6 +79,7 @@ export class SosService {
         'sos_alert',
         'SOS Darurat',
         `${senderName} mengaktifkan SOS. Apakah kamu berada di dekatnya?`,
+        notifData,
       ).catch(() => null);
     }
 

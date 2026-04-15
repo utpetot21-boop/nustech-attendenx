@@ -105,6 +105,20 @@ export default function RootLayout() {
         return;
       }
 
+      // SOS alert untuk penerima — buka layar peta SOS dengan params
+      if (data.type === 'sos_alert') {
+        router.push({
+          pathname: '/(main)/sos-alert',
+          params: {
+            alertId:  data.alertId  ?? '',
+            lat:      data.lat      ?? '',
+            lng:      data.lng      ?? '',
+            userName: data.userName ?? 'Rekan Anda',
+          },
+        } as any);
+        return;
+      }
+
       // Mapping type → route
       const ROUTE_MAP: Record<string, string> = {
         // Tukar Jadwal
@@ -125,7 +139,7 @@ export default function RootLayout() {
         // Absensi / SP
         sp_reminder:                    '/(main)/attendance',
         alfa_detected:                  '/(main)/attendance',
-        // SOS
+        // SOS aktivasi (pengirim)
         sos:                            '/(main)/sos',
         // Tugas
         task_assigned:                  '/(main)/tasks',
@@ -137,6 +151,26 @@ export default function RootLayout() {
       const route = ROUTE_MAP[data.type];
       if (route) router.push(route as any);
     });
+
+    // Cold-start: app dibuka dari notif saat killed
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const data = response.notification.request.content.data as Record<string, string> | undefined;
+      if (!data) return;
+      if (data.type === 'sos_alert') {
+        setTimeout(() => {
+          router.push({
+            pathname: '/(main)/sos-alert',
+            params: {
+              alertId:  data.alertId  ?? '',
+              lat:      data.lat      ?? '',
+              lng:      data.lng      ?? '',
+              userName: data.userName ?? 'Rekan Anda',
+            },
+          } as any);
+        }, 500); // delay kecil agar router sudah siap
+      }
+    }).catch(() => null);
 
     receivedListenerRef.current = addNotificationReceivedListener((_notification) => {});
 
