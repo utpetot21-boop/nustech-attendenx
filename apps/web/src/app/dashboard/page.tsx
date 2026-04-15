@@ -539,7 +539,7 @@ export default function DashboardPage() {
           <SectionHeader title="Absensi Hari Ini" href="/dashboard/attendance" />
           <div className="space-y-2.5 mb-4">
             {[
-              { label: 'Hadir',      value: summary?.hadir       ?? 0, icon: CheckCircle2, color: 'text-[#30D158]', bg: 'bg-[#F0FDF4]' },
+              { label: 'Hadir',      value: summary ? (summary.hadir + summary.terlambat) : 0, icon: CheckCircle2, color: 'text-[#30D158]', bg: 'bg-[#F0FDF4]' },
               { label: 'Terlambat',  value: summary?.terlambat   ?? 0, icon: Timer,        color: 'text-amber-500',  bg: 'bg-amber-50'   },
               { label: 'Alfa',       value: summary?.alfa        ?? 0, icon: X,            color: 'text-red-500',    bg: 'bg-red-50'     },
               { label: 'Total Aktif',value: summary?.total_aktif ?? 0, icon: Users,        color: 'text-[#007AFF]',  bg: 'bg-[#EFF6FF]'  },
