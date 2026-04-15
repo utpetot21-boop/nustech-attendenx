@@ -36,6 +36,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { TemplatesModule } from './modules/templates/templates.module';
 import { RedisModule } from './modules/cache/redis.module';
+import { ScheduleSwapModule } from './modules/schedule-swap/schedule-swap.module';
 
 @Module({
   imports: [
@@ -130,6 +131,7 @@ import { RedisModule } from './modules/cache/redis.module';
     MonitoringModule,
     // Work Type Templates
     TemplatesModule,
+    ScheduleSwapModule,
   ],
   controllers: [AppController],
   providers: [
