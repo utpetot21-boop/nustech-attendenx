@@ -177,7 +177,8 @@ function UserPickerModal({
           <FlatList
             data={users}
             keyExtractor={(u) => u.id}
-            contentContainerStyle={{ padding: 16, gap: 8 }}
+            contentContainerStyle={{ padding: 16 }}
+            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <TouchableOpacity
