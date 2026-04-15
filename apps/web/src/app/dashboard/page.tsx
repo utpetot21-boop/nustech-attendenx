@@ -184,6 +184,14 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   });
 
+  const { data: pendingAnnouncements = [] } = useQuery<{ id: string; title: string }[]>({
+    queryKey: ['dashboard-pending-announcements'],
+    queryFn: () => apiClient.get('/announcements', { params: { status: 'pending_approval' } }).then((r) =>
+      Array.isArray(r.data) ? r.data : [],
+    ),
+    refetchInterval: 30_000,
+  });
+
   const approveMut = useMutation({
     mutationFn: ({ taskId, holdId }: { taskId: string; holdId: string }) =>
       apiClient.post(`/tasks/${taskId}/holds/${holdId}/approve`, {}),
@@ -596,7 +604,18 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-            {sosAlerts.length === 0 && (reports?.total ?? 0) === 0 && onHold.length === 0 && (
+            {pendingAnnouncements.length > 0 && (
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40">
+                <div className="w-7 h-7 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+                  <Bell size={13} className="text-blue-600" strokeWidth={2} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-blue-700 dark:text-blue-400">{pendingAnnouncements.length} Pengumuman menunggu</p>
+                  <p className="text-[10px] text-blue-400 truncate">perlu persetujuan manager</p>
+                </div>
+              </div>
+            )}
+            {sosAlerts.length === 0 && (reports?.total ?? 0) === 0 && onHold.length === 0 && pendingAnnouncements.length === 0 && (
               <div className="flex flex-col items-center justify-center py-6 text-gray-300 dark:text-white/20">
                 <Bell size={28} strokeWidth={1.2} />
                 <p className="text-[11px] mt-2">Tidak ada notifikasi</p>
