@@ -178,9 +178,9 @@ function UserPickerModal({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {users.map((item) => (
+            {users.map((item, i) => (
               <TouchableOpacity
-                key={item.id}
+                key={item.id ? `u-${item.id}` : `u-idx-${i}`}
                 onPress={() => { onSelect(item); handleClose(); }}
                 activeOpacity={0.75}
                 style={{
@@ -582,9 +582,9 @@ export default function ScheduleSwapScreen() {
               </Text>
             </View>
           ) : (
-            swaps.map((item) => (
+            swaps.map((item, i) => (
               <SwapCard
-                key={item.id}
+                key={item.id ? `s-${item.id}` : `s-idx-${i}`}
                 item={item}
                 userId={(meData as any)?.id ?? currentUserId}
                 isDark={isDark}
