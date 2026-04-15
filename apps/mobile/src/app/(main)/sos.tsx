@@ -30,8 +30,8 @@ export default function SosScreen() {
   const [lastLng, setLastLng] = useState<number | null>(null);
   const [battery, setBattery] = useState<number | null>(null);
   const [responded, setResponded] = useState(false);
-  const [cancelCount, setCancelCount] = useState(0);
   const [activating, setActivating] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const trackInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -99,7 +99,9 @@ export default function SosScreen() {
 
     init().catch((err) => {
       setActivating(false);
-      Alert.alert('Gagal Mengaktifkan SOS', err?.response?.data?.message ?? err?.message ?? 'Terjadi kesalahan');
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Terjadi kesalahan';
+      setInitError(msg);
+      Alert.alert('Gagal Mengaktifkan SOS', msg);
     });
 
     return () => {
@@ -110,27 +112,24 @@ export default function SosScreen() {
   }, []);
 
   const handleCancel = useCallback(() => {
-    if (cancelCount === 0) {
-      setCancelCount(1);
-      Alert.alert(
-        'Batalkan SOS?',
-        'Pastikan Anda sudah aman sebelum membatalkan.',
-        [
-          { text: 'Kembali', style: 'cancel', onPress: () => setCancelCount(0) },
-          {
-            text: 'Iya, Saya Aman', style: 'destructive',
-            onPress: async () => {
-              if (trackInterval.current) clearInterval(trackInterval.current);
-              if (elapsedInterval.current) clearInterval(elapsedInterval.current);
-              disconnectSosSocket();
-              await cancelSos().catch(() => null);
-              router.back();
-            },
+    Alert.alert(
+      'Batalkan SOS?',
+      'Pastikan Anda sudah aman sebelum membatalkan.',
+      [
+        { text: 'Kembali', style: 'cancel' },
+        {
+          text: 'Iya, Saya Aman', style: 'destructive',
+          onPress: async () => {
+            if (trackInterval.current) clearInterval(trackInterval.current);
+            if (elapsedInterval.current) clearInterval(elapsedInterval.current);
+            disconnectSosSocket();
+            await cancelSos().catch(() => null);
+            router.back();
           },
-        ],
-      );
-    }
-  }, [cancelCount]);
+        },
+      ],
+    );
+  }, []);
 
   const fmtElapsed = (sec: number) => {
     const h = Math.floor(sec / 3600);
@@ -157,14 +156,20 @@ export default function SosScreen() {
           <Text style={styles.sosIcon}>!</Text>
         </View>
         <Text style={styles.sosTitle}>
-          {activating ? 'Mengaktifkan SOS…' : 'SOS AKTIF'}
+          {activating ? 'Mengaktifkan SOS…' : initError ? 'GAGAL AKTIFKAN' : 'SOS AKTIF'}
         </Text>
-        <Text style={styles.sosSub}>
-          {responded
-            ? '✓ Bantuan sedang dalam perjalanan'
-            : 'Bantuan sedang dikirim ke tim Anda'}
-        </Text>
-        {!activating && (
+        {initError ? (
+          <Text style={[styles.sosSub, { color: '#FFD60A', textAlign: 'center', paddingHorizontal: 20 }]}>
+            ⚠ {initError}
+          </Text>
+        ) : (
+          <Text style={styles.sosSub}>
+            {responded
+              ? '✓ Bantuan sedang dalam perjalanan'
+              : 'Bantuan sedang dikirim ke tim Anda'}
+          </Text>
+        )}
+        {!activating && !initError && (
           <Text style={styles.sosHint}>Manajer & kontak darurat diberitahu</Text>
         )}
       </View>
