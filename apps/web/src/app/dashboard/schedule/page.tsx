@@ -892,7 +892,9 @@ export default function SchedulePage() {
                   <span className="text-[10px] text-gray-400">= klik untuk ganti atau hapus</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 border border-gray-200">Libur</span>
+                  <div className="flex flex-col items-center px-2 py-0.5 rounded-lg" style={{ backgroundColor: '#FF3B3022', borderLeft: '3px solid #FF3B30' }}>
+                    <span className="text-[10px] font-semibold text-[#FF3B30] leading-tight">Libur</span>
+                  </div>
                   <span className="text-[10px] text-gray-400">= hari libur shift, klik untuk assign</span>
                 </div>
               </div>

@@ -137,9 +137,14 @@ export function AssignmentGrid({ weekDates, rows, shiftTypes, onAssign, onRemove
                     )}
                   </div>
                 ) : cell?.is_day_off ? (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/[0.08] text-gray-400 dark:text-white/35 border border-gray-200 dark:border-white/[0.12] select-none">
-                    Libur
-                  </span>
+                  <div
+                    className="flex flex-col items-center px-2 py-1 rounded-lg min-w-[52px] max-w-[64px]"
+                    style={{ backgroundColor: '#FF3B3022', borderLeft: '3px solid #FF3B30' }}
+                  >
+                    <span className="text-[10px] font-semibold leading-tight text-[#FF3B30] dark:text-[#FF6B6B] select-none">
+                      Libur
+                    </span>
+                  </div>
                 ) : (
                   <span className="text-[13px] text-gray-200 dark:text-white/20 select-none font-light">+</span>
                 )}
