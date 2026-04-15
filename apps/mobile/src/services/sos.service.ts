@@ -24,7 +24,7 @@ export async function connectSosSocket(
   onResponded: (data: any) => void,
 ): Promise<Socket> {
   const token = await SecureStore.getItemAsync('access_token');
-  const baseUrl = String(apiClient.defaults.baseURL ?? '').replace('/api', '');
+  const baseUrl = String(api.defaults.baseURL ?? '').replace('/api/v1', '');
 
   sosSocket = io(`${baseUrl}/sos`, {
     auth: { userId, role, token },
