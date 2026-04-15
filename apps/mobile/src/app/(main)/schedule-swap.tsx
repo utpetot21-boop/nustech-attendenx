@@ -802,17 +802,17 @@ export default function ScheduleSwapScreen() {
               )}
             </TouchableOpacity>
           </ScrollView>
+
+          {/* ── User Picker — nested di dalam form modal agar stack benar ── */}
+          <UserPickerModal
+            visible={showPicker}
+            isDark={isDark}
+            excludeId={(meData as any)?.id ?? currentUserId}
+            onClose={() => setShowPicker(false)}
+            onSelect={(user) => setSelectedUser(user)}
+          />
         </KeyboardAvoidingView>
       </Modal>
-
-      {/* ── User Picker Modal ── */}
-      <UserPickerModal
-        visible={showPicker}
-        isDark={isDark}
-        excludeId={(meData as any)?.id ?? currentUserId}
-        onClose={() => setShowPicker(false)}
-        onSelect={(user) => setSelectedUser(user)}
-      />
     </View>
   );
 }
