@@ -26,6 +26,31 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+// ── Refresh lock — mencegah race condition ────────────────────────────────────
+// Banyak request bisa 401 bersamaan (dashboard load). Tanpa lock, masing-masing
+// memanggil /auth/refresh → hanya yang pertama berhasil → sisanya dapat 401
+// karena refresh token sudah di-revoke → logout prematur.
+let refreshPromise: Promise<string> | null = null;
+
+async function refreshAccessToken(): Promise<string> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = axios
+    .post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+    .then(({ data }) => {
+      if (typeof data?.access_token !== 'string' || data.access_token.length === 0) {
+        throw new Error('Invalid refresh response');
+      }
+      setToken(data.access_token);
+      return data.access_token as string;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
+}
+
 // ── Response interceptor (auto refresh token) ─────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
@@ -41,18 +66,7 @@ api.interceptors.response.use(
 
       try {
         // Refresh token dikirim otomatis via HTTP-only cookie (withCredentials: true)
-        const { data } = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true },
-        );
-
-        if (typeof data?.access_token !== 'string' || data.access_token.length === 0) {
-          throw new Error('Invalid refresh response');
-        }
-
-        // Simpan ke memory — request interceptor akan memakai ini pada retry
-        setToken(data.access_token);
+        await refreshAccessToken();
         return api(originalRequest);
       } catch {
         clearAuthData();
