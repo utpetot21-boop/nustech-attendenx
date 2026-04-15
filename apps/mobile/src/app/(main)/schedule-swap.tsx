@@ -726,12 +726,12 @@ export default function ScheduleSwapScreen() {
                         alignItems: 'center', justifyContent: 'center',
                       }}>
                         <Text style={{ fontSize: 13, fontWeight: '800', color: '#FF9500' }}>
-                          {initials(selectedUser.full_name)}
+                          {initials(selectedUser.full_name ?? '')}
                         </Text>
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 15, fontWeight: '700', color: lPrimary(isDark) }}>
-                          {selectedUser.full_name}
+                          {selectedUser.full_name ?? '—'}
                         </Text>
                         <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 1 }}>
                           {[selectedUser.position?.name, selectedUser.department?.name].filter(Boolean).join(' · ') || '—'}
