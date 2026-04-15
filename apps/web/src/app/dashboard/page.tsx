@@ -12,7 +12,7 @@ import {
   ArrowRight, MapPin, Clock, TrendingUp,
   AlertTriangle, CheckCircle2, Timer, Briefcase,
   CalendarDays, ClipboardCheck, Receipt, UserPlus,
-  Building2, ExternalLink,
+  Building2, ExternalLink, Megaphone,
 } from 'lucide-react';
 
 const DashboardMap = dynamic(() => import('./DashboardMap'), { ssr: false });
@@ -190,6 +190,14 @@ export default function DashboardPage() {
       Array.isArray(r.data) ? r.data : [],
     ),
     refetchInterval: 30_000,
+  });
+
+  const { data: recentAnnouncements = [] } = useQuery<{ id: string; title: string; sent_at: string | null; type: string }[]>({
+    queryKey: ['dashboard-recent-announcements'],
+    queryFn: () => apiClient.get('/announcements', { params: { status: 'sent' } }).then((r) =>
+      Array.isArray(r.data) ? r.data.slice(0, 3) : [],
+    ),
+    refetchInterval: 60_000,
   });
 
   const approveMut = useMutation({
@@ -615,7 +623,20 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
-            {sosAlerts.length === 0 && (reports?.total ?? 0) === 0 && onHold.length === 0 && pendingAnnouncements.length === 0 && (
+            {recentAnnouncements.map((ann) => (
+              <div key={ann.id} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06]">
+                <div className="w-7 h-7 rounded-xl bg-[#007AFF]/10 flex items-center justify-center flex-shrink-0">
+                  <Megaphone size={13} className="text-[#007AFF]" strokeWidth={2} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">{ann.title}</p>
+                  <p className="text-[10px] text-gray-400">
+                    {ann.sent_at ? new Date(ann.sent_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '—'}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {sosAlerts.length === 0 && (reports?.total ?? 0) === 0 && onHold.length === 0 && pendingAnnouncements.length === 0 && recentAnnouncements.length === 0 && (
               <div className="flex flex-col items-center justify-center py-6 text-gray-300 dark:text-white/20">
                 <Bell size={28} strokeWidth={1.2} />
                 <p className="text-[11px] mt-2">Tidak ada notifikasi</p>
