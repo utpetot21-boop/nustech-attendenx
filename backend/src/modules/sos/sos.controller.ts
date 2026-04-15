@@ -9,8 +9,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SosService } from './sos.service';
 import { ActivateSosDto } from './dto/activate-sos.dto';
 import { SosGateway } from './sos.gateway';
-
-interface JwtPayload { sub: string; role: string }
+import { UserEntity } from '../users/entities/user.entity';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('sos')
@@ -22,22 +21,22 @@ export class SosController {
 
   // POST /sos/activate  — karyawan aktifkan SOS
   @Post('activate')
-  async activate(@CurrentUser() user: JwtPayload, @Body() dto: ActivateSosDto) {
-    const alert = await this.svc.activate(user.sub, dto);
-    this.gateway.broadcastSosActivated(alert.id, user.sub, dto.lat, dto.lng);
+  async activate(@CurrentUser() user: UserEntity, @Body() dto: ActivateSosDto) {
+    const alert = await this.svc.activate(user.id, dto);
+    this.gateway.broadcastSosActivated(alert.id, user.id, dto.lat, dto.lng);
     return alert;
   }
 
   // POST /sos/cancel  — karyawan batalkan SOS sendiri
   @Post('cancel')
-  cancel(@CurrentUser() user: JwtPayload) {
-    return this.svc.cancel(user.sub);
+  cancel(@CurrentUser() user: UserEntity) {
+    return this.svc.cancel(user.id);
   }
 
   // GET /sos/me  — status SOS aktif milik user
   @Get('me')
-  getMyActive(@CurrentUser() user: JwtPayload) {
-    return this.svc.getMyActive(user.sub);
+  getMyActive(@CurrentUser() user: UserEntity) {
+    return this.svc.getMyActive(user.id);
   }
 
   // GET /sos/active  — semua SOS aktif (admin/manager)
@@ -65,10 +64,10 @@ export class SosController {
   @Post(':id/respond')
   @RequirePermission('attendance:manage')
   async respond(
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser() user: UserEntity,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const alert = await this.svc.markResponded(id, user.sub);
+    const alert = await this.svc.markResponded(id, user.id);
     this.gateway.notifyUserResponded(alert.user_id, id);
     return alert;
   }
@@ -77,11 +76,11 @@ export class SosController {
   @Post(':id/resolve')
   @RequirePermission('attendance:manage')
   resolve(
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser() user: UserEntity,
     @Param('id', ParseUUIDPipe) id: string,
     @Body('notes') notes?: string,
   ) {
-    return this.svc.resolve(id, user.sub, notes);
+    return this.svc.resolve(id, user.id, notes);
   }
 
   // ── Kontak darurat ────────────────────────────────────────────────────────
