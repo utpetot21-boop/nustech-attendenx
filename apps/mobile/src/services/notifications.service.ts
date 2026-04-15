@@ -11,13 +11,18 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
 // Configure how notifications appear when the app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Wrapped in try-catch: Android Expo Go SDK 53 removed remote notification support
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch {
+  // Expo Go SDK 53 on Android — push notifications not supported, skip silently
+}
 
 const PUSH_TOKEN_KEY = 'expo_push_token';
 
@@ -48,12 +53,16 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
   // Android channel setup
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'AttendenX',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#007AFF',
-    });
+    try {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'AttendenX',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#007AFF',
+      });
+    } catch {
+      // Android Expo Go SDK 53 — skip channel setup
+    }
   }
 
   try {
@@ -96,8 +105,12 @@ export async function getCachedPushToken(): Promise<string | null> {
  */
 export function addNotificationResponseListener(
   handler: (response: Notifications.NotificationResponse) => void,
-): Notifications.Subscription {
-  return Notifications.addNotificationResponseReceivedListener(handler);
+): Notifications.Subscription | null {
+  try {
+    return Notifications.addNotificationResponseReceivedListener(handler);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -105,6 +118,10 @@ export function addNotificationResponseListener(
  */
 export function addNotificationReceivedListener(
   handler: (notification: Notifications.Notification) => void,
-): Notifications.Subscription {
-  return Notifications.addNotificationReceivedListener(handler);
+): Notifications.Subscription | null {
+  try {
+    return Notifications.addNotificationReceivedListener(handler);
+  } catch {
+    return null;
+  }
 }
