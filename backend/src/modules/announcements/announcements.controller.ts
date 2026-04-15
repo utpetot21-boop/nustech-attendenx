@@ -1,14 +1,21 @@
 import {
   Body, Controller, Delete, Get, Param, ParseUUIDPipe,
-  Post, Query, UseGuards,
+  Post, Query, UseGuards, IsString,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { IsNotEmpty } from 'class-validator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AnnouncementsService } from './announcements.service';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+
+class RejectDto {
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+}
 
 @ApiTags('Announcements')
 @ApiBearerAuth()
@@ -48,9 +55,34 @@ export class AnnouncementsController {
     return this.svc.create(dto, userId);
   }
 
-  @Post(':id/send')
+  @Post(':id/submit')
   @RequirePermission('task:assign')
-  @ApiOperation({ summary: 'Kirim/publish pengumuman' })
+  @ApiOperation({ summary: 'Ajukan pengumuman untuk approval (role: admin)' })
+  submit(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('id') userId: string) {
+    return this.svc.submit(id, userId);
+  }
+
+  @Post(':id/approve')
+  @RequirePermission('announcement:approve')
+  @ApiOperation({ summary: 'Setujui & kirim pengumuman (role: manager / super_admin)' })
+  approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('id') userId: string) {
+    return this.svc.approve(id, userId);
+  }
+
+  @Post(':id/reject')
+  @RequirePermission('announcement:approve')
+  @ApiOperation({ summary: 'Tolak pengumuman dengan alasan (role: manager / super_admin)' })
+  reject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: RejectDto,
+  ) {
+    return this.svc.reject(id, userId, dto.reason);
+  }
+
+  @Post(':id/send')
+  @RequirePermission('announcement:approve')
+  @ApiOperation({ summary: 'Kirim langsung tanpa approval (role: manager / super_admin)' })
   send(@Param('id', ParseUUIDPipe) id: string) {
     return this.svc.send(id);
   }

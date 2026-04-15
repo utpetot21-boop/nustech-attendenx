@@ -21,6 +21,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     'task:assign',
     'task:own',
     'report:view',
+    'announcement:approve',
   ],
   admin: [
     'settings:manage',
@@ -46,6 +47,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     'task:assign',
     'task:own',
     'report:view',
+    'announcement:approve',
   ],
   karyawan: [
     'attendance:own',

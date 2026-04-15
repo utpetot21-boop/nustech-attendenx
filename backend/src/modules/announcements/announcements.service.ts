@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AnnouncementEntity } from './entities/announcement.entity';
@@ -49,19 +49,105 @@ export class AnnouncementsService {
     return this.annRepo.save(ann);
   }
 
+  // send() hanya untuk role yang bisa skip approval (manager / super_admin)
   async send(id: string): Promise<AnnouncementEntity> {
     const ann = await this.findOne(id);
     ann.status = 'sent';
     ann.sent_at = new Date();
     const saved = await this.annRepo.save(ann);
+    await this._sendPushToTargets(saved);
+    return saved;
+  }
 
-    // Resolve target user IDs
+  // ── Submit untuk approval (role: admin) ──────────────────────────────────────
+  async submit(id: string, userId: string): Promise<AnnouncementEntity> {
+    const ann = await this.findOne(id);
+    if (ann.created_by !== userId) throw new ForbiddenException('Hanya pembuat yang bisa mengajukan');
+    if (!['draft', 'rejected'].includes(ann.status)) {
+      throw new BadRequestException('Hanya pengumuman berstatus draft atau rejected yang bisa diajukan');
+    }
+    ann.status = 'pending_approval';
+    ann.rejection_reason = null;
+    const saved = await this.annRepo.save(ann);
+
+    // Notifikasi ke semua manager & super_admin
+    const approvers = await this.userRepo
+      .createQueryBuilder('u')
+      .innerJoin('u.role', 'r')
+      .where("r.name IN ('manager','super_admin')")
+      .andWhere('u.is_active = true')
+      .select(['u.id'])
+      .getMany();
+
+    const creator = await this.userRepo.findOne({ where: { id: userId }, select: ['full_name'] });
+    if (approvers.length > 0) {
+      await this.notifService.sendMany(
+        approvers.map((u) => u.id),
+        'announcement_pending',
+        'Pengumuman Menunggu Persetujuan',
+        `"${ann.title}" dari ${creator?.full_name ?? 'Admin'} perlu disetujui`,
+      );
+    }
+    return saved;
+  }
+
+  // ── Approve (role: manager / super_admin) ─────────────────────────────────────
+  async approve(id: string, approverId: string): Promise<AnnouncementEntity> {
+    const ann = await this.findOne(id);
+    if (ann.status !== 'pending_approval') {
+      throw new BadRequestException('Hanya pengumuman berstatus pending_approval yang bisa disetujui');
+    }
+    ann.status = 'sent';
+    ann.sent_at = new Date();
+    ann.approved_by = approverId;
+    ann.approved_at = new Date();
+    const saved = await this.annRepo.save(ann);
+
+    // Kirim push notification ke target
+    await this._sendPushToTargets(saved);
+
+    // Notifikasi ke pembuat
+    await this.notifService.send({
+      userId: ann.created_by,
+      type: 'announcement_approved',
+      title: 'Pengumuman Disetujui',
+      body: `"${ann.title}" telah disetujui dan dikirim`,
+      channels: ['push'],
+    });
+
+    return saved;
+  }
+
+  // ── Reject (role: manager / super_admin) ──────────────────────────────────────
+  async reject(id: string, approverId: string, reason: string): Promise<AnnouncementEntity> {
+    const ann = await this.findOne(id);
+    if (ann.status !== 'pending_approval') {
+      throw new BadRequestException('Hanya pengumuman berstatus pending_approval yang bisa ditolak');
+    }
+    ann.status = 'rejected';
+    ann.rejection_reason = reason;
+    ann.approved_by = approverId;
+    ann.approved_at = new Date();
+    const saved = await this.annRepo.save(ann);
+
+    // Notifikasi ke pembuat
+    await this.notifService.send({
+      userId: ann.created_by,
+      type: 'announcement_rejected',
+      title: 'Pengumuman Ditolak',
+      body: `"${ann.title}" ditolak: ${reason}`,
+      channels: ['push'],
+    });
+
+    return saved;
+  }
+
+  // ── Helper: kirim push ke target users ───────────────────────────────────────
+  private async _sendPushToTargets(ann: AnnouncementEntity): Promise<void> {
+    if (!ann.send_push) return;
     let targetUserIds: string[] = [];
     if (ann.target_type === 'all') {
-      const users = await this.userRepo.find({
-        where: { is_active: true },
-        select: ['id'],
-      });
+      const users = await this.userRepo.find({ where: { is_active: true }, select: ['id'] });
       targetUserIds = users.map((u) => u.id);
     } else if (ann.target_type === 'department' && ann.target_dept_id) {
       const users = await this.userRepo.find({
@@ -72,9 +158,7 @@ export class AnnouncementsService {
     } else if (ann.target_type === 'individual' && ann.target_user_ids?.length) {
       targetUserIds = ann.target_user_ids;
     }
-
-    // Kirim in-app notification + FCM push ke semua target
-    if (targetUserIds.length > 0 && ann.send_push) {
+    if (targetUserIds.length > 0) {
       await this.notifService.sendMany(
         targetUserIds,
         'announcement',
@@ -82,8 +166,6 @@ export class AnnouncementsService {
         ann.body.length > 100 ? ann.body.slice(0, 97) + '…' : ann.body,
       );
     }
-
-    return saved;
   }
 
   async delete(id: string): Promise<void> {

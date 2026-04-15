@@ -6,7 +6,7 @@ import { UserEntity } from '../../users/entities/user.entity';
 
 export type AnnouncementType = 'info' | 'urgent' | 'holiday' | 'policy';
 export type TargetType = 'all' | 'department' | 'individual';
-export type AnnouncementStatus = 'draft' | 'sent' | 'expired';
+export type AnnouncementStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'sent' | 'expired';
 
 @Entity('announcements')
 export class AnnouncementEntity {
@@ -55,12 +55,25 @@ export class AnnouncementEntity {
   @Column({ type: 'timestamptz', nullable: true })
   expires_at: Date | null;
 
+  @Column({ type: 'text', nullable: true })
+  rejection_reason: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  approved_by: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  approved_at: Date | null;
+
   @Column({ type: 'uuid' })
   created_by: string;
 
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'created_by' })
   creator: UserEntity;
+
+  @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'approved_by' })
+  approver: UserEntity | null;
 
   @CreateDateColumn()
   created_at: Date;
