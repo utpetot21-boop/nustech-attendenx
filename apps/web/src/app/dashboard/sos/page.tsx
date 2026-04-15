@@ -181,7 +181,7 @@ function SosCard({
         </div>
       </div>
 
-      {/* Map */}
+      {/* Map — detail view dengan riwayat pergerakan */}
       {a.last_lat && a.last_lng && (
         <div className="px-5 pb-4">
           <SosMap
@@ -189,6 +189,7 @@ function SosCard({
             lng={Number(a.last_lng)}
             tracks={tracks}
             isActive={isActive}
+            height={220}
           />
         </div>
       )}
@@ -291,8 +292,11 @@ export default function SosPage() {
   useEffect(() => {
     const socket = getRealtimeSocket();
     if (!socket?.connected) return;
-    socket.on('sos:activated',      () => refetchActive());
-    socket.on('sos:location_update',() => qc.invalidateQueries({ queryKey: ['sos-active'] }));
+    socket.on('sos:activated', () => refetchActive());
+    socket.on('sos:location_update', (data: { alertId?: string }) => {
+      qc.invalidateQueries({ queryKey: ['sos-active'] });
+      if (data?.alertId) qc.invalidateQueries({ queryKey: ['sos-tracks', data.alertId] });
+    });
     return () => { socket.off('sos:activated'); socket.off('sos:location_update'); };
   }, []);
 
@@ -399,17 +403,58 @@ export default function SosPage() {
                 <p className="text-xs text-gray-400 dark:text-white/30 mt-1">Tidak ada SOS aktif saat ini</p>
               </div>
             ) : (
-              active.map((a) => (
-                <SosCard
-                  key={a.id}
-                  alert={a}
-                  tick={tick}
-                  onRespond={() => respondMut.mutate(a.id)}
-                  onResolve={(notes) => resolveMut.mutate({ id: a.id, notes })}
-                  resolveNote={resolveNote}
-                  setResolveNote={setResolveNote}
-                />
-              ))
+              <>
+                {/* ── Monitoring Map ─────────────────────────────────────────── */}
+                <div className={`rounded-2xl overflow-hidden border-2 ${
+                  active.length > 0
+                    ? 'border-[#FF3B30] shadow-[0_0_0_4px_rgba(255,59,48,0.15)]'
+                    : 'border-transparent'
+                }`}>
+                  {/* Header strip */}
+                  <div className="bg-[#FF3B30] px-4 py-2.5 flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+                      <Siren size={11} className="text-white" />
+                    </div>
+                    <p className="text-white text-xs font-bold uppercase tracking-wider">
+                      Peta Monitoring — {active.length} SOS Aktif
+                    </p>
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {active.map((a) => (
+                        <span key={a.id} className="text-[10px] font-semibold text-white/90 bg-white/20 px-2 py-0.5 rounded-full">
+                          {a.user?.full_name?.split(' ')[0] ?? '?'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Map */}
+                  <SosMap
+                    alerts={active
+                      .filter((a) => a.last_lat && a.last_lng)
+                      .map((a) => ({
+                        id: a.id,
+                        lat: Number(a.last_lat),
+                        lng: Number(a.last_lng),
+                        name: a.user?.full_name ?? 'SOS',
+                        status: a.status,
+                        activatedAt: a.activated_at,
+                      }))}
+                    height={380}
+                  />
+                </div>
+
+                {/* ── Individual SOS Cards ──────────────────────────────────── */}
+                {active.map((a) => (
+                  <SosCard
+                    key={a.id}
+                    alert={a}
+                    tick={tick}
+                    onRespond={() => respondMut.mutate(a.id)}
+                    onResolve={(notes) => resolveMut.mutate({ id: a.id, notes })}
+                    resolveNote={resolveNote}
+                    setResolveNote={setResolveNote}
+                  />
+                ))}
+              </>
             )}
           </div>
         )}

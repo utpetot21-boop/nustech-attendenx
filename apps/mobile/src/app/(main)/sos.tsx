@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert,
-  Platform, Vibration, Animated, StatusBar, Linking, ScrollView,
+  Platform, Vibration, Animated, StatusBar, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -205,21 +205,6 @@ export default function SosScreen() {
           <Text style={styles.callBtnText}>📞 Hubungi Darurat</Text>
         </TouchableOpacity>
 
-        {lastLat !== null && lastLng !== null && (
-          <TouchableOpacity
-            style={styles.mapsBtn}
-            onPress={() => {
-              const url = Platform.OS === 'ios'
-                ? `maps://?q=${lastLat},${lastLng}&ll=${lastLat},${lastLng}`
-                : `geo:${lastLat},${lastLng}?q=${lastLat},${lastLng}`;
-              Linking.openURL(url).catch(() =>
-                Linking.openURL(`https://www.google.com/maps?q=${lastLat},${lastLng}`)
-              );
-            }}
-          >
-            <Text style={styles.mapsBtnText}>📍 Buka Lokasi di Maps</Text>
-          </TouchableOpacity>
-        )}
 
         <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
           <Text style={styles.cancelBtnText}>Batalkan SOS (tekan 2x)</Text>
