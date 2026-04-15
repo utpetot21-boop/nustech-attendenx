@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserEntity } from '../users/entities/user.entity';
 
 import { ScheduleSwapService } from './schedule-swap.service';
 import { CreateSwapRequestDto } from './dto/create-swap-request.dto';
@@ -42,15 +43,15 @@ export class ScheduleSwapController {
   @Get('requests')
   @ApiOperation({ summary: 'Daftar permintaan tukar jadwal' })
   getRequests(
-    @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: string,
+    @CurrentUser() user: UserEntity,
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('user_id') queryUserId?: string,
   ) {
-    const isAdmin = ['admin', 'super_admin', 'manager'].includes(role);
+    const roleName = user.role?.name ?? '';
+    const isAdmin = ['admin', 'super_admin', 'manager'].includes(roleName);
     return this.swapService.getRequests({
-      userId: isAdmin && queryUserId ? queryUserId : isAdmin ? undefined : userId,
+      userId: isAdmin && queryUserId ? queryUserId : isAdmin ? undefined : user.id,
       status,
       isAdmin,
       page: page ? parseInt(page) : 1,
