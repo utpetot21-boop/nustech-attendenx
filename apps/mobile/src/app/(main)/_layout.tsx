@@ -134,6 +134,8 @@ export default function MainLayout() {
       <Tabs.Screen name="business-trips/index"  options={{ href: null, title: 'Surat Tugas' }} />
       <Tabs.Screen name="attendance"            options={{ href: null, title: 'Absensi' }} />
       <Tabs.Screen name="notifications"         options={{ href: null, title: 'Notifikasi' }} />
+      <Tabs.Screen name="leave"                 options={{ href: null, title: 'Cuti & Izin' }} />
+      <Tabs.Screen name="schedule-swap"         options={{ href: null, title: 'Tukar Jadwal' }} />
     </Tabs>
   );
 }

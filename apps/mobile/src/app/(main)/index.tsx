@@ -26,6 +26,8 @@ import {
   Calendar,
   Sun,
   Coffee,
+  Palmtree,
+  ArrowLeftRight,
 } from 'lucide-react-native';
 import WeatherBanner, { getPeriodLabel } from '@/components/home/WeatherBanner';
 
@@ -629,6 +631,24 @@ export default function BerandaScreen() {
               isDark={isDark}
             />
           </View>
+
+          {/* ── CUTI & IZIN + TUKAR JADWAL ────────────────────────────────── */}
+          <NavCard
+            label="Cuti & Izin"
+            sub="Ajukan cuti, izin, dan lihat saldo"
+            accentColor={C.blue}
+            icon={Palmtree}
+            onPress={() => router.push('/(main)/leave' as any)}
+            isDark={isDark}
+          />
+          <NavCard
+            label="Tukar Jadwal"
+            sub="Tukar hari kerja dengan rekan atau hari libur"
+            accentColor={C.orange}
+            icon={ArrowLeftRight}
+            onPress={() => router.push('/(main)/schedule-swap' as any)}
+            isDark={isDark}
+          />
 
           {/* ── SOS ──────────────────────────────────────────────────────── */}
           <SosButton isDark={isDark} />
