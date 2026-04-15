@@ -14,7 +14,7 @@ interface UserRow {
   user_id: string;
   name: string;
   employee_id: string;
-  days: Record<string, { shift_id?: string; shift_name?: string; color?: string } | null>;
+  days: Record<string, { shift_id?: string; shift_name?: string; color?: string; is_day_off?: boolean; is_holiday?: boolean } | null>;
 }
 
 interface Props {
@@ -135,6 +135,10 @@ export function AssignmentGrid({ weekDates, rows, shiftTypes, onAssign, onRemove
                       </span>
                     )}
                   </div>
+                ) : cell?.is_day_off ? (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/[0.08] text-gray-400 dark:text-white/35 border border-gray-200 dark:border-white/[0.12] select-none">
+                    Libur
+                  </span>
                 ) : (
                   <span className="text-[13px] text-gray-200 dark:text-white/20 select-none font-light">+</span>
                 )}

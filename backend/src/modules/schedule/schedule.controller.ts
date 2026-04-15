@@ -162,6 +162,20 @@ export class ScheduleController {
     return this.userSchedulesService.generateForMonth(month);
   }
 
+  @Post('generate-shift')
+  @RequirePermission('schedule:manage')
+  @ApiOperation({ summary: 'Generate jadwal shift pola 5-on-1-off untuk semua karyawan shift' })
+  generateShiftPattern(
+    @Body() body: {
+      shift_type_id: string;
+      start_date: string;
+      end_date: string;
+      cycle_start_date: string;
+    },
+  ) {
+    return this.userSchedulesService.generateShiftPattern(body);
+  }
+
   @Post('assign')
   @RequirePermission('schedule:manage')
   @ApiOperation({ summary: 'Assign shift ke karyawan' })

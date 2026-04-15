@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, Clock, Users, Building2,
-  RotateCcw, Plus, Pencil, Trash2, CalendarDays, CheckCircle2, X,
+  RotateCcw, Plus, Pencil, Trash2, CalendarDays, CheckCircle2, X, Zap,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
@@ -119,6 +119,125 @@ function AddHolidayModal({ onClose, onSave }: { onClose: () => void; onSave: (dt
   );
 }
 
+// ── Generate Shift Modal ───────────────────────────────────────
+function GenerateShiftModal({
+  shiftTypes,
+  shiftUserCount,
+  onClose,
+  onGenerate,
+  loading,
+}: {
+  shiftTypes: ShiftType[];
+  shiftUserCount: number;
+  onClose: () => void;
+  onGenerate: (data: { shift_type_id: string; period: 'week' | 'month'; cycle_start_date: string }) => void;
+  loading: boolean;
+}) {
+  const todayStr = localDateStr(new Date());
+  // Default cycle start = Senin minggu ini
+  const monday = (() => {
+    const now = new Date();
+    const d = new Date(now);
+    d.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    return localDateStr(d);
+  })();
+
+  const [shiftTypeId, setShiftTypeId] = useState(shiftTypes[0]?.id ?? '');
+  const [period, setPeriod]           = useState<'week' | 'month'>('week');
+  const [cycleStart, setCycleStart]   = useState(monday);
+
+  const canSubmit = !!shiftTypeId && !!cycleStart && !loading;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white dark:bg-[#1C1C1E] rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">Generate Jadwal Shift</h3>
+            <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Pola 5 hari kerja · 1 hari libur</p>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/[0.08] text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/[0.12] transition">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Shift Type */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">
+              Tipe Shift
+            </label>
+            <select
+              value={shiftTypeId}
+              onChange={e => setShiftTypeId(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF]">
+              {shiftTypes.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.name} · {s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Periode */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">
+              Periode
+            </label>
+            <div className="flex gap-2">
+              {(['week', 'month'] as const).map(p => (
+                <button key={p} type="button" onClick={() => setPeriod(p)}
+                  className={`flex-1 h-9 rounded-xl text-sm font-medium border transition-colors ${
+                    period === p
+                      ? 'bg-[#007AFF] text-white border-[#007AFF]'
+                      : 'bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/60 border-black/10 dark:border-white/[0.12]'
+                  }`}>
+                  {p === 'week' ? 'Minggu Ini' : 'Bulan Ini'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tanggal Acuan */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">
+              Tanggal Acuan Siklus
+            </label>
+            <input type="date" value={cycleStart} onChange={e => setCycleStart(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF]" />
+            <p className="text-[11px] text-gray-400 dark:text-white/35 mt-1.5">
+              Titik awal hitung siklus 5+1. Offset tiap karyawan otomatis didistribusikan.
+            </p>
+          </div>
+
+          {/* Info */}
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-[#FFF9EC] dark:bg-[rgba(255,159,10,0.10)] border border-[#FDDFA0] dark:border-[rgba(255,159,10,0.25)]">
+            <span className="text-sm mt-0.5">⚠️</span>
+            <p className="text-[11px] text-[#92400E] dark:text-[#FCD34D] leading-relaxed">
+              Generate akan <b>menimpa</b> jadwal shift yang sudah ada pada periode ini.
+              {shiftUserCount > 0 && ` Berlaku untuk ${shiftUserCount} karyawan shift.`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose}
+            className="flex-1 h-10 rounded-xl text-sm font-medium border border-black/10 dark:border-white/[0.12] text-gray-700 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition">
+            Batal
+          </button>
+          <button
+            onClick={() => canSubmit && onGenerate({ shift_type_id: shiftTypeId, period, cycle_start_date: cycleStart })}
+            disabled={!canSubmit}
+            className="flex-1 h-10 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-40 transition flex items-center justify-center gap-2">
+            {loading ? 'Generating...' : <><Zap size={14} /> Generate</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────
 export default function SchedulePage() {
   const [activeTab, setActiveTab]     = useState(0);
@@ -128,6 +247,7 @@ export default function SchedulePage() {
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
   const [showAddHoliday, setShowAddHoliday] = useState(false);
   const [deleteHolidayId, setDeleteHolidayId] = useState<string | null>(null);
+  const [showGenerateShift, setShowGenerateShift] = useState(false);
   const [holidayYear, setHolidayYear] = useState(new Date().getFullYear());
   const [ohActiveCell, setOhActiveCell] = useState<{
     userId: string; date: string; userName: string; cellType: 'work' | 'day_off' | 'national_holiday';
@@ -280,6 +400,36 @@ export default function SchedulePage() {
     },
     onError: () => toast.error('Gagal generate jadwal bulanan'),
   });
+  const generateShift = useMutation({
+    mutationFn: (data: { shift_type_id: string; period: 'week' | 'month'; cycle_start_date: string }) => {
+      const now = new Date();
+      let start_date: string;
+      let end_date: string;
+      if (data.period === 'week') {
+        start_date = weekDates[0];
+        end_date   = weekDates[6];
+      } else {
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        start_date = `${y}-${String(m).padStart(2, '0')}-01`;
+        const lastDay = new Date(y, m, 0).getDate();
+        end_date = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      }
+      return apiClient.post('/schedules/generate-shift', {
+        shift_type_id: data.shift_type_id,
+        start_date,
+        end_date,
+        cycle_start_date: data.cycle_start_date,
+      });
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['team-schedule'] });
+      setShowGenerateShift(false);
+      toast.success(`Jadwal shift di-generate: ${res.data?.generated ?? 0} entri`);
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal generate jadwal shift')),
+  });
+
   const createHoliday = useMutation({
     mutationFn: (dto: object) => apiClient.post('/schedules/holidays', dto),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['holidays', year] }); toast.success('Hari libur ditambahkan'); },
@@ -710,11 +860,20 @@ export default function SchedulePage() {
 
             {/* Shift Section */}
             <div>
-              <div className="mb-3">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Shift</h2>
-                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">
-                  {shiftUsers.length} karyawan · Klik sel untuk assign atau ganti shift · Tidak dipengaruhi hari libur nasional
-                </p>
+              <div className="flex items-start justify-between mb-3 gap-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Shift</h2>
+                  <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">
+                    {shiftUsers.length} karyawan · Klik sel untuk assign atau ganti shift · Tidak dipengaruhi hari libur nasional
+                  </p>
+                </div>
+                {shifts.length > 0 && shiftUsers.length > 0 && (
+                  <button
+                    onClick={() => setShowGenerateShift(true)}
+                    className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold text-white bg-[#FF9500] hover:bg-[#E08600] flex-shrink-0 transition">
+                    <Zap size={13} /> Generate Shift
+                  </button>
+                )}
               </div>
 
               <AssignmentGrid
@@ -729,7 +888,7 @@ export default function SchedulePage() {
               />
 
               {/* Legend */}
-              <div className="flex items-center gap-4 mt-2 px-1">
+              <div className="flex flex-wrap items-center gap-4 mt-2 px-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-gray-200 text-sm font-light">+</span>
                   <span className="text-[10px] text-gray-400">= belum ada jadwal, klik untuk assign</span>
@@ -740,6 +899,10 @@ export default function SchedulePage() {
                     <span className="text-[9px] text-gray-500 tabular-nums leading-tight">08:00</span>
                   </div>
                   <span className="text-[10px] text-gray-400">= klik untuk ganti atau hapus</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 border border-gray-200">Libur</span>
+                  <span className="text-[10px] text-gray-400">= hari libur shift, klik untuk assign</span>
                 </div>
               </div>
             </div>
@@ -896,6 +1059,17 @@ export default function SchedulePage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Generate Shift Modal */}
+      {showGenerateShift && (
+        <GenerateShiftModal
+          shiftTypes={shifts}
+          shiftUserCount={shiftUsers.length}
+          onClose={() => setShowGenerateShift(false)}
+          onGenerate={(data) => generateShift.mutate(data)}
+          loading={generateShift.isPending}
+        />
       )}
     </div>
   );

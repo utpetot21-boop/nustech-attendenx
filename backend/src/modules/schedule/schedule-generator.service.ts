@@ -173,6 +173,107 @@ export class ScheduleGeneratorService {
     );
   }
 
+  /**
+   * Generate jadwal shift pola 5-on-1-off untuk semua karyawan shift.
+   * Hari libur didistribusikan otomatis berdasarkan urutan karyawan.
+   */
+  async generateShiftPattern(payload: {
+    shift_type_id: string;
+    start_date: string;
+    end_date: string;
+    cycle_start_date: string;
+  }): Promise<{ generated: number }> {
+    const shift = await this.shiftRepo.findOne({
+      where: { id: payload.shift_type_id, is_active: true },
+    });
+    if (!shift) throw new Error('Shift type tidak ditemukan');
+
+    // Ambil semua karyawan shift aktif, diurutkan konsisten
+    const users = await this.userRepo.find({
+      where: { is_active: true, schedule_type: 'shift' as any },
+      order: { employee_id: 'ASC' },
+      select: ['id', 'employee_id', 'schedule_type'],
+    });
+
+    // Bangun daftar tanggal dalam range
+    const dates = this.dateRange(payload.start_date, payload.end_date);
+
+    let generated = 0;
+
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i];
+      // Setiap karyawan dapat offset berbeda agar hari libur tersebar
+      const userOffset = i % 6;
+
+      for (const dateStr of dates) {
+        const dayOffset = this.daysBetween(payload.cycle_start_date, dateStr);
+        const posInCycle = ((dayOffset + userOffset) % 6 + 6) % 6;
+        const isDayOff = posInCycle === 5;
+
+        const existing = await this.scheduleRepo.findOne({
+          where: { user_id: user.id, date: dateStr },
+        });
+
+        if (isDayOff) {
+          if (existing) {
+            await this.scheduleRepo.update(existing.id, {
+              shift_type_id: null,
+              schedule_type: 'shift',
+              start_time: shift.start_time,
+              end_time: shift.end_time,
+              tolerance_minutes: shift.tolerance_minutes,
+              is_day_off: true,
+              is_holiday: false,
+            });
+          } else {
+            await this.scheduleRepo.save(
+              this.scheduleRepo.create({
+                user_id: user.id,
+                schedule_type: 'shift',
+                date: dateStr,
+                shift_type_id: null,
+                start_time: shift.start_time,
+                end_time: shift.end_time,
+                tolerance_minutes: shift.tolerance_minutes,
+                is_day_off: true,
+                is_holiday: false,
+              }),
+            );
+          }
+        } else {
+          if (existing) {
+            await this.scheduleRepo.update(existing.id, {
+              shift_type_id: payload.shift_type_id,
+              schedule_type: 'shift',
+              start_time: shift.start_time,
+              end_time: shift.end_time,
+              tolerance_minutes: shift.tolerance_minutes,
+              is_day_off: false,
+              is_holiday: false,
+            });
+          } else {
+            await this.scheduleRepo.save(
+              this.scheduleRepo.create({
+                user_id: user.id,
+                shift_type_id: payload.shift_type_id,
+                schedule_type: 'shift',
+                date: dateStr,
+                start_time: shift.start_time,
+                end_time: shift.end_time,
+                tolerance_minutes: shift.tolerance_minutes,
+                is_day_off: false,
+                is_holiday: false,
+              }),
+            );
+          }
+        }
+        generated++;
+      }
+    }
+
+    return { generated };
+  }
+
   // ── Helpers ───────────────────────────────────────────────────
   private getTomorrow(): string {
     const tomorrow = new Date();
@@ -183,5 +284,30 @@ export class ScheduleGeneratorService {
   private getDayOfWeek(dateStr: string): string {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return days[new Date(dateStr).getDay()];
+  }
+
+  /** Selisih hari antara dua tanggal YYYY-MM-DD (UTC-safe) */
+  private daysBetween(from: string, to: string): number {
+    const [fy, fm, fd] = from.split('-').map(Number);
+    const [ty, tm, td] = to.split('-').map(Number);
+    return Math.round(
+      (Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000,
+    );
+  }
+
+  /** Daftar tanggal YYYY-MM-DD dari start sampai end (inklusif) */
+  private dateRange(start: string, end: string): string[] {
+    const [sy, sm, sd] = start.split('-').map(Number);
+    const [ey, em, ed] = end.split('-').map(Number);
+    const dates: string[] = [];
+    const cur = new Date(Date.UTC(sy, sm - 1, sd));
+    const last = new Date(Date.UTC(ey, em - 1, ed));
+    while (cur <= last) {
+      dates.push(
+        `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`,
+      );
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return dates;
   }
 }

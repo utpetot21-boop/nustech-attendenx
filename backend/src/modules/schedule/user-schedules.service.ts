@@ -96,6 +96,18 @@ export class UserSchedulesService {
   }
 
   /**
+   * Generate jadwal shift pola 5-on-1-off untuk semua karyawan shift
+   */
+  async generateShiftPattern(payload: {
+    shift_type_id: string;
+    start_date: string;
+    end_date: string;
+    cycle_start_date: string;
+  }): Promise<{ generated: number }> {
+    return this.generatorService.generateShiftPattern(payload);
+  }
+
+  /**
    * Generate jadwal untuk seluruh bulan (YYYY-MM)
    */
   async generateForMonth(month: string): Promise<{ generated: number; skipped: number }> {
