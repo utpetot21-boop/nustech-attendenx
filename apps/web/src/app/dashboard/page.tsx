@@ -241,10 +241,10 @@ export default function DashboardPage() {
         lat: v.lat_checkin!, lng: v.lng_checkin!, clientName: v.client?.name ?? null, lastSeen: null,
       })),
     ...sosAlerts
-      .filter((s) => s.last_lat !== null && s.last_lng !== null)
+      .filter((s) => s.last_lat != null && s.last_lng != null)
       .map((s) => ({
         userId: s.id, name: s.user?.full_name ?? 'SOS', type: 'sos' as const,
-        lat: s.last_lat!, lng: s.last_lng!, clientName: null, lastSeen: s.created_at,
+        lat: Number(s.last_lat), lng: Number(s.last_lng), clientName: null, lastSeen: s.created_at,
       })),
   ];
 
@@ -264,7 +264,8 @@ export default function DashboardPage() {
               </p>
               <p className="text-[11px] text-red-500 dark:text-red-500 flex items-center gap-1 mt-0.5">
                 <MapPin size={10} />
-                {activeSos.last_lat?.toFixed(5) ?? '—'}, {activeSos.last_lng?.toFixed(5) ?? '—'}
+                {activeSos.last_lat != null ? Number(activeSos.last_lat).toFixed(5) : '—'},&nbsp;
+                {activeSos.last_lng != null ? Number(activeSos.last_lng).toFixed(5) : '—'}
                 <span className="mx-1">·</span>
                 <Clock size={10} />
                 {new Date(activeSos.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WITA

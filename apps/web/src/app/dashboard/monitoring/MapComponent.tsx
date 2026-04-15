@@ -199,7 +199,7 @@ export default function MapComponent({
               <strong style={{ fontSize: 13 }}>{t.name}</strong>
               {t.clientName && <div style={{ color: '#6B7280', marginTop: 2 }}>{t.clientName}</div>}
               <div style={{ color: '#9CA3AF', fontSize: 11, marginTop: 4 }}>
-                {t.lat?.toFixed(6)}, {t.lng?.toFixed(6)}
+                {t.lat != null ? Number(t.lat).toFixed(6) : '—'}, {t.lng != null ? Number(t.lng).toFixed(6) : '—'}
               </div>
             </div>
           </Popup>
