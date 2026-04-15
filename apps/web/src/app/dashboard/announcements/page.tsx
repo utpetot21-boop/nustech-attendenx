@@ -158,8 +158,11 @@ export default function AnnouncementsPage() {
   });
 
   const createMut = useMutation({
-    mutationFn: (draft: boolean) =>
-      apiClient.post('/announcements', { ...form, status: draft ? 'draft' : 'sent' }).then((r) => r.data),
+    mutationFn: (draft: boolean) => {
+      const payload: Record<string, unknown> = { ...form };
+      if (!payload.pinned_until) delete payload.pinned_until;
+      return apiClient.post('/announcements', payload).then((r) => r.data);
+    },
     onSuccess: async (data) => {
       if (data.status !== 'draft') {
         await apiClient.post(`/announcements/${data.id}/send`);
