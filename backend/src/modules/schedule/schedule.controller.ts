@@ -171,6 +171,7 @@ export class ScheduleController {
       start_date: string;
       end_date: string;
       cycle_start_date: string;
+      user_offsets?: Record<string, number>;
     },
   ) {
     return this.userSchedulesService.generateShiftPattern(body);

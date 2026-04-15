@@ -182,6 +182,8 @@ export class ScheduleGeneratorService {
     start_date: string;
     end_date: string;
     cycle_start_date: string;
+    /** userId → offset (0–5). Jika tidak ada, fallback ke index % 6 */
+    user_offsets?: Record<string, number>;
   }): Promise<{ generated: number }> {
     const shift = await this.shiftRepo.findOne({
       where: { id: payload.shift_type_id, is_active: true },
@@ -202,8 +204,8 @@ export class ScheduleGeneratorService {
 
     for (let i = 0; i < users.length; i++) {
       const user = users[i];
-      // Setiap karyawan dapat offset berbeda agar hari libur tersebar
-      const userOffset = i % 6;
+      // Gunakan offset manual jika ada, fallback ke index % 6
+      const userOffset = payload.user_offsets?.[user.id] ?? (i % 6);
 
       for (const dateStr of dates) {
         const dayOffset = this.daysBetween(payload.cycle_start_date, dateStr);

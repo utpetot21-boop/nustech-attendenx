@@ -103,6 +103,7 @@ export class UserSchedulesService {
     start_date: string;
     end_date: string;
     cycle_start_date: string;
+    user_offsets?: Record<string, number>;
   }): Promise<{ generated: number }> {
     return this.generatorService.generateShiftPattern(payload);
   }

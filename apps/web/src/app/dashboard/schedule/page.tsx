@@ -120,21 +120,26 @@ function AddHolidayModal({ onClose, onSave }: { onClose: () => void; onSave: (dt
 }
 
 // ── Generate Shift Modal ───────────────────────────────────────
+const OFFSET_LABELS = ['Hari ke-6', 'Hari ke-1', 'Hari ke-2', 'Hari ke-3', 'Hari ke-4', 'Hari ke-5'];
+
 function GenerateShiftModal({
   shiftTypes,
-  shiftUserCount,
+  shiftUsers,
   onClose,
   onGenerate,
   loading,
 }: {
   shiftTypes: ShiftType[];
-  shiftUserCount: number;
+  shiftUsers: { id: string; full_name: string; employee_id: string }[];
   onClose: () => void;
-  onGenerate: (data: { shift_type_id: string; period: 'week' | 'month'; cycle_start_date: string }) => void;
+  onGenerate: (data: {
+    shift_type_id: string;
+    period: 'week' | 'month';
+    cycle_start_date: string;
+    user_offsets: Record<string, number>;
+  }) => void;
   loading: boolean;
 }) {
-  const todayStr = localDateStr(new Date());
-  // Default cycle start = Senin minggu ini
   const monday = (() => {
     const now = new Date();
     const d = new Date(now);
@@ -145,13 +150,21 @@ function GenerateShiftModal({
   const [shiftTypeId, setShiftTypeId] = useState(shiftTypes[0]?.id ?? '');
   const [period, setPeriod]           = useState<'week' | 'month'>('week');
   const [cycleStart, setCycleStart]   = useState(monday);
+  // Default offset: distribusi otomatis index % 6
+  const [offsets, setOffsets]         = useState<Record<string, number>>(
+    () => Object.fromEntries(shiftUsers.map((u, i) => [u.id, i % 6]))
+  );
+
+  const setOffset = (userId: string, val: number) =>
+    setOffsets(prev => ({ ...prev, [userId]: val }));
 
   const canSubmit = !!shiftTypeId && !!cycleStart && !loading;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white dark:bg-[#1C1C1E] rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-5">
+      <div className="bg-white dark:bg-[#1C1C1E] rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md p-6 shadow-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5 flex-shrink-0">
           <div>
             <h3 className="text-base font-bold text-gray-900 dark:text-white">Generate Jadwal Shift</h3>
             <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Pola 5 hari kerja · 1 hari libur</p>
@@ -162,11 +175,12 @@ function GenerateShiftModal({
           </button>
         </div>
 
-        <div className="space-y-4">
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 space-y-4 pr-0.5">
           {/* Shift Type */}
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">
-              Tipe Shift
+              Tipe Shift (Default)
             </label>
             <select
               value={shiftTypeId}
@@ -206,28 +220,63 @@ function GenerateShiftModal({
             </label>
             <input type="date" value={cycleStart} onChange={e => setCycleStart(e.target.value)}
               className="w-full h-10 px-3 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF]" />
-            <p className="text-[11px] text-gray-400 dark:text-white/35 mt-1.5">
-              Titik awal hitung siklus 5+1. Offset tiap karyawan otomatis didistribusikan.
+            <p className="text-[11px] text-gray-400 dark:text-white/35 mt-1">
+              Titik awal hitung siklus 5+1 untuk setiap karyawan.
             </p>
           </div>
 
-          {/* Info */}
+          {/* Offset per karyawan */}
+          {shiftUsers.length > 0 && (
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-2">
+                Hari Libur per Karyawan
+              </label>
+              <div className="rounded-xl border border-black/[0.07] dark:border-white/[0.10] overflow-hidden">
+                {shiftUsers.map((user, i) => (
+                  <div key={user.id}
+                    className={`flex items-center gap-3 px-3 py-2.5 ${i < shiftUsers.length - 1 ? 'border-b border-black/[0.05] dark:border-white/[0.07]' : ''}`}>
+                    <div className="w-6 h-6 rounded-full bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.18)] flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-bold text-[#007AFF]">{user.full_name.charAt(0)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-800 dark:text-white truncate">{user.full_name}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-white/40">{user.employee_id}</p>
+                    </div>
+                    <select
+                      value={offsets[user.id] ?? i % 6}
+                      onChange={e => setOffset(user.id, Number(e.target.value))}
+                      className="h-8 px-2 rounded-lg text-xs border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-800 dark:text-white focus:outline-none focus:border-[#007AFF] flex-shrink-0">
+                      {OFFSET_LABELS.map((label, idx) => (
+                        <option key={idx} value={idx}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400 dark:text-white/35 mt-1.5">
+                "Hari ke-N" = libur pada posisi ke-N dalam siklus 6 hari dari tanggal acuan.
+              </p>
+            </div>
+          )}
+
+          {/* Warning */}
           <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-[#FFF9EC] dark:bg-[rgba(255,159,10,0.10)] border border-[#FDDFA0] dark:border-[rgba(255,159,10,0.25)]">
             <span className="text-sm mt-0.5">⚠️</span>
             <p className="text-[11px] text-[#92400E] dark:text-[#FCD34D] leading-relaxed">
               Generate akan <b>menimpa</b> jadwal shift yang sudah ada pada periode ini.
-              {shiftUserCount > 0 && ` Berlaku untuk ${shiftUserCount} karyawan shift.`}
+              {shiftUsers.length > 0 && ` Berlaku untuk ${shiftUsers.length} karyawan shift.`}
             </p>
           </div>
         </div>
 
-        <div className="flex gap-3 mt-5">
+        {/* Actions */}
+        <div className="flex gap-3 mt-5 flex-shrink-0">
           <button onClick={onClose}
             className="flex-1 h-10 rounded-xl text-sm font-medium border border-black/10 dark:border-white/[0.12] text-gray-700 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition">
             Batal
           </button>
           <button
-            onClick={() => canSubmit && onGenerate({ shift_type_id: shiftTypeId, period, cycle_start_date: cycleStart })}
+            onClick={() => canSubmit && onGenerate({ shift_type_id: shiftTypeId, period, cycle_start_date: cycleStart, user_offsets: offsets })}
             disabled={!canSubmit}
             className="flex-1 h-10 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-40 transition flex items-center justify-center gap-2">
             {loading ? 'Generating...' : <><Zap size={14} /> Generate</>}
@@ -401,7 +450,7 @@ export default function SchedulePage() {
     onError: () => toast.error('Gagal generate jadwal bulanan'),
   });
   const generateShift = useMutation({
-    mutationFn: (data: { shift_type_id: string; period: 'week' | 'month'; cycle_start_date: string }) => {
+    mutationFn: (data: { shift_type_id: string; period: 'week' | 'month'; cycle_start_date: string; user_offsets: Record<string, number> }) => {
       const now = new Date();
       let start_date: string;
       let end_date: string;
@@ -420,6 +469,7 @@ export default function SchedulePage() {
         start_date,
         end_date,
         cycle_start_date: data.cycle_start_date,
+        user_offsets: data.user_offsets,
       });
     },
     onSuccess: (res) => {
@@ -1065,7 +1115,7 @@ export default function SchedulePage() {
       {showGenerateShift && (
         <GenerateShiftModal
           shiftTypes={shifts}
-          shiftUserCount={shiftUsers.length}
+          shiftUsers={shiftUsers.map(u => ({ id: u.id, full_name: u.full_name, employee_id: u.employee_id }))}
           onClose={() => setShowGenerateShift(false)}
           onGenerate={(data) => generateShift.mutate(data)}
           loading={generateShift.isPending}
