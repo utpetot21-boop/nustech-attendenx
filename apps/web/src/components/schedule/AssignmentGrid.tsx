@@ -102,23 +102,39 @@ export function AssignmentGrid({ weekDates, rows, shiftTypes, onAssign, onRemove
             const cell = row.days[date];
             const isActive = activeCell?.userId === row.user_id && activeCell?.date === date;
             const isToday = date === TODAY;
+            const shiftMeta = cell?.shift_id
+              ? shiftTypes.find(s => s.id === cell.shift_id)
+              : null;
 
             return (
               <div
                 key={date}
                 onClick={() => openCell(row.user_id, date)}
-                className={`flex items-center justify-center py-2.5 cursor-pointer transition-colors ${
+                className={`flex items-center justify-center py-2 cursor-pointer transition-colors ${
                   isToday ? 'bg-[#EFF6FF]/40 dark:bg-[rgba(0,122,255,0.06)]' : ''
                 } ${isActive ? 'ring-2 ring-inset ring-[#007AFF]' : 'hover:bg-gray-100/60 dark:hover:bg-white/6'}`}
               >
                 {cell?.shift_id ? (
-                  <span
-                    className="text-[10px] font-medium px-1.5 py-0.5 rounded-md text-white truncate max-w-[56px]"
-                    style={{ backgroundColor: cell.color ?? '#007AFF' }}
-                    title={cell.shift_name}
+                  <div
+                    className="flex flex-col items-center px-2 py-1 rounded-lg min-w-[52px] max-w-[64px]"
+                    style={{
+                      backgroundColor: `${cell.color ?? '#007AFF'}22`,
+                      borderLeft: `3px solid ${cell.color ?? '#007AFF'}`,
+                    }}
+                    title={`${cell.shift_name}${shiftMeta ? ` · ${shiftMeta.start_time.slice(0,5)}–${shiftMeta.end_time.slice(0,5)}` : ''}`}
                   >
-                    {cell.shift_name?.split(' ').slice(-1)[0] ?? '?'}
-                  </span>
+                    <span
+                      className="text-[10px] font-semibold leading-tight truncate w-full text-center"
+                      style={{ color: cell.color ?? '#007AFF' }}
+                    >
+                      {cell.shift_name?.replace(/^shift\s*/i, '') || cell.shift_name || '?'}
+                    </span>
+                    {shiftMeta && (
+                      <span className="text-[9px] leading-tight text-gray-500 dark:text-white/50 tabular-nums">
+                        {shiftMeta.start_time.slice(0, 5)}
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <span className="text-[13px] text-gray-200 dark:text-white/20 select-none font-light">+</span>
                 )}

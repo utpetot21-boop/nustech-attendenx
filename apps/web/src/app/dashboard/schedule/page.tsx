@@ -735,7 +735,10 @@ export default function SchedulePage() {
                   <span className="text-[10px] text-gray-400">= belum ada jadwal, klik untuk assign</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md text-white" style={{ backgroundColor: '#007AFF' }}>Shift</span>
+                  <div className="flex flex-col items-center px-2 py-0.5 rounded-lg" style={{ backgroundColor: '#007AFF22', borderLeft: '3px solid #007AFF' }}>
+                    <span className="text-[10px] font-semibold text-[#007AFF] leading-tight">Pagi</span>
+                    <span className="text-[9px] text-gray-500 tabular-nums leading-tight">08:00</span>
+                  </div>
                   <span className="text-[10px] text-gray-400">= klik untuk ganti atau hapus</span>
                 </div>
               </div>
