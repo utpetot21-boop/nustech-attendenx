@@ -83,12 +83,59 @@ export class FcmService implements OnModuleInit {
     body: string,
     data?: Record<string, string>,
   ): Promise<void> {
+    // Pisahkan Expo tokens dan raw FCM tokens
+    const expoTokens = tokens.filter((t) => t.startsWith('ExponentPushToken['));
+    const fcmTokens  = tokens.filter((t) => !t.startsWith('ExponentPushToken['));
+
+    await Promise.all([
+      expoTokens.length ? this.sendViaExpo(expoTokens, title, body, data) : Promise.resolve(),
+      fcmTokens.length  ? this.sendViaFCM(fcmTokens, title, body, data)   : Promise.resolve(),
+    ]);
+  }
+
+  // ── Expo Push API (untuk Expo Go / development) ──────────────────────────────
+  private async sendViaExpo(
+    tokens: string[],
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ): Promise<void> {
+    const BATCH = 100;
+    for (let i = 0; i < tokens.length; i += BATCH) {
+      const batch = tokens.slice(i, i + BATCH).map((to) => ({
+        to,
+        title,
+        body,
+        data: data ?? {},
+        sound: 'default',
+        priority: 'high',
+      }));
+      try {
+        const resp = await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(batch),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!resp.ok) this.logger.error(`Expo Push error: HTTP ${resp.status}`);
+        else this.logger.debug(`Expo Push: sent ${batch.length} notifications`);
+      } catch (err) {
+        this.logger.error(`Expo Push send failed: ${err}`);
+      }
+    }
+  }
+
+  // ── Firebase Admin SDK (untuk production build) ──────────────────────────────
+  private async sendViaFCM(
+    tokens: string[],
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+  ): Promise<void> {
     if (!this.app) {
-      this.logger.warn('FCM not initialized, skipping push');
+      this.logger.warn('FCM not initialized, skipping FCM push');
       return;
     }
-
-    // FCM sendEachForMulticast — maks 500 token per batch
     const BATCH = 500;
     for (let i = 0; i < tokens.length; i += BATCH) {
       const batch = tokens.slice(i, i + BATCH);

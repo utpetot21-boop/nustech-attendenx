@@ -56,11 +56,20 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   try {
-    // getDevicePushTokenAsync → raw FCM device token (tidak perlu EAS projectId)
-    const tokenData = await Notifications.getDevicePushTokenAsync();
-    const token = tokenData.data as string;
+    // Expo Go: getExpoPushTokenAsync → ExponentPushToken[...]
+    // Production build: getDevicePushTokenAsync → raw FCM token
+    let token: string | null = null;
+    try {
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      token = tokenData.data;
+    } catch {
+      // Fallback ke raw FCM token untuk production build
+      const tokenData = await Notifications.getDevicePushTokenAsync();
+      token = tokenData.data as string;
+    }
+    if (!token) return null;
     await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
-    console.log('[Push] FCM token registered:', token.slice(0, 30) + '…');
+    console.log('[Push] Token registered:', token.slice(0, 30) + '…');
     return token;
   } catch (err) {
     console.warn('[Push] Failed to get token:', err);
