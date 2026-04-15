@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -59,11 +60,16 @@ export async function registerForPushNotifications(): Promise<string | null> {
     // Expo Go: getExpoPushTokenAsync → ExponentPushToken[...]
     // Production build: getDevicePushTokenAsync → raw FCM token
     let token: string | null = null;
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
     try {
-      const tokenData = await Notifications.getExpoPushTokenAsync();
+      // Jika projectId tersedia (EAS build), pakai Expo push token
+      // Jika tidak (Expo Go dev), tetap coba tanpa projectId
+      const tokenData = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined,
+      );
       token = tokenData.data;
     } catch {
-      // Fallback ke raw FCM token untuk production build
+      // Fallback ke raw FCM token untuk production build tanpa EAS
       const tokenData = await Notifications.getDevicePushTokenAsync();
       token = tokenData.data as string;
     }
