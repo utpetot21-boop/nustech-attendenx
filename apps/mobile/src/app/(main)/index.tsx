@@ -31,6 +31,7 @@ import WeatherBanner, { getPeriodLabel } from '@/components/home/WeatherBanner';
 
 import { attendanceService, type AttendanceRecord } from '@/services/attendance.service';
 import { scheduleService, getCurrentWeekString } from '@/services/schedule.service';
+import { api } from '@/services/api';
 
 const MONTH_NOW = (() => {
   const n = new Date();
@@ -231,6 +232,13 @@ export default function BerandaScreen() {
     staleTime: Infinity,
   });
 
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ['notif-unread-count'],
+    queryFn: () => api.get('/notifications/unread-count').then((r) => r.data),
+    refetchInterval: 60_000,
+  });
+  const unreadCount = unreadData?.count ?? 0;
+
   const { data: attendance, isLoading: loadingAtt } = useQuery<AttendanceRecord | null>({
     queryKey: ['attendance-today'],
     queryFn: () => attendanceService.getToday(),
@@ -332,6 +340,7 @@ export default function BerandaScreen() {
           fullName={user?.full_name?.split(' ').slice(0, 2).join(' ') ?? 'Karyawan'}
           greeting={greeting()}
           todayStr={todayStr}
+          unreadCount={unreadCount}
         >
           {/* Status badge di hero */}
           <View style={{

@@ -1,18 +1,23 @@
 {
   "project_info": {
-    "project_number": "000000000000",
+    "project_number": "417118915819",
     "project_id": "nustech-attendenx",
-    "storage_bucket": "nustech-attendenx.appspot.com"
+    "storage_bucket": "nustech-attendenx.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:417118915819:android:c8185251f02fc0041682ae",
         "android_client_info": {
           "package_name": "id.nustech.attendenx"
         }
       },
-      "api_key": [{ "current_key": "PLACEHOLDER_KEY" }],
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUm-dlSHwF7db8SmXBwY9qjzpgccZLNns"
+        }
+      ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": []

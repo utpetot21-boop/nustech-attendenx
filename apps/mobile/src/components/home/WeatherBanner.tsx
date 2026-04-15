@@ -489,6 +489,8 @@ interface WeatherBannerProps {
   fullName: string;
   greeting: string;
   todayStr: string;
+  /** jumlah notifikasi belum dibaca untuk badge lonceng */
+  unreadCount?: number;
   /** konten tambahan di bawah greeting (mis. status badge) */
   children?: React.ReactNode;
 }
@@ -498,6 +500,7 @@ export default function WeatherBanner({
   fullName,
   greeting,
   todayStr,
+  unreadCount = 0,
   children,
 }: WeatherBannerProps) {
   const insets = useSafeAreaInsets();
@@ -640,6 +643,20 @@ export default function WeatherBanner({
             }}
           >
             <Bell size={17} strokeWidth={1.8} color="rgba(255,255,255,0.90)" />
+            {unreadCount > 0 && (
+              <View style={{
+                position: 'absolute', top: 1, right: 1,
+                minWidth: 16, height: 16, borderRadius: 8,
+                backgroundColor: '#FF3B30',
+                alignItems: 'center', justifyContent: 'center',
+                paddingHorizontal: 3,
+                borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.3)',
+              }}>
+                <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800', lineHeight: 12 }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push('/(main)/profile' as any)}

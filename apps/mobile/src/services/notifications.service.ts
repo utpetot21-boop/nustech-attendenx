@@ -56,10 +56,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   try {
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    const token = tokenData.data;
+    // getDevicePushTokenAsync → raw FCM device token (tidak perlu EAS projectId)
+    const tokenData = await Notifications.getDevicePushTokenAsync();
+    const token = tokenData.data as string;
     await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
-    console.log('[Push] Token registered:', token.slice(0, 30) + '…');
+    console.log('[Push] FCM token registered:', token.slice(0, 30) + '…');
     return token;
   } catch (err) {
     console.warn('[Push] Failed to get token:', err);

@@ -4,6 +4,7 @@ import { BullModule } from '@nestjs/bull';
 
 import { NotificationEntity } from './entities/notification.entity';
 import { UserEntity } from '../users/entities/user.entity';
+import { UserDeviceEntity } from '../users/entities/user-device.entity';
 
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
@@ -15,7 +16,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([NotificationEntity, UserEntity]),
+    TypeOrmModule.forFeature([NotificationEntity, UserEntity, UserDeviceEntity]),
     BullModule.registerQueue({ name: 'whatsapp' }),
     forwardRef(() => RealtimeModule),
   ],
