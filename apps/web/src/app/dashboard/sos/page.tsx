@@ -85,12 +85,6 @@ function SosCard({
 }) {
   const isActive = a.status === 'active';
 
-  const { data: tracks = [] } = useQuery({
-    queryKey: ['sos-tracks', a.id],
-    queryFn: () => apiClient.get(`/sos/${a.id}/tracks`).then((r) => r.data as { lat: number; lng: number; recorded_at: string }[]),
-    refetchInterval: isActive ? 15_000 : false,
-  });
-
   return (
     <div className={`rounded-2xl border-2 overflow-hidden ${
       isActive
@@ -181,18 +175,6 @@ function SosCard({
         </div>
       </div>
 
-      {/* Map — detail view dengan riwayat pergerakan */}
-      {a.last_lat && a.last_lng && (
-        <div className="px-5 pb-4">
-          <SosMap
-            lat={Number(a.last_lat)}
-            lng={Number(a.last_lng)}
-            tracks={tracks}
-            isActive={isActive}
-            height={220}
-          />
-        </div>
-      )}
 
       {/* Actions */}
       <div className="px-5 pb-4 space-y-2">
