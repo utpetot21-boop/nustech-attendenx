@@ -152,6 +152,7 @@ export default function MapComponent({
   officeName?:   string | null;
   officeAddress?: string | null;
 }) {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const defaultCenter: [number, number] = center ?? [-8.5833, 116.1167];
   const withCoords = technicians.filter((t) => t.lat !== null && t.lng !== null);
 
@@ -160,7 +161,10 @@ export default function MapComponent({
       center={defaultCenter}
       zoom={zoom ?? 14}
       style={{ width: '100%', height: '100%' }}
-      zoomControl={false}
+      zoomControl={!isMobile}
+      dragging={!isMobile}
+      touchZoom={false}
+      tap={false}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
