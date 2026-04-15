@@ -97,9 +97,45 @@ export default function RootLayout() {
 
     responseListenerRef.current = addNotificationResponseListener((response) => {
       const data = response.notification.request.content.data as Record<string, string> | undefined;
-      if (data?.route) {
+      if (!data) return;
+
+      // Jika backend sudah kirim route langsung, pakai itu
+      if (data.route) {
         router.push(data.route as any);
+        return;
       }
+
+      // Mapping type → route
+      const ROUTE_MAP: Record<string, string> = {
+        // Tukar Jadwal
+        swap_request_received:          '/(main)/schedule-swap',
+        swap_request_accepted_by_target:'/(main)/schedule-swap',
+        swap_request_approved:          '/(main)/schedule-swap',
+        swap_request_rejected:          '/(main)/schedule-swap',
+        swap_request_admin:             '/(main)/schedule-swap',
+        // Cuti & Izin
+        leave_approved:                 '/(main)/leave',
+        leave_rejected:                 '/(main)/leave',
+        leave_expiry_reminder:          '/(main)/leave',
+        collective_leave_deduction:     '/(main)/leave',
+        // Pengumuman
+        announcement_approved:          '/(main)/notifications',
+        announcement_rejected:          '/(main)/notifications',
+        announcement_pending:           '/(main)/notifications',
+        // Absensi / SP
+        sp_reminder:                    '/(main)/attendance',
+        alfa_detected:                  '/(main)/attendance',
+        // SOS
+        sos:                            '/(main)/sos',
+        // Tugas
+        task_assigned:                  '/(main)/tasks',
+        sla_breach:                     '/(main)/tasks',
+        // Berita Acara
+        ba_generated:                   '/(main)/service-reports/index',
+      };
+
+      const route = ROUTE_MAP[data.type];
+      if (route) router.push(route as any);
     });
 
     receivedListenerRef.current = addNotificationReceivedListener((_notification) => {});
