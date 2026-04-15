@@ -1,8 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 
+// refresh_token opsional — web pakai HTTP-only cookie, mobile bisa kirim di body
 export class RefreshTokenDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
-  refresh_token: string;
+  @IsOptional()
+  refresh_token?: string;
 }
