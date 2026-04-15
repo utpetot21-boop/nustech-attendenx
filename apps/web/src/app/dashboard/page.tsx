@@ -21,7 +21,7 @@ const DashboardMap = dynamic(() => import('./DashboardMap'), { ssr: false });
 type AttendanceSummary = { hadir: number; terlambat: number; alfa: number; total_aktif: number; date: string };
 type Visit = { id: string; status: string; user?: { full_name: string }; client?: { name: string }; lat_checkin: number | null; lng_checkin: number | null; lat_checkout: number | null; lng_checkout: number | null };
 type Task = { id: string; title: string; status: string; priority: string; assigned_user?: { full_name: string }; client?: { name: string } };
-type SosAlert = { id: string; status: string; lat: number; lng: number; user?: { full_name: string }; created_at: string };
+type SosAlert = { id: string; status: string; last_lat: number | null; last_lng: number | null; user?: { full_name: string }; created_at: string };
 type ServiceReport = { id: string; report_number: string; created_at: string; visit?: { client?: { name: string } } };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -240,10 +240,12 @@ export default function DashboardPage() {
         userId: v.id, name: v.user?.full_name ?? '—', type: 'visit' as const,
         lat: v.lat_checkin!, lng: v.lng_checkin!, clientName: v.client?.name ?? null, lastSeen: null,
       })),
-    ...sosAlerts.map((s) => ({
-      userId: s.id, name: s.user?.full_name ?? 'SOS', type: 'sos' as const,
-      lat: s.lat, lng: s.lng, clientName: null, lastSeen: s.created_at,
-    })),
+    ...sosAlerts
+      .filter((s) => s.last_lat !== null && s.last_lng !== null)
+      .map((s) => ({
+        userId: s.id, name: s.user?.full_name ?? 'SOS', type: 'sos' as const,
+        lat: s.last_lat!, lng: s.last_lng!, clientName: null, lastSeen: s.created_at,
+      })),
   ];
 
   return (
@@ -262,7 +264,7 @@ export default function DashboardPage() {
               </p>
               <p className="text-[11px] text-red-500 dark:text-red-500 flex items-center gap-1 mt-0.5">
                 <MapPin size={10} />
-                {activeSos.lat.toFixed(5)}, {activeSos.lng.toFixed(5)}
+                {activeSos.last_lat?.toFixed(5) ?? '—'}, {activeSos.last_lng?.toFixed(5) ?? '—'}
                 <span className="mx-1">·</span>
                 <Clock size={10} />
                 {new Date(activeSos.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WITA

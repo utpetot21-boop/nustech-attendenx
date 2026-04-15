@@ -45,13 +45,32 @@ export class SosService {
       battery_pct: dto.battery_pct ?? null,
     });
 
-    // Push notifikasi ke admin/manager
+    // Ambil nama user yang aktivasi SOS (untuk pesan notif)
+    const triggerUser = await this.alertRepo.manager.query(
+      `SELECT full_name FROM users WHERE id = $1 LIMIT 1`,
+      [userId],
+    );
+    const senderName: string = triggerUser?.[0]?.full_name ?? 'Rekan Anda';
+
+    // Notifikasi ke admin/manager — detail lengkap
+    const adminIds = await this.getAdminManagerIds();
     this.notifications.sendMany(
-      await this.getAdminManagerIds(),
+      adminIds,
       'sos_alert',
-      '🚨 SOS Aktif',
-      `Karyawan membutuhkan bantuan darurat. Cek panel SOS segera.`,
+      'SOS Aktif',
+      `${senderName} membutuhkan bantuan darurat. Cek panel SOS segera.`,
     ).catch(() => null);
+
+    // Notifikasi ke semua karyawan aktif (kecuali yg trigger SOS & sudah dapat notif admin)
+    const peerIds = await this.getAllEmployeeIds(userId, adminIds);
+    if (peerIds.length > 0) {
+      this.notifications.sendMany(
+        peerIds,
+        'sos_alert',
+        'SOS Darurat',
+        `${senderName} mengaktifkan SOS. Apakah kamu berada di dekatnya?`,
+      ).catch(() => null);
+    }
 
     return saved;
   }
@@ -185,5 +204,18 @@ export class SosService {
        WHERE r.name IN ('admin','super_admin','manager') AND u.is_active = true`,
     );
     return result.map((r: any) => r.id);
+  }
+
+  // Semua karyawan aktif yang bukan trigger user dan belum dapat notif admin
+  private async getAllEmployeeIds(
+    excludeUserId: string,
+    alreadyNotified: string[],
+  ): Promise<string[]> {
+    const result = await this.alertRepo.manager.query(
+      `SELECT u.id FROM users u WHERE u.is_active = true`,
+    );
+    const allIds: string[] = result.map((r: any) => r.id);
+    const excluded = new Set([excludeUserId, ...alreadyNotified]);
+    return allIds.filter((id) => !excluded.has(id));
   }
 }

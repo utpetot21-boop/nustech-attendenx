@@ -1,6 +1,12 @@
 import { io, type Socket } from 'socket.io-client';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// NEXT_PUBLIC_SOCKET_URL = base URL tanpa path (mis. https://api.appnustech.cloud)
+// Fallback: strip /api/v1 dari API URL, atau pakai localhost
+const BASE_URL =
+  process.env.NEXT_PUBLIC_SOCKET_URL ||
+  (process.env.NEXT_PUBLIC_API_URL
+    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/v\d+\/?$/, '')
+    : 'http://localhost:3001');
 
 let realtimeSocket: Socket | null = null;
 
