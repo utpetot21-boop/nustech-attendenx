@@ -4,7 +4,7 @@ const nextConfig = {
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-  transpilePackages: ['@nustech/shared'],
+  transpilePackages: ['@nustech/shared', 'react-leaflet', 'leaflet'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.r2.dev' },
@@ -13,7 +13,9 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
   experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts'],
+    // recharts dihapus dari sini karena optimizePackageImports bisa break ES module
+    // imports di production standalone build
+    optimizePackageImports: ['lucide-react'],
   },
 };
 

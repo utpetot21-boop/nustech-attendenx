@@ -27,6 +27,12 @@ export default function DashboardError({
         <p className="text-sm text-gray-500 dark:text-white/50 mb-6 leading-relaxed">
           Terjadi kesalahan saat memuat halaman ini. Data Anda aman — ini adalah masalah tampilan saja.
         </p>
+        {/* Error detail — untuk debugging, hapus setelah masalah teridentifikasi */}
+        {error?.message && (
+          <p className="text-[11px] font-mono text-red-400 mb-2 bg-red-50 dark:bg-red-950/30 px-3 py-1.5 rounded-xl text-left break-all">
+            {error.message}
+          </p>
+        )}
         {error?.digest && (
           <p className="text-[11px] font-mono text-gray-400 dark:text-white/30 mb-4 bg-gray-100 dark:bg-white/[0.06] px-3 py-1.5 rounded-xl">
             ID: {error.digest}
