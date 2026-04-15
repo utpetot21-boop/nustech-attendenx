@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import api from './api';
 import { io, Socket } from 'socket.io-client';
 import * as SecureStore from 'expo-secure-store';
 
@@ -56,16 +56,16 @@ export function emitLocation(alertId: string, lat: number, lng: number, batteryP
 }
 
 export async function activateSos(lat: number, lng: number, batteryPct?: number): Promise<SosAlert> {
-  const res = await apiClient.post('/sos/activate', { lat, lng, battery_pct: batteryPct });
+  const res = await api.post('/sos/activate', { lat, lng, battery_pct: batteryPct });
   return res.data;
 }
 
 export async function cancelSos(): Promise<SosAlert> {
-  const res = await apiClient.post('/sos/cancel');
+  const res = await api.post('/sos/cancel');
   return res.data;
 }
 
 export async function getMyActiveSos(): Promise<SosAlert | null> {
-  const res = await apiClient.get('/sos/me');
+  const res = await api.get('/sos/me');
   return res.data;
 }

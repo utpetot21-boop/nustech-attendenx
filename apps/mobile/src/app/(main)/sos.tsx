@@ -7,8 +7,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert,
-  Platform, Vibration, Animated, StatusBar, Linking,
+  Platform, Vibration, Animated, StatusBar, Linking, ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Battery from 'expo-battery';
@@ -22,6 +23,7 @@ import {
 const TRACK_INTERVAL = 15_000; // 15 detik
 
 export default function SosScreen() {
+  const insets = useSafeAreaInsets();
   const [alert, setAlert] = useState<SosAlert | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [lastLat, setLastLat] = useState<number | null>(null);
@@ -95,7 +97,10 @@ export default function SosScreen() {
       }, TRACK_INTERVAL);
     };
 
-    init().catch(() => setActivating(false));
+    init().catch((err) => {
+      setActivating(false);
+      Alert.alert('Gagal Mengaktifkan SOS', err?.response?.data?.message ?? err?.message ?? 'Terjadi kesalahan');
+    });
 
     return () => {
       if (trackInterval.current) clearInterval(trackInterval.current);
@@ -140,6 +145,10 @@ export default function SosScreen() {
       style={styles.container}
     >
       <StatusBar barStyle="light-content" />
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingBottom: insets.bottom + 16 }}
+        showsVerticalScrollIndicator={false}
+      >
 
       {/* SOS Pulse Icon */}
       <View style={styles.center}>
@@ -216,6 +225,8 @@ export default function SosScreen() {
           <Text style={styles.cancelBtnText}>Batalkan SOS (tekan 2x)</Text>
         </TouchableOpacity>
       </View>
+
+      </ScrollView>
     </LinearGradient>
   );
 }
