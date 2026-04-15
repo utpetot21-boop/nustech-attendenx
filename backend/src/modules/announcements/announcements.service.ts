@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { AnnouncementEntity } from './entities/announcement.entity';
 import { AnnouncementReadEntity } from './entities/announcement-read.entity';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { UserEntity } from '../users/entities/user.entity';
 
 @Injectable()
 export class AnnouncementsService {
@@ -12,6 +14,9 @@ export class AnnouncementsService {
     private annRepo: Repository<AnnouncementEntity>,
     @InjectRepository(AnnouncementReadEntity)
     private readRepo: Repository<AnnouncementReadEntity>,
+    @InjectRepository(UserEntity)
+    private userRepo: Repository<UserEntity>,
+    private notifService: NotificationsService,
   ) {}
 
   async findAll(status?: string): Promise<AnnouncementEntity[]> {
@@ -48,7 +53,37 @@ export class AnnouncementsService {
     const ann = await this.findOne(id);
     ann.status = 'sent';
     ann.sent_at = new Date();
-    return this.annRepo.save(ann);
+    const saved = await this.annRepo.save(ann);
+
+    // Resolve target user IDs
+    let targetUserIds: string[] = [];
+    if (ann.target_type === 'all') {
+      const users = await this.userRepo.find({
+        where: { is_active: true },
+        select: ['id'],
+      });
+      targetUserIds = users.map((u) => u.id);
+    } else if (ann.target_type === 'department' && ann.target_dept_id) {
+      const users = await this.userRepo.find({
+        where: { is_active: true, department_id: ann.target_dept_id },
+        select: ['id'],
+      });
+      targetUserIds = users.map((u) => u.id);
+    } else if (ann.target_type === 'individual' && ann.target_user_ids?.length) {
+      targetUserIds = ann.target_user_ids;
+    }
+
+    // Kirim in-app notification + FCM push ke semua target
+    if (targetUserIds.length > 0 && ann.send_push) {
+      await this.notifService.sendMany(
+        targetUserIds,
+        'announcement',
+        ann.title,
+        ann.body.length > 100 ? ann.body.slice(0, 97) + '…' : ann.body,
+      );
+    }
+
+    return saved;
   }
 
   async delete(id: string): Promise<void> {
