@@ -320,7 +320,7 @@ export default function DashboardPage() {
               iconColor="text-[#30D158]"
               iconBg="bg-[#F0FDF4] dark:bg-[rgba(48,209,88,0.15)]"
               label="Hadir Hari Ini"
-              value={summary?.hadir ?? '—'}
+              value={summary ? (summary.hadir + summary.terlambat) : '—'}
               sub={`dari ${summary?.total_aktif ?? 0} karyawan aktif`}
               progress={hadirPct}
               progressColor="bg-[#30D158]"

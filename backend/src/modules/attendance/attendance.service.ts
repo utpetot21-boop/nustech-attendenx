@@ -275,13 +275,16 @@ export class AttendanceService {
     date: string;
   }> {
     const today = this.getTodayString();
-    const rows = await this.attendanceRepo.find({ where: { date: today } });
+    const [rows, totalAktif] = await Promise.all([
+      this.attendanceRepo.find({ where: { date: today } }),
+      this.userRepo.count({ where: { is_active: true } }),
+    ]);
 
     return {
       hadir: rows.filter((r) => r.status === 'hadir').length,
       terlambat: rows.filter((r) => r.status === 'terlambat').length,
       alfa: rows.filter((r) => r.status === 'alfa').length,
-      total_aktif: rows.length,
+      total_aktif: totalAktif,
       date: today,
     };
   }
