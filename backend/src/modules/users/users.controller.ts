@@ -80,6 +80,24 @@ export class UsersController {
     return { avatar_url: avatarUrl };
   }
 
+  // ── Self-service: cari rekan (untuk picker tukar jadwal dll) ─────────────
+
+  @Get('colleagues')
+  @ApiOperation({ summary: 'Cari rekan karyawan aktif (semua user terlogin bisa akses)' })
+  @ApiQuery({ name: 'search', required: false })
+  async colleagues(
+    @CurrentUser() me: UserEntity,
+    @Query('search') search?: string,
+  ) {
+    const [items] = await this.usersService.findAll({
+      search,
+      limit: 20,
+    });
+    // Sembunyikan user yang sedang login dari hasil
+    const filtered = items.filter((u) => u.id !== me.id);
+    return { items: filtered };
+  }
+
   // ── Admin endpoints ───────────────────────────────────────────────────────
 
   @Get('next-employee-id')

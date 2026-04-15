@@ -90,7 +90,7 @@ function UserPickerModal({
   const { data, isLoading } = useQuery({
     queryKey: ['users-search', searchTerm],
     queryFn: () =>
-      api.get('/users', { params: { search: searchTerm || undefined, limit: 20 } })
+      api.get('/users/colleagues', { params: { search: searchTerm || undefined } })
          .then((r) => (r.data?.items ?? []) as UserOption[]),
     enabled: visible,
     staleTime: 30_000,
@@ -430,6 +430,28 @@ export default function ScheduleSwapScreen() {
     onSuccess: (d: { id: string }) => setCurrentUserId(d.id),
   } as any);
 
+  // Shift preview queries (hanya aktif saat form terbuka)
+  const requesterDateStr = toISODate(requesterDate);
+  const targetDateStr    = toISODate(targetDate);
+
+  const { data: myShiftData } = useQuery({
+    queryKey: ['my-schedule-date', requesterDateStr],
+    queryFn: () =>
+      api.get('/schedules/me', { params: { date: requesterDateStr } })
+         .then((r) => (r.data as any[])[0] ?? null),
+    enabled: showForm,
+    staleTime: 60_000,
+  });
+
+  const { data: targetShiftData } = useQuery({
+    queryKey: ['user-schedule-date', selectedUser?.id, targetDateStr],
+    queryFn: () =>
+      api.get(`/schedules/user/${selectedUser!.id}`, { params: { date: targetDateStr } })
+         .then((r) => (r.data as any[])[0] ?? null),
+    enabled: showForm && swapType === 'with_person' && !!selectedUser?.id,
+    staleTime: 60_000,
+  });
+
   // Main list query
   const { data: result, isLoading, refetch } = useQuery({
     queryKey: ['my-swap-requests'],
@@ -672,6 +694,34 @@ export default function ScheduleSwapScreen() {
               isDark={isDark}
               onPress={() => setPickerFor('requester')}
             />
+            {myShiftData && (
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 6,
+                marginBottom: 10, marginTop: -4,
+              }}>
+                {myShiftData.is_day_off ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: '#FF3B3015', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Ionicons name="close-circle-outline" size={13} color="#FF3B30" />
+                    <Text style={{ fontSize: 12, color: '#FF3B30', fontWeight: '600' }}>Hari libur — tidak bisa dipindah</Text>
+                  </View>
+                ) : myShiftData.shift_type ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: '#007AFF15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Ionicons name="time-outline" size={13} color="#007AFF" />
+                    <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '600' }}>
+                      {myShiftData.shift_type.name} · {myShiftData.shift_type.start_time?.slice(0,5)}–{myShiftData.shift_type.end_time?.slice(0,5)}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Ionicons name="briefcase-outline" size={13} color="#34C759" />
+                    <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>Hari kerja (office hours)</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* ── Tanggal Target ── */}
             <Text style={{ fontSize: 12, fontWeight: '700', color: lTertiary(isDark), textTransform: 'uppercase', letterSpacing: 0.8, marginTop: 10, marginBottom: 10 }}>
@@ -683,6 +733,34 @@ export default function ScheduleSwapScreen() {
               isDark={isDark}
               onPress={() => setPickerFor('target')}
             />
+            {swapType === 'with_person' && targetShiftData && selectedUser && (
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 6,
+                marginBottom: 10, marginTop: -4,
+              }}>
+                {targetShiftData.is_day_off ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: '#FF950015', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Ionicons name="sunny-outline" size={13} color="#FF9500" />
+                    <Text style={{ fontSize: 12, color: '#FF9500', fontWeight: '600' }}>Libur — {selectedUser.full_name?.split(' ')[0]}</Text>
+                  </View>
+                ) : targetShiftData.shift_type ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Ionicons name="time-outline" size={13} color="#34C759" />
+                    <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>
+                      {targetShiftData.shift_type.name} · {targetShiftData.shift_type.start_time?.slice(0,5)}–{targetShiftData.shift_type.end_time?.slice(0,5)}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
+                    backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Ionicons name="briefcase-outline" size={13} color="#34C759" />
+                    <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>Hari kerja (office hours)</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {pickerFor && (
               <DateTimePicker

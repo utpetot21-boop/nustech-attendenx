@@ -26,7 +26,7 @@ export class UserSchedulesService {
     const { date, week, month } = filters;
 
     if (date) {
-      const row = await this.repo.findOne({ where: { user_id: userId, date } });
+      const row = await this.repo.findOne({ where: { user_id: userId, date }, relations: ['shift_type'] });
       return row ? [row] : [];
     }
 
