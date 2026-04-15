@@ -1,21 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, useColorScheme } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
-
-// Suppress expo-notifications Expo Go SDK 53 warning (Android only)
-// This is a known limitation — remote notifications removed from Expo Go SDK 53
-if (__DEV__) {
-  const _error = console.error.bind(console);
-  console.error = (...args: any[]) => {
-    if (typeof args[0] === 'string' && args[0].includes('expo-notifications') && args[0].includes('SDK 53')) return;
-    _error(...args);
-  };
-  const _warn = console.warn.bind(console);
-  console.warn = (...args: any[]) => {
-    if (typeof args[0] === 'string' && args[0].includes('expo-notifications')) return;
-    _warn(...args);
-  };
-}
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
