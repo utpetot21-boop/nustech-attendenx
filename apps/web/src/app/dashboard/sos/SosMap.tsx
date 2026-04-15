@@ -105,11 +105,16 @@ export default function SosMap({
       : lat && lng      ? [lat, lng]
       : [-5.135399, 119.412674]; // default Makassar
 
+    // Di mobile, disable drag & touchZoom agar scroll halaman tidak tertangkap map
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const map = L.map(containerRef.current, {
       center,
       zoom: alerts.length > 1 ? 12 : 15,
-      zoomControl: true,
+      zoomControl: !isMobile,
       scrollWheelZoom: false,
+      dragging: !isMobile,
+      touchZoom: false,
+      tap: false,
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -220,8 +225,6 @@ export default function SosMap({
     <div
       ref={containerRef}
       style={{ width: '100%', height: `${height}px`, borderRadius: '12px', overflow: 'hidden' }}
-      // Cegah Leaflet menangkap scroll touch di perangkat mobile
-      onTouchStart={(e) => e.stopPropagation()}
     />
   );
 }
