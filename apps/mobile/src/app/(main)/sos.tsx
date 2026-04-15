@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert,
-  Platform, Vibration, Animated, StatusBar,
+  Platform, Vibration, Animated, StatusBar, Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
@@ -196,6 +196,22 @@ export default function SosScreen() {
           <Text style={styles.callBtnText}>📞 Hubungi Darurat</Text>
         </TouchableOpacity>
 
+        {lastLat !== null && lastLng !== null && (
+          <TouchableOpacity
+            style={styles.mapsBtn}
+            onPress={() => {
+              const url = Platform.OS === 'ios'
+                ? `maps://?q=${lastLat},${lastLng}&ll=${lastLat},${lastLng}`
+                : `geo:${lastLat},${lastLng}?q=${lastLat},${lastLng}`;
+              Linking.openURL(url).catch(() =>
+                Linking.openURL(`https://www.google.com/maps?q=${lastLat},${lastLng}`)
+              );
+            }}
+          >
+            <Text style={styles.mapsBtnText}>📍 Buka Lokasi di Maps</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
           <Text style={styles.cancelBtnText}>Batalkan SOS (tekan 2x)</Text>
         </TouchableOpacity>
@@ -239,6 +255,12 @@ const styles = StyleSheet.create({
     padding: 16, alignItems: 'center',
   },
   callBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  mapsBtn: {
+    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16,
+    padding: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  mapsBtnText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   cancelBtn: {
     backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16,
     padding: 14, alignItems: 'center',

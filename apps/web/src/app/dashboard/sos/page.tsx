@@ -1,14 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { getRealtimeSocket } from '@/lib/socket';
 import {
   Siren, MapPin, Phone, Battery, Clock, CheckCircle2,
   XCircle, PhoneCall, UserCheck, History, BookUser,
-  Plus, X, Trash2, ShieldCheck, AlertOctagon, Radio,
+  Plus, X, Trash2, ShieldCheck, AlertOctagon, Radio, ExternalLink,
 } from 'lucide-react';
+
+// Leaflet butuh window — wajib dynamic import tanpa SSR
+const SosMap = dynamic(() => import('./SosMap'), { ssr: false, loading: () => (
+  <div className="w-full h-[240px] rounded-xl bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center">
+    <p className="text-xs text-gray-400 dark:text-white/30">Memuat peta…</p>
+  </div>
+) });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type SosAlert = {
@@ -77,6 +85,12 @@ function SosCard({
 }) {
   const isActive = a.status === 'active';
 
+  const { data: tracks = [] } = useQuery({
+    queryKey: ['sos-tracks', a.id],
+    queryFn: () => apiClient.get(`/sos/${a.id}/tracks`).then((r) => r.data as { lat: number; lng: number; recorded_at: string }[]),
+    refetchInterval: isActive ? 15_000 : false,
+  });
+
   return (
     <div className={`rounded-2xl border-2 overflow-hidden ${
       isActive
@@ -120,9 +134,16 @@ function SosCard({
             <p className="text-[10px] font-bold text-gray-500 dark:text-white/50 uppercase tracking-wider">Lokasi GPS</p>
           </div>
           {a.last_lat ? (
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <p className="font-mono text-xs font-semibold text-gray-800 dark:text-white">{Number(a.last_lat).toFixed(6)}, {Number(a.last_lng).toFixed(6)}</p>
               {a.last_address && <p className="text-[11px] text-gray-500 dark:text-white/40 line-clamp-1">{a.last_address}</p>}
+              <a
+                href={`https://www.google.com/maps?q=${a.last_lat},${a.last_lng}`}
+                target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-[#007AFF] hover:underline font-medium"
+              >
+                <ExternalLink size={10} /> Buka di Google Maps
+              </a>
             </div>
           ) : (
             <p className="text-xs text-gray-400 dark:text-white/25 italic">Belum ada lokasi</p>
@@ -159,6 +180,18 @@ function SosCard({
           </div>
         </div>
       </div>
+
+      {/* Map */}
+      {a.last_lat && a.last_lng && (
+        <div className="px-5 pb-4">
+          <SosMap
+            lat={Number(a.last_lat)}
+            lng={Number(a.last_lng)}
+            tracks={tracks}
+            isActive={isActive}
+          />
+        </div>
+      )}
 
       {/* Actions */}
       <div className="px-5 pb-4 space-y-2">

@@ -3,7 +3,6 @@ import {
   SubscribeMessage, MessageBody, ConnectedSocket,
   OnGatewayConnection, OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Inject, forwardRef } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SosService } from './sos.service';
 
@@ -21,10 +20,7 @@ interface LocationPayload {
 export class SosGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
-  constructor(
-    @Inject(forwardRef(() => SosService))
-    private readonly sosService: SosService,
-  ) {}
+  constructor(private readonly sosService: SosService) {}
 
   handleConnection(client: Socket) {
     const userId = client.handshake.auth?.userId as string;

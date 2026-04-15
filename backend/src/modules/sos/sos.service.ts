@@ -1,5 +1,5 @@
 import {
-  BadRequestException, Injectable, NotFoundException, Inject, forwardRef,
+  BadRequestException, Injectable, NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,7 +8,6 @@ import { SosLocationTrackEntity } from './entities/sos-location-track.entity';
 import { EmergencyContactEntity } from './entities/emergency-contact.entity';
 import { ActivateSosDto } from './dto/activate-sos.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-import { SosGateway } from './sos.gateway';
 
 @Injectable()
 export class SosService {
@@ -20,8 +19,6 @@ export class SosService {
     @InjectRepository(EmergencyContactEntity)
     private readonly contactRepo: Repository<EmergencyContactEntity>,
     private readonly notifications: NotificationsService,
-    @Inject(forwardRef(() => SosGateway))
-    private readonly sosGateway: SosGateway,
   ) {}
 
   // ── Aktifkan SOS ──────────────────────────────────────────────────────────
@@ -48,14 +45,9 @@ export class SosService {
       battery_pct: dto.battery_pct ?? null,
     });
 
-    const adminIds = await this.getAdminManagerIds();
-
-    // Broadcast WebSocket ke admin/manager yang sedang buka web
-    this.sosGateway.broadcastSosActivated(saved.id, userId, dto.lat, dto.lng);
-
     // Push notifikasi ke admin/manager
     this.notifications.sendMany(
-      adminIds,
+      await this.getAdminManagerIds(),
       'sos_alert',
       '🚨 SOS Aktif',
       `Karyawan membutuhkan bantuan darurat. Cek panel SOS segera.`,
