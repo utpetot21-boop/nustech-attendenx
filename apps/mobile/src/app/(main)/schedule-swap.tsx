@@ -88,13 +88,7 @@ function UserPickerModal({
     queryKey: ['users-search', searchTerm],
     queryFn: () =>
       api.get('/users', { params: { search: searchTerm || undefined, limit: 20 } })
-         .then((r) => {
-           const raw = r.data;
-           // Backend findAndCount returns [UserEntity[], number] tuple
-           if (Array.isArray(raw) && Array.isArray(raw[0])) return raw[0] as UserOption[];
-           // Fallback: { items: [...] } shape
-           return (raw?.items ?? raw ?? []) as UserOption[];
-         }),
+         .then((r) => (r.data?.items ?? []) as UserOption[]),
     enabled: visible,
     staleTime: 30_000,
   });

@@ -97,14 +97,15 @@ export class UsersController {
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  findAll(
+  async findAll(
     @Query('dept') dept?: string,
     @Query('role') role?: string,
     @Query('search') search?: string,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
-    return this.usersService.findAll({ dept, role, search, page: +page, limit: +limit });
+    const [items, total] = await this.usersService.findAll({ dept, role, search, page: +page, limit: +limit });
+    return { items, total, page: +page, limit: +limit };
   }
 
   @Get(':id')
