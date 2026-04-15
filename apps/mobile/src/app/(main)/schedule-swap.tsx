@@ -7,7 +7,6 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, Alert, ActivityIndicator, RefreshControl,
   KeyboardAvoidingView, Platform, useColorScheme, StatusBar,
-  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -174,14 +173,14 @@ function UserPickerModal({
             </Text>
           </View>
         ) : (
-          <FlatList
-            data={users}
-            keyExtractor={(u) => u.id}
+          <ScrollView
             contentContainerStyle={{ padding: 16 }}
-            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
             keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
+            showsVerticalScrollIndicator={false}
+          >
+            {users.map((item) => (
               <TouchableOpacity
+                key={item.id}
                 onPress={() => { onSelect(item); handleClose(); }}
                 activeOpacity={0.75}
                 style={{
@@ -189,7 +188,7 @@ function UserPickerModal({
                   backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
                   borderRadius: R.md, borderWidth: B.default,
                   borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
-                  padding: 12,
+                  padding: 12, marginBottom: 8,
                 }}
               >
                 {/* Avatar */}
@@ -199,13 +198,13 @@ function UserPickerModal({
                   alignItems: 'center', justifyContent: 'center',
                 }}>
                   <Text style={{ fontSize: 15, fontWeight: '800', color: C.orange }}>
-                    {initials(item.full_name)}
+                    {initials(item.full_name ?? '')}
                   </Text>
                 </View>
                 {/* Info */}
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, fontWeight: '700', color: isDark ? '#FFF' : '#0F172A' }}>
-                    {item.full_name}
+                    {item.full_name ?? '—'}
                   </Text>
                   <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8', marginTop: 1 }}>
                     {[item.position?.name, item.department?.name].filter(Boolean).join(' · ') || item.employee_id || '—'}
@@ -213,8 +212,8 @@ function UserPickerModal({
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={isDark ? 'rgba(255,255,255,0.2)' : '#CBD5E1'} />
               </TouchableOpacity>
-            )}
-          />
+            ))}
+          </ScrollView>
         )}
       </View>
     </Modal>
