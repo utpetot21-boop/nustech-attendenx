@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class NotificationsHidden034 implements MigrationInterface {
+export class NotificationsHidden1000000000034 implements MigrationInterface {
   async up(qr: QueryRunner): Promise<void> {
     await qr.query(`
       ALTER TABLE notifications
