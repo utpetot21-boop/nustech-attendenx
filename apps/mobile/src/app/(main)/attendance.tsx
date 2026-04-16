@@ -190,28 +190,11 @@ export default function AttendanceScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        // P1-4: minta konfirmasi user sebelum lanjut tanpa GPS
+        // GPS wajib — izin ditolak, tolak check-in dan minta user aktifkan GPS
         Alert.alert(
-          'Izin GPS Ditolak',
-          'Check-in tanpa GPS akan dicatat sebagai lokasi tidak diketahui. Lanjutkan?',
-          [
-            { text: 'Batal', style: 'cancel', onPress: () => setUiState('idle') },
-            {
-              text: 'Lanjutkan',
-              onPress: () => {
-                const { isLate } = computeIsLate();
-                if (isLate) {
-                  setPendingPayload({ method, lat: null, lng: null });
-                  setLateNote('');
-                  setUiState('idle');
-                  setShowLateModal(true);
-                } else {
-                  checkInMutation.mutate({ method, lat: null, lng: null });
-                  setUiState('idle');
-                }
-              },
-            },
-          ],
+          'GPS Diperlukan',
+          'Izin lokasi diperlukan untuk check-in. Aktifkan GPS dan coba lagi.',
+          [{ text: 'OK', onPress: () => setUiState('idle') }],
         );
         return;
       }
@@ -234,28 +217,11 @@ export default function AttendanceScreen() {
       checkInMutation.mutate({ method, lat, lng });
       setUiState('idle');
     } catch {
-      // P1-4: GPS error — tanya user, jangan diam-diam kirim 0,0
+      // GPS wajib — jika gagal ambil koordinat, tolak check-in
       Alert.alert(
         'GPS Tidak Tersedia',
-        'Tidak dapat mengambil lokasi saat ini. Lanjutkan check-in tanpa GPS?',
-        [
-          { text: 'Batal', style: 'cancel', onPress: () => setUiState('idle') },
-          {
-            text: 'Lanjutkan',
-            onPress: () => {
-              const { isLate } = computeIsLate();
-              if (isLate) {
-                setPendingPayload({ method, lat: null, lng: null });
-                setLateNote('');
-                setUiState('idle');
-                setShowLateModal(true);
-              } else {
-                checkInMutation.mutate({ method, lat: null, lng: null });
-                setUiState('idle');
-              }
-            },
-          },
-        ],
+        'Tidak dapat mengambil lokasi saat ini. Pastikan GPS aktif, sinyal baik, lalu coba lagi.',
+        [{ text: 'OK', onPress: () => setUiState('idle') }],
       );
     }
   }, [checkInMutation, computeIsLate]);
