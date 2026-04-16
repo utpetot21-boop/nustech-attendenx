@@ -348,9 +348,9 @@ export class AttendanceService {
     if (diffMinutes <= 0) return { status: 'hadir', lateMinutes: 0 };
     if (diffMinutes <= toleranceMinutes) return { status: 'hadir', lateMinutes: diffMinutes };
 
-    // > toleransi = terlambat
-    // > 4 jam = alfa (biasanya ditangani oleh alfa-detector, tapi set di sini juga)
-    if (diffMinutes > 240) return { status: 'alfa', lateMinutes: diffMinutes };
+    // > toleransi = terlambat, berapa pun menit keterlambatannya.
+    // Status 'alfa' HANYA diset oleh alfa-detector (tidak hadir sama sekali).
+    // Jika user aktif check-in, dia hadir secara fisik — tidak boleh dikategorikan alfa.
     return { status: 'terlambat', lateMinutes: diffMinutes };
   }
 
