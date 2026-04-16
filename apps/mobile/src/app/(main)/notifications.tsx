@@ -8,7 +8,8 @@ import {
   RefreshControl, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, R, B, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
+import { C, R, B, T, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
+import { EmptyState } from '@/components/ui/EmptyState';
 import {
   Bell,
   BellOff,
@@ -149,7 +150,7 @@ export default function NotificationsScreen() {
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <View>
-              <Text style={{ fontSize: 30, fontWeight: '800', color: textPrimary, letterSpacing: -0.8 }}>
+              <Text style={{ ...T.title1, color: textPrimary }}>
                 {activeTab === 'notif' ? 'Notifikasi' : 'Pengumuman'}
               </Text>
               {activeTab === 'notif' && unread > 0 && (
@@ -219,14 +220,7 @@ export default function NotificationsScreen() {
               <ActivityIndicator color="#007AFF" />
             </View>
           ) : (notifData?.items ?? []).length === 0 ? (
-            <View style={{ paddingTop: 60, alignItems: 'center', paddingHorizontal: 32 }}>
-              <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: isDark ? 'rgba(0,122,255,0.15)' : '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <BellOff size={34} strokeWidth={1.5} color="#007AFF" />
-              </View>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.7)' : '#374151', textAlign: 'center' }}>
-                Tidak ada notifikasi
-              </Text>
-            </View>
+            <EmptyState icon={BellOff} iconColor={C.blue} title="Tidak ada notifikasi" />
           ) : (
             <View style={{ paddingHorizontal: 20, gap: 10 }}>
               {(notifData?.items ?? []).map((notif) => {
@@ -284,14 +278,7 @@ export default function NotificationsScreen() {
               <ActivityIndicator color="#007AFF" />
             </View>
           ) : announcements.length === 0 ? (
-            <View style={{ paddingTop: 60, alignItems: 'center', paddingHorizontal: 32 }}>
-              <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: isDark ? 'rgba(0,122,255,0.15)' : '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Megaphone size={34} strokeWidth={1.5} color="#007AFF" />
-              </View>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.7)' : '#374151', textAlign: 'center' }}>
-                Tidak ada pengumuman
-              </Text>
-            </View>
+            <EmptyState icon={Megaphone} iconColor={C.blue} title="Tidak ada pengumuman" />
           ) : (
             <View style={{ paddingHorizontal: 20, gap: 10 }}>
               {announcements.map((ann) => {

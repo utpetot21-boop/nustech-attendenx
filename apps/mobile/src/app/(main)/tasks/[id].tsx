@@ -10,18 +10,24 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  ChevronLeft, AlertTriangle, Calendar, Clock, FileText,
+  Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
+  Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
+} from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { ConfirmCountdown } from '@/components/tasks/ConfirmCountdown';
 import NavigationButton from '@/components/tasks/NavigationButton';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const PRIORITY_META: Record<string, { label: string; color: string; bg: string; bgDark: string; icon: string }> = {
-  low:    { label: 'Rendah',    color: '#6B7280', bg: '#F9FAFB', bgDark: 'rgba(107,114,128,0.15)', icon: 'arrow-down-circle' },
-  normal: { label: 'Normal',   color: '#2563EB', bg: '#EFF6FF', bgDark: 'rgba(37,99,235,0.15)',   icon: 'remove-circle' },
-  high:   { label: 'Penting',  color: '#EA580C', bg: '#FFF7ED', bgDark: 'rgba(234,88,12,0.15)',   icon: 'arrow-up-circle' },
-  urgent: { label: 'Mendadak', color: '#EF4444', bg: '#FEF2F2', bgDark: 'rgba(239,68,68,0.15)',   icon: 'flash' },
+type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+
+const PRIORITY_META: Record<string, { label: string; color: string; bg: string; bgDark: string; Icon: LucideIcon }> = {
+  low:    { label: 'Rendah',    color: '#6B7280', bg: '#F9FAFB', bgDark: 'rgba(107,114,128,0.15)', Icon: ArrowDownCircle },
+  normal: { label: 'Normal',   color: '#2563EB', bg: '#EFF6FF', bgDark: 'rgba(37,99,235,0.15)',   Icon: MinusCircle     },
+  high:   { label: 'Penting',  color: '#EA580C', bg: '#FFF7ED', bgDark: 'rgba(234,88,12,0.15)',   Icon: ArrowUpCircle   },
+  urgent: { label: 'Mendadak', color: '#EF4444', bg: '#FEF2F2', bgDark: 'rgba(239,68,68,0.15)',   Icon: Zap             },
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; bgDark: string }> = {
@@ -167,7 +173,7 @@ export default function TaskDetailScreen() {
             onPress={() => router.back()}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingVertical: 4 }}
           >
-            <Ionicons name="chevron-back" size={18} color="#16A34A" />
+            <ChevronLeft size={18} strokeWidth={2.5} color="#16A34A" />
             <Text style={{ fontSize: 15, fontWeight: '600', color: '#16A34A' }}>Tugas</Text>
           </TouchableOpacity>
         </View>
@@ -178,7 +184,7 @@ export default function TaskDetailScreen() {
             {/* Emergency banner */}
             {task.is_emergency && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2', borderRadius: 12, padding: 10, marginBottom: 14 }}>
-                <Ionicons name="warning" size={16} color="#EF4444" />
+                <AlertTriangle size={16} strokeWidth={2} color="#EF4444" />
                 <Text style={{ fontSize: 13, fontWeight: '700', color: '#EF4444', flex: 1 }}>Tugas Darurat — Segera Ditangani</Text>
               </View>
             )}
@@ -186,7 +192,7 @@ export default function TaskDetailScreen() {
             {/* Priority + Status badges */}
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? pm.bgDark : pm.bg }}>
-                <Ionicons name={pm.icon as any} size={13} color={pm.color} />
+                <pm.Icon size={13} strokeWidth={2} color={pm.color} />
                 <Text style={{ fontSize: 12, fontWeight: '700', color: pm.color }}>{pm.label}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? sm.bgDark : sm.bg }}>
@@ -209,7 +215,7 @@ export default function TaskDetailScreen() {
             {/* Scheduled */}
             {task.scheduled_at && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                <Ionicons name="calendar-outline" size={14} color={textSecondary as string} />
+                <Calendar size={14} strokeWidth={1.8} color={textSecondary as string} />
                 <Text style={{ fontSize: 14, color: textSecondary }}>
                   {new Date(task.scheduled_at).toLocaleString('id-ID', {
                     timeZone: 'Asia/Makassar',
@@ -222,7 +228,7 @@ export default function TaskDetailScreen() {
 
             {/* Created */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-              <Ionicons name="time-outline" size={14} color={textSecondary as string} />
+              <Clock size={14} strokeWidth={1.8} color={textSecondary as string} />
               <Text style={{ fontSize: 13, color: textSecondary }}>
                 Dibuat {new Date(task.created_at).toLocaleDateString('id-ID', {
                   timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', year: 'numeric',
@@ -248,7 +254,7 @@ export default function TaskDetailScreen() {
             <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="document-text" size={16} color="#2563EB" />
+                  <FileText size={16} strokeWidth={1.8} color="#2563EB" />
                 </View>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Deskripsi</Text>
               </View>
@@ -263,7 +269,7 @@ export default function TaskDetailScreen() {
             <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? 'rgba(234,88,12,0.2)' : '#FFEDD5', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="business" size={16} color="#EA580C" />
+                  <Building2 size={16} strokeWidth={1.8} color="#EA580C" />
                 </View>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Klien</Text>
               </View>
@@ -273,7 +279,7 @@ export default function TaskDetailScreen() {
               </Text>
               {task.client.address && (
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 4 }}>
-                  <Ionicons name="location-outline" size={14} color={textSecondary as string} style={{ marginTop: 2 }} />
+                  <MapPin size={14} strokeWidth={1.8} color={textSecondary as string} style={{ marginTop: 2 }} />
                   <Text style={{ fontSize: 14, color: textSecondary, flex: 1, lineHeight: 20 }}>{task.client.address}</Text>
                 </View>
               )}
@@ -296,7 +302,7 @@ export default function TaskDetailScreen() {
         {task.escalated_from && (
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
             <View style={{ backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.3)', padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Ionicons name="arrow-up-circle" size={18} color="#F59E0B" />
+              <ArrowUpCircle size={18} strokeWidth={1.8} color="#F59E0B" />
               <Text style={{ fontSize: 14, color: '#F59E0B', fontWeight: '600', flex: 1 }}>
                 Dieskalasi dari {task.escalated_from}
                 {task.escalated_at && ` · ${new Date(task.escalated_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}`}
@@ -311,7 +317,7 @@ export default function TaskDetailScreen() {
             <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : '#FFFBEB', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="pause-circle" size={16} color="#F59E0B" />
+                  <PauseCircle size={16} strokeWidth={1.8} color="#F59E0B" />
                 </View>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Riwayat Penundaan</Text>
               </View>
@@ -354,7 +360,7 @@ export default function TaskDetailScreen() {
             >
               {acceptMut.isPending ? <ActivityIndicator color="#FFF" /> : (
                 <>
-                  <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+                  <CheckCircle2 size={20} strokeWidth={2} color="#FFF" />
                   <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>Terima Tugas</Text>
                 </>
               )}
@@ -363,7 +369,7 @@ export default function TaskDetailScreen() {
               onPress={() => setShowRejectModal(true)}
               style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(239,68,68,0.35)' }}
             >
-              <Ionicons name="close-circle" size={20} color="#EF4444" />
+              <XCircle size={20} strokeWidth={2} color="#EF4444" />
               <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 16 }}>Tolak Tugas</Text>
             </TouchableOpacity>
           </View>
@@ -375,14 +381,14 @@ export default function TaskDetailScreen() {
               onPress={() => setShowHoldModal(true)}
               style={{ backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#FFFBEB', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.35)' }}
             >
-              <Ionicons name="pause-circle" size={20} color="#F59E0B" />
+              <PauseCircle size={20} strokeWidth={2} color="#F59E0B" />
               <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>Tunda Pekerjaan</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowDelegateModal(true)}
               style={{ backgroundColor: isDark ? 'rgba(124,58,237,0.12)' : '#F5F3FF', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(124,58,237,0.35)' }}
             >
-              <Ionicons name="arrow-redo-circle" size={20} color="#7C3AED" />
+              <CornerUpRight size={20} strokeWidth={2} color="#7C3AED" />
               <Text style={{ color: '#7C3AED', fontWeight: '700', fontSize: 16 }}>Limpahkan Tugas</Text>
             </TouchableOpacity>
           </View>
@@ -391,7 +397,7 @@ export default function TaskDetailScreen() {
         {isCompleted && (
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
             <View style={{ backgroundColor: isDark ? 'rgba(22,163,74,0.1)' : '#DCFCE7', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(22,163,74,0.3)' }}>
-              <Ionicons name="checkmark-circle" size={22} color="#16A34A" />
+              <CheckCircle2 size={22} strokeWidth={2} color="#16A34A" />
               <Text style={{ color: '#16A34A', fontWeight: '700', fontSize: 16 }}>Tugas Selesai</Text>
             </View>
           </View>

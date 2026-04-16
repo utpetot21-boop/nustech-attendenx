@@ -21,28 +21,22 @@ import {
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Plane } from 'lucide-react-native';
+import { C, R, T, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterChips } from '@/components/ui/FilterChips';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { businessTripsService, BusinessTrip, CreateBusinessTripDto } from '@/services/business-trips.service';
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'Draft',
-  pending_approval: 'Menunggu',
-  approved: 'Disetujui',
-  rejected: 'Ditolak',
-  ongoing: 'Berlangsung',
-  completed: 'Selesai',
-  cancelled: 'Dibatalkan',
-};
-
-const STATUS_COLOR: Record<string, [string, string]> = {
-  draft: ['#F3F4F6', '#6B7280'],
-  pending_approval: ['#FFF7ED', '#C2410C'],
-  approved: ['#EFF6FF', '#1D4ED8'],
-  rejected: ['#FEF2F2', '#B91C1C'],
-  ongoing: ['#F0FDF4', '#15803D'],
-  completed: ['#F5F3FF', '#6D28D9'],
-  cancelled: ['#F3F4F6', '#9CA3AF'],
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  draft:            { label: 'Draft',        color: '#8E8E93'  },
+  pending_approval: { label: 'Menunggu',     color: C.orange   },
+  approved:         { label: 'Disetujui',    color: C.blue     },
+  rejected:         { label: 'Ditolak',      color: C.red      },
+  ongoing:          { label: 'Berlangsung',  color: C.green    },
+  completed:        { label: 'Selesai',      color: C.purple   },
+  cancelled:        { label: 'Dibatalkan',   color: '#8E8E93'  },
 };
 
 export default function BusinessTripsScreen() {
@@ -51,7 +45,7 @@ export default function BusinessTripsScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
 
-  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<BusinessTrip | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
@@ -148,11 +142,11 @@ export default function BusinessTripsScreen() {
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
 
   const STATUS_FILTER_OPTIONS = [
-    { value: '', label: 'Semua' },
-    { value: 'pending_approval', label: 'Menunggu' },
-    { value: 'approved', label: 'Disetujui' },
-    { value: 'ongoing', label: 'Berlangsung' },
-    { value: 'completed', label: 'Selesai' },
+    { value: undefined,          label: 'Semua'       },
+    { value: 'pending_approval', label: 'Menunggu'    },
+    { value: 'approved',         label: 'Disetujui'   },
+    { value: 'ongoing',          label: 'Berlangsung' },
+    { value: 'completed',        label: 'Selesai'     },
   ];
 
   const inputStyle = [
@@ -161,9 +155,9 @@ export default function BusinessTripsScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#0A0A0F' : '#F2F2F7' }]}>
+    <View style={[styles.container, { backgroundColor: pageBg(isDark) }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDark ? 'rgba(10,10,15,0.9)' : 'rgba(242,242,247,0.92)', paddingTop: insets.top + 12 }]}>
+      <View style={[styles.header, { backgroundColor: isDark ? 'rgba(15,15,20,0.9)' : 'rgba(242,242,247,0.92)', paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <ChevronLeft size={22} color="#007AFF" />
         </TouchableOpacity>
@@ -174,24 +168,12 @@ export default function BusinessTripsScreen() {
       </View>
 
       {/* Filter chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}>
-        {STATUS_FILTER_OPTIONS.map(opt => (
-          <TouchableOpacity
-            key={opt.value}
-            onPress={() => setFilterStatus(opt.value)}
-            style={[
-              styles.filterChip,
-              filterStatus === opt.value
-                ? { backgroundColor: '#007AFF', borderColor: '#007AFF' }
-                : { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E5E7EB' },
-            ]}
-          >
-            <Text style={{ fontSize: 12, fontWeight: '600', color: filterStatus === opt.value ? '#FFFFFF' : isDark ? 'rgba(255,255,255,0.7)' : '#6B7280' }}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <FilterChips
+        options={STATUS_FILTER_OPTIONS}
+        value={filterStatus}
+        onChange={setFilterStatus}
+        isDark={isDark}
+      />
 
       {/* List */}
       {isLoading ? (
@@ -214,38 +196,38 @@ export default function BusinessTripsScreen() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#007AFF" />}
         >
           {trips.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={{ fontSize: 32 }}>✈️</Text>
-              <Text style={[styles.emptyText, { color: isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }]}>
-                Tidak ada surat tugas
-              </Text>
-            </View>
+            <EmptyState
+              icon={Plane}
+              iconColor={C.blue}
+              title="Tidak ada surat tugas"
+              message="Ajukan surat tugas perjalanan dinas melalui tombol + Buat di atas."
+            />
           ) : (
             trips.map(trip => {
-              const [bgColor, textColor] = STATUS_COLOR[trip.status] ?? ['#F3F4F6', '#6B7280'];
               return (
                 <TouchableOpacity
                   key={trip.id}
-                  style={[styles.card, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
+                  style={[styles.card, { backgroundColor: cardBg(isDark), borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
                   onPress={() => setSelected(trip)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.cardRow}>
-                    <Text style={[styles.tripNumber, { color: isDark ? 'rgba(255,255,255,0.45)' : '#9CA3AF' }]}>{trip.trip_number}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: bgColor }]}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: textColor }}>{STATUS_LABEL[trip.status]}</Text>
-                    </View>
+                    <Text style={[styles.tripNumber, { color: lTertiary(isDark) }]}>{trip.trip_number}</Text>
+                    <StatusBadge
+                      label={STATUS_META[trip.status]?.label ?? trip.status}
+                      color={STATUS_META[trip.status]?.color ?? '#8E8E93'}
+                    />
                   </View>
-                  <Text style={[styles.destination, { color: isDark ? '#FFFFFF' : '#111827' }]}>📍 {trip.destination}</Text>
-                  <Text style={[styles.purpose, { color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280' }]} numberOfLines={2}>
+                  <Text style={[styles.destination, { color: lPrimary(isDark) }]}>📍 {trip.destination}</Text>
+                  <Text style={[styles.purpose, { color: lSecondary(isDark) }]} numberOfLines={2}>
                     {trip.purpose}
                   </Text>
                   <View style={styles.cardFooter}>
-                    <Text style={[styles.dateText, { color: isDark ? 'rgba(255,255,255,0.45)' : '#9CA3AF' }]}>
+                    <Text style={[styles.dateText, { color: lTertiary(isDark) }]}>
                       {fmtDate(trip.depart_date)} – {fmtDate(trip.return_date)}
                     </Text>
                     {trip.estimated_cost && (
-                      <Text style={[styles.costText, { color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280' }]}>
+                      <Text style={[styles.costText, { color: lSecondary(isDark) }]}>
                         {fmtCurrency(trip.estimated_cost)}
                       </Text>
                     )}
@@ -271,14 +253,11 @@ export default function BusinessTripsScreen() {
               </View>
               <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 16 }}>
                 {/* Status badge */}
-                {(() => {
-                  const [bgColor, textColor] = STATUS_COLOR[selected.status] ?? ['#F3F4F6', '#6B7280'];
-                  return (
-                    <View style={[styles.statusBadge, { backgroundColor: bgColor, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6 }]}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: textColor }}>{STATUS_LABEL[selected.status]}</Text>
-                    </View>
-                  );
-                })()}
+                <StatusBadge
+                  label={STATUS_META[selected.status]?.label ?? selected.status}
+                  color={STATUS_META[selected.status]?.color ?? '#8E8E93'}
+                  size="md"
+                />
 
                 {/* Info grid */}
                 <View style={styles.infoGrid}>
@@ -387,15 +366,10 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 17, fontWeight: '700' },
-  filterRow: { flexShrink: 0 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
-  emptyText: { fontSize: 14, fontWeight: '500' },
   card: { borderRadius: 16, padding: 16, borderWidth: 1, gap: 6 },
   cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   tripNumber: { fontSize: 11, fontFamily: 'monospace', fontWeight: '500' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   destination: { fontSize: 15, fontWeight: '700' },
   purpose: { fontSize: 13, lineHeight: 18 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },

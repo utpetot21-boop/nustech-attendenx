@@ -11,7 +11,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  X, Search, XCircle, Users, ChevronRight, ChevronLeft,
+  ChevronDown, Plus, ArrowLeftRight, Sun, Clock, Briefcase, UserPlus,
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -23,7 +26,9 @@ import {
   SWAP_STATUS_COLORS,
 } from '@/services/schedule-swap.service';
 import api from '@/services/api';
-import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { C, R, B, S, T, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,24 +57,6 @@ function toISODate(d: Date) {
 
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-}
-
-// ── Status Chip ───────────────────────────────────────────────────────────────
-
-function StatusChip({ status }: { status: string }) {
-  const color = (SWAP_STATUS_COLORS as Record<string, string>)[status] ?? '#8E8E93';
-  const label = (SWAP_STATUS_LABELS as Record<string, string>)[status] ?? status;
-  return (
-    <View style={{
-      flexDirection: 'row', alignItems: 'center', gap: 5,
-      backgroundColor: color + '18', borderRadius: 20,
-      borderWidth: B.default, borderColor: color + '30',
-      paddingHorizontal: 10, paddingVertical: 4,
-    }}>
-      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
-      <Text style={{ fontSize: 12, fontWeight: '700', color }}>{label}</Text>
-    </View>
-  );
 }
 
 // ── User Search Picker ────────────────────────────────────────────────────────
@@ -131,7 +118,7 @@ function UserPickerModal({
                 alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <Ionicons name="close" size={20} color={isDark ? 'rgba(255,255,255,0.6)' : '#64748B'} />
+              <X size={20} strokeWidth={2} color={isDark ? 'rgba(255,255,255,0.6)' : '#64748B'} />
             </TouchableOpacity>
           </View>
 
@@ -143,7 +130,7 @@ function UserPickerModal({
             borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
             paddingHorizontal: 14, paddingVertical: 11,
           }}>
-            <Ionicons name="search" size={16} color={isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF'} />
+            <Search size={16} strokeWidth={2} color={isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF'} />
             <TextInput
               value={q}
               onChangeText={handleChangeText}
@@ -154,7 +141,7 @@ function UserPickerModal({
             />
             {q.length > 0 && (
               <TouchableOpacity onPress={() => { setQ(''); setSearchTerm(''); }}>
-                <Ionicons name="close-circle" size={18} color={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'} />
+                <XCircle size={18} strokeWidth={1.8} color={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'} />
               </TouchableOpacity>
             )}
           </View>
@@ -167,7 +154,7 @@ function UserPickerModal({
           </View>
         ) : users.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <Ionicons name="people-outline" size={40} color={isDark ? 'rgba(255,255,255,0.15)' : '#CBD5E1'} />
+            <Users size={40} strokeWidth={1.4} color={isDark ? 'rgba(255,255,255,0.15)' : '#CBD5E1'} />
             <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8' }}>
               {q ? 'Tidak ada karyawan ditemukan' : 'Belum ada karyawan'}
             </Text>
@@ -210,7 +197,7 @@ function UserPickerModal({
                     {[item.position?.name, item.department?.name].filter(Boolean).join(' · ') || item.employee_id || '—'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={isDark ? 'rgba(255,255,255,0.2)' : '#CBD5E1'} />
+                <ChevronRight size={16} strokeWidth={2} color={isDark ? 'rgba(255,255,255,0.2)' : '#CBD5E1'} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -251,7 +238,7 @@ function SwapCard({
             backgroundColor: '#FF9500' + '18',
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <Ionicons name="swap-horizontal" size={18} color="#FF9500" />
+            <ArrowLeftRight size={18} strokeWidth={2} color="#FF9500" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: lPrimary(isDark) }}>
@@ -262,7 +249,11 @@ function SwapCard({
             </Text>
           </View>
         </View>
-        <StatusChip status={item.status} />
+        <StatusBadge
+          label={(SWAP_STATUS_LABELS as Record<string, string>)[item.status] ?? item.status}
+          color={(SWAP_STATUS_COLORS as Record<string, string>)[item.status] ?? '#8E8E93'}
+          dot
+        />
       </View>
 
       {/* Jadwal Detail */}
@@ -284,7 +275,7 @@ function SwapCard({
           )}
         </View>
         <View style={{ width: 28, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="swap-horizontal" size={16} color={lTertiary(isDark)} />
+          <ArrowLeftRight size={16} strokeWidth={2} color={lTertiary(isDark)} />
         </View>
         <View style={{
           flex: 1, backgroundColor: '#34C75912', borderRadius: R.sm - 2,
@@ -394,7 +385,7 @@ function DateRow({
         <Text style={{ fontSize: 14, fontWeight: '600', color: lPrimary(isDark) }}>
           {date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
         </Text>
-        <Ionicons name="chevron-down" size={14} color={lTertiary(isDark)} />
+        <ChevronDown size={14} strokeWidth={2} color={lTertiary(isDark)} />
       </View>
     </TouchableOpacity>
   );
@@ -559,13 +550,13 @@ export default function ScheduleSwapScreen() {
                 borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
               }}
             >
-              <Ionicons name="chevron-back" size={20} color={lPrimary(isDark)} />
+              <ChevronLeft size={20} strokeWidth={2.5} color={lPrimary(isDark)} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: lPrimary(isDark), letterSpacing: -0.8 }}>
+              <Text style={{ ...T.title1, color: lPrimary(isDark) }}>
                 Tukar Jadwal
               </Text>
-              <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 2 }}>
+              <Text style={{ ...T.footnote, color: lSecondary(isDark), marginTop: 2 }}>
                 {pendingCount > 0 ? `${pendingCount} menunggu respons` : 'Ajukan atau lihat permintaan tukar jadwal'}
               </Text>
             </View>
@@ -577,7 +568,7 @@ export default function ScheduleSwapScreen() {
                 backgroundColor: '#FF9500', borderRadius: R.md,
               }}
             >
-              <Ionicons name="add" size={18} color="#FFFFFF" />
+              <Plus size={18} strokeWidth={2.5} color="#FFFFFF" />
               <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>Ajukan</Text>
             </TouchableOpacity>
           </View>
@@ -588,21 +579,12 @@ export default function ScheduleSwapScreen() {
           {isLoading ? (
             <ActivityIndicator color="#FF9500" style={{ marginTop: 40 }} />
           ) : swaps.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingTop: 60 }}>
-              <View style={{
-                width: 64, height: 64, borderRadius: 20,
-                backgroundColor: '#FF950012',
-                alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-              }}>
-                <Ionicons name="swap-horizontal" size={30} color="#FF9500" />
-              </View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: lPrimary(isDark), marginBottom: 6 }}>
-                Belum ada permintaan
-              </Text>
-              <Text style={{ fontSize: 14, color: lSecondary(isDark), textAlign: 'center' }}>
-                Ketuk "Ajukan" untuk membuat permintaan tukar jadwal
-              </Text>
-            </View>
+            <EmptyState
+              icon={ArrowLeftRight}
+              iconColor={C.orange}
+              title="Belum ada permintaan"
+              message='Ketuk "Ajukan" untuk membuat permintaan tukar jadwal'
+            />
           ) : (
             swaps.map((item, i) => (
               <SwapCard
@@ -642,7 +624,7 @@ export default function ScheduleSwapScreen() {
                   alignItems: 'center', justifyContent: 'center',
                 }}
               >
-                <Ionicons name="close" size={20} color={lSecondary(isDark)} />
+                <X size={20} strokeWidth={2} color={lSecondary(isDark)} />
               </TouchableOpacity>
             </View>
           </View>
@@ -655,9 +637,9 @@ export default function ScheduleSwapScreen() {
             </Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
               {([
-                { key: 'with_own_dayoff', label: 'Tukar dengan\nHari Libur Saya', icon: 'sunny-outline' as const },
-                { key: 'with_person',     label: 'Tukar dengan\nRekan',           icon: 'people-outline' as const },
-              ] as { key: SwapType; label: string; icon: any }[]).map(({ key, label, icon }) => {
+                { key: 'with_own_dayoff' as SwapType, label: 'Tukar dengan\nHari Libur Saya', Icon: Sun   },
+                { key: 'with_person'     as SwapType, label: 'Tukar dengan\nRekan',           Icon: Users },
+              ]).map(({ key, label, Icon }) => {
                 const active = swapType === key;
                 return (
                   <TouchableOpacity
@@ -671,7 +653,7 @@ export default function ScheduleSwapScreen() {
                       alignItems: 'center', gap: 8,
                     }}
                   >
-                    <Ionicons name={icon} size={22} color={active ? '#FFFFFF' : lSecondary(isDark)} />
+                    <Icon size={22} strokeWidth={1.8} color={active ? '#FFFFFF' : lSecondary(isDark)} />
                     <Text style={{
                       fontSize: 12, fontWeight: '700',
                       color: active ? '#FFFFFF' : lSecondary(isDark),
@@ -702,13 +684,13 @@ export default function ScheduleSwapScreen() {
                 {myShiftData.is_day_off ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
                     backgroundColor: '#FF3B3015', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Ionicons name="close-circle-outline" size={13} color="#FF3B30" />
+                    <XCircle size={13} strokeWidth={2} color="#FF3B30" />
                     <Text style={{ fontSize: 12, color: '#FF3B30', fontWeight: '600' }}>Hari libur — tidak bisa dipindah</Text>
                   </View>
                 ) : myShiftData.shift_type ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
                     backgroundColor: '#007AFF15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Ionicons name="time-outline" size={13} color="#007AFF" />
+                    <Clock size={13} strokeWidth={2} color="#007AFF" />
                     <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '600' }}>
                       {myShiftData.shift_type.name} · {myShiftData.shift_type.start_time?.slice(0,5)}–{myShiftData.shift_type.end_time?.slice(0,5)}
                     </Text>
@@ -716,7 +698,7 @@ export default function ScheduleSwapScreen() {
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
                     backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Ionicons name="briefcase-outline" size={13} color="#34C759" />
+                    <Briefcase size={13} strokeWidth={2} color="#34C759" />
                     <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>Hari kerja (office hours)</Text>
                   </View>
                 )}
@@ -741,13 +723,13 @@ export default function ScheduleSwapScreen() {
                 {targetShiftData.is_day_off ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
                     backgroundColor: '#FF950015', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Ionicons name="sunny-outline" size={13} color="#FF9500" />
+                    <Sun size={13} strokeWidth={2} color="#FF9500" />
                     <Text style={{ fontSize: 12, color: '#FF9500', fontWeight: '600' }}>Libur — {selectedUser.full_name?.split(' ')[0]}</Text>
                   </View>
                 ) : targetShiftData.shift_type ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
                     backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Ionicons name="time-outline" size={13} color="#34C759" />
+                    <Clock size={13} strokeWidth={2} color="#34C759" />
                     <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>
                       {targetShiftData.shift_type.name} · {targetShiftData.shift_type.start_time?.slice(0,5)}–{targetShiftData.shift_type.end_time?.slice(0,5)}
                     </Text>
@@ -755,7 +737,7 @@ export default function ScheduleSwapScreen() {
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
                     backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Ionicons name="briefcase-outline" size={13} color="#34C759" />
+                    <Briefcase size={13} strokeWidth={2} color="#34C759" />
                     <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>Hari kerja (office hours)</Text>
                   </View>
                 )}
@@ -819,7 +801,7 @@ export default function ScheduleSwapScreen() {
                         onPress={() => setSelectedUser(null)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       >
-                        <Ionicons name="close-circle" size={20} color={lTertiary(isDark)} />
+                        <XCircle size={20} strokeWidth={1.8} color={lTertiary(isDark)} />
                       </TouchableOpacity>
                     </>
                   ) : (
@@ -829,12 +811,12 @@ export default function ScheduleSwapScreen() {
                         backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F0F0F5',
                         alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Ionicons name="person-add-outline" size={18} color={lTertiary(isDark)} />
+                        <UserPlus size={18} strokeWidth={1.8} color={lTertiary(isDark)} />
                       </View>
                       <Text style={{ flex: 1, fontSize: 14, color: lTertiary(isDark) }}>
                         Pilih rekan kerja...
                       </Text>
-                      <Ionicons name="chevron-forward" size={16} color={lTertiary(isDark)} />
+                      <ChevronRight size={16} strokeWidth={2} color={lTertiary(isDark)} />
                     </>
                   )}
                 </TouchableOpacity>

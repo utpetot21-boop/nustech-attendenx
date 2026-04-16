@@ -1,6 +1,11 @@
 import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  AlertTriangle, ArrowDownCircle, MinusCircle, ArrowUpCircle,
+  Zap, Building2, Calendar,
+} from 'lucide-react-native';
 import { C } from '@/constants/tokens';
+
+type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 import type { TaskSummary } from '@/services/tasks.service';
 import { ConfirmCountdown } from './ConfirmCountdown';
 import MiniMap from './MiniMap';
@@ -19,7 +24,7 @@ const PRIORITY_STYLE: Record<string, {
   bg: string;
   bgDark: string;
   label: string;
-  icon: string;
+  Icon: LucideIcon;
 }> = {
   low: {
     borderColor: 'transparent',
@@ -27,7 +32,7 @@ const PRIORITY_STYLE: Record<string, {
     bg: '#F9FAFB',
     bgDark: 'rgba(107,114,128,0.12)',
     label: 'Rendah',
-    icon: 'arrow-down-circle',
+    Icon: ArrowDownCircle,
   },
   normal: {
     borderColor: 'transparent',
@@ -35,7 +40,7 @@ const PRIORITY_STYLE: Record<string, {
     bg: '#EFF6FF',
     bgDark: 'rgba(37,99,235,0.15)',
     label: 'Normal',
-    icon: 'remove-circle',
+    Icon: MinusCircle,
   },
   high: {
     borderColor: '#EA580C',
@@ -43,7 +48,7 @@ const PRIORITY_STYLE: Record<string, {
     bg: '#FFF7ED',
     bgDark: 'rgba(234,88,12,0.15)',
     label: 'PENTING',
-    icon: 'arrow-up-circle',
+    Icon: ArrowUpCircle,
   },
   urgent: {
     borderColor: '#EF4444',
@@ -51,7 +56,7 @@ const PRIORITY_STYLE: Record<string, {
     bg: '#FEF2F2',
     bgDark: 'rgba(239,68,68,0.15)',
     label: 'MENDADAK',
-    icon: 'flash',
+    Icon: Zap,
   },
 };
 
@@ -94,7 +99,7 @@ export function TaskCard({ task, onPress, userLat, userLng }: Props) {
       {/* Emergency banner */}
       {task.is_emergency && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          <Ionicons name="warning" size={13} color="#EF4444" />
+          <AlertTriangle size={13} strokeWidth={2} color="#EF4444" />
           <Text style={{ fontSize: 12, fontWeight: '700', color: '#EF4444' }}>TUGAS DARURAT</Text>
         </View>
       )}
@@ -108,7 +113,7 @@ export function TaskCard({ task, onPress, userLat, userLng }: Props) {
           {task.title}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10, backgroundColor: isDark ? ps.bgDark : ps.bg }}>
-          <Ionicons name={ps.icon as any} size={11} color={ps.color} />
+          <ps.Icon size={11} strokeWidth={2} color={ps.color} />
           <Text style={{ fontSize: 11, fontWeight: '700', color: ps.color }}>{ps.label}</Text>
         </View>
       </View>
@@ -116,7 +121,7 @@ export function TaskCard({ task, onPress, userLat, userLng }: Props) {
       {/* Client */}
       {task.client && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-          <Ionicons name="business-outline" size={13} color={isDark ? 'rgba(255,255,255,0.45)' : '#94A3B8'} />
+          <Building2 size={13} strokeWidth={1.8} color={isDark ? 'rgba(255,255,255,0.45)' : '#94A3B8'} />
           <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.65)' : '#475569', flex: 1 }} numberOfLines={1}>
             {task.client.name}
             {task.client.address ? ` · ${task.client.address}` : ''}
@@ -132,13 +137,13 @@ export function TaskCard({ task, onPress, userLat, userLng }: Props) {
         </View>
         {task.escalated_from && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#FFFBEB' }}>
-            <Ionicons name="arrow-up-circle" size={11} color="#F59E0B" />
+            <ArrowUpCircle size={11} strokeWidth={2} color="#F59E0B" />
             <Text style={{ fontSize: 10, color: '#F59E0B', fontWeight: '600' }}>Eskalasi</Text>
           </View>
         )}
         {task.scheduled_at && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="calendar-outline" size={12} color={isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8'} />
+            <Calendar size={12} strokeWidth={1.8} color={isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8'} />
             <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8' }}>
               {new Date(task.scheduled_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
             </Text>
