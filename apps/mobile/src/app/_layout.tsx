@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -200,6 +201,7 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
     <QueryClientProvider client={queryClient}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
@@ -211,5 +213,6 @@ export default function RootLayout() {
       </AuthGuard>
     </QueryClientProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
