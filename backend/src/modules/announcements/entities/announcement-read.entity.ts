@@ -23,4 +23,7 @@ export class AnnouncementReadEntity {
 
   @Column({ type: 'timestamptz', default: () => 'now()' })
   read_at: Date;
+
+  @Column({ type: 'boolean', default: false })
+  hidden_for_user: boolean;
 }

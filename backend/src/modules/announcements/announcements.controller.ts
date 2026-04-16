@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseUUIDPipe,
+  Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe,
   Post, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -93,9 +93,16 @@ export class AnnouncementsController {
     return this.svc.markRead(id, userId);
   }
 
+  @Delete('me/:id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Sembunyikan pengumuman dari perangkat user (soft delete)' })
+  hideForMe(@Param('id', ParseUUIDPipe) id: string, @CurrentUser('id') userId: string) {
+    return this.svc.hideForUser(id, userId);
+  }
+
   @Delete(':id')
   @RequirePermission('settings:manage')
-  @ApiOperation({ summary: 'Hapus pengumuman' })
+  @ApiOperation({ summary: 'Hapus pengumuman (admin — hapus dari DB)' })
   delete(@Param('id', ParseUUIDPipe) id: string) {
     return this.svc.delete(id);
   }

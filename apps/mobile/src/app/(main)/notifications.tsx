@@ -134,6 +134,11 @@ export default function NotificationsScreen() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
+  const deleteAnnMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/announcements/me/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-announcements'] }),
+  });
+
   // Tipe pengumuman tidak ditampilkan di tab Notif — hanya ada di tab Pengumuman
   const visibleNotifs = (notifData?.items ?? []).filter((n) => !n.type?.startsWith('announcement'));
 
@@ -367,8 +372,28 @@ export default function NotificationsScreen() {
                 const accentColor = ANN_COLOR[ann.type] ?? C.blue;
                 const AnnIcon = ANN_ICON_MAP[ann.type] ?? Info;
                 return (
-                  <TouchableOpacity
+                  <Swipeable
                     key={ann.id}
+                    overshootRight={false}
+                    renderRightActions={() => (
+                      <TouchableOpacity
+                        onPress={() => deleteAnnMut.mutate(ann.id)}
+                        style={{
+                          backgroundColor: '#FF3B30',
+                          borderRadius: R.lg,
+                          marginLeft: 8,
+                          width: 72,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Trash2 size={20} strokeWidth={2} color="#FFF" />
+                        <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700' }}>Hapus</Text>
+                      </TouchableOpacity>
+                    )}
+                  >
+                  <TouchableOpacity
                     onPress={() => {
                       if (!ann.is_read) markAnnReadMut.mutate(ann.id);
                       setSelectedAnn(ann);
@@ -421,6 +446,7 @@ export default function NotificationsScreen() {
                       </Text>
                     )}
                   </TouchableOpacity>
+                  </Swipeable>
                 );
               })}
             </View>

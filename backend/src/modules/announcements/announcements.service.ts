@@ -185,13 +185,28 @@ export class AnnouncementsService {
     }
   }
 
+  async hideForUser(announcementId: string, userId: string): Promise<void> {
+    const exists = await this.readRepo.findOne({ where: { announcement_id: announcementId, user_id: userId } });
+    if (exists) {
+      await this.readRepo.update({ id: exists.id }, { hidden_for_user: true });
+    } else {
+      // Belum ada record read → buat baru sekaligus tandai hidden
+      await this.readRepo.save(
+        this.readRepo.create({ announcement_id: announcementId, user_id: userId, hidden_for_user: true }),
+      );
+    }
+  }
+
   async getMyAnnouncements(userId: string): Promise<(AnnouncementEntity & { is_read: boolean })[]> {
     const anns = await this.annRepo.find({
       where: { status: 'sent' },
       order: { is_pinned: 'DESC', sent_at: 'DESC' },
     });
     const reads = await this.readRepo.find({ where: { user_id: userId } });
-    const readSet = new Set(reads.map((r) => r.announcement_id));
-    return anns.map((a) => ({ ...a, is_read: readSet.has(a.id) }));
+    const readSet    = new Set(reads.filter((r) => !r.hidden_for_user).map((r) => r.announcement_id));
+    const hiddenSet  = new Set(reads.filter((r) => r.hidden_for_user).map((r) => r.announcement_id));
+    return anns
+      .filter((a) => !hiddenSet.has(a.id))
+      .map((a) => ({ ...a, is_read: readSet.has(a.id) }));
   }
 }
