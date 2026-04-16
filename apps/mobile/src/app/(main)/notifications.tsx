@@ -8,6 +8,7 @@ import {
   RefreshControl, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { C, R, B, T, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NotifCardSkeleton } from '@/components/ui/SkeletonLoader';
@@ -58,6 +59,42 @@ const ANN_COLOR: Record<string, string> = {
 type LucideIconComponent = React.ComponentType<{ size: number; strokeWidth: number; color: string }>;
 const ANN_ICON_MAP: Record<string, LucideIconComponent> = {
   info: Info, urgent: AlertCircle, holiday: Sun, policy: FileText,
+};
+
+// Map tipe notif → route halaman yang dituju
+const NOTIF_ROUTE_MAP: Record<string, string> = {
+  // Tukar Jadwal
+  swap_request_received:           '/(main)/schedule-swap',
+  swap_request_accepted_by_target: '/(main)/schedule-swap',
+  swap_request_approved:           '/(main)/schedule-swap',
+  swap_request_rejected:           '/(main)/schedule-swap',
+  swap_request_admin:              '/(main)/schedule-swap',
+  // Cuti & Izin
+  leave_approved:                  '/(main)/leave',
+  leave_rejected:                  '/(main)/leave',
+  leave_expiry_reminder:           '/(main)/leave',
+  collective_leave_deduction:      '/(main)/leave',
+  // Absensi / SP / Izin
+  sp_reminder:                     '/(main)/attendance',
+  alfa_detected:                   '/(main)/attendance',
+  late_arrival_approved:           '/(main)/attendance',
+  late_arrival_rejected:           '/(main)/attendance',
+  early_departure_approved:        '/(main)/attendance',
+  early_departure_rejected:        '/(main)/attendance',
+  // Tugas
+  task_assigned:                   '/(main)/tasks',
+  task_accepted:                   '/(main)/tasks',
+  task_rejected:                   '/(main)/tasks',
+  sla_breach:                      '/(main)/tasks',
+  // Berita Acara
+  ba_generated:                    '/(main)/service-reports/index',
+  // SOS
+  sos:                             '/(main)/sos',
+  sos_alert:                       '/(main)/sos-alert',
+  // Pengumuman (buka tab ann di halaman ini)
+  announcement_approved:           '/(main)/notifications',
+  announcement_rejected:           '/(main)/notifications',
+  announcement_pending:            '/(main)/notifications',
 };
 
 type Tab = 'notif' | 'ann';
@@ -229,7 +266,15 @@ export default function NotificationsScreen() {
                 return (
                   <TouchableOpacity
                     key={notif.id}
-                    onPress={() => { if (!notif.is_read) markReadMut.mutate(notif.id); }}
+                    onPress={() => {
+                      if (!notif.is_read) markReadMut.mutate(notif.id);
+                      const route = NOTIF_ROUTE_MAP[notif.type];
+                      if (route && route !== '/(main)/notifications') {
+                        router.push(route as any);
+                      } else if (notif.type.startsWith('announcement_')) {
+                        setActiveTab('ann');
+                      }
+                    }}
                     activeOpacity={0.78}
                     style={{
                       backgroundColor: notif.is_read
