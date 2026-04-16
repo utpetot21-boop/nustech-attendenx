@@ -137,12 +137,11 @@ export class AttendanceRequestsService {
 
     // Notifikasi ke karyawan
     const label = request.type === 'late_arrival' ? 'Izin Terlambat' : 'Izin Pulang Awal';
-    await this.notificationsService.create({
-      user_id: request.user_id,
+    await this.notificationsService.send({
+      userId: request.user_id,
       type: 'attendance_request_approved',
       title: `${label} Disetujui`,
       body: `Permohonan ${label.toLowerCase()} Anda untuk hari ini telah disetujui.`,
-      channel: 'in_app',
     });
 
     return this.requestRepo.findOne({ where: { id }, relations: ['user', 'reviewer'] }) as Promise<AttendanceRequestEntity>;
@@ -167,14 +166,13 @@ export class AttendanceRequestsService {
     });
 
     const label = request.type === 'late_arrival' ? 'Izin Terlambat' : 'Izin Pulang Awal';
-    await this.notificationsService.create({
-      user_id: request.user_id,
+    await this.notificationsService.send({
+      userId: request.user_id,
       type: 'attendance_request_rejected',
       title: `${label} Ditolak`,
       body: dto.reviewer_note
         ? `Permohonan ${label.toLowerCase()} Anda ditolak. Alasan: ${dto.reviewer_note}`
         : `Permohonan ${label.toLowerCase()} Anda ditolak.`,
-      channel: 'in_app',
     });
 
     return this.requestRepo.findOne({ where: { id }, relations: ['user', 'reviewer'] }) as Promise<AttendanceRequestEntity>;
