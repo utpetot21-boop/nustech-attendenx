@@ -34,6 +34,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksService, type TaskSummary, type HoldTaskPayload } from '@/services/tasks.service';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import * as Location from 'expo-location';
+import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
 
 const HOLD_REASONS = [
   { value: 'client_absent', label: 'Klien/PIC tidak ada di lokasi' },
@@ -229,8 +230,8 @@ export default function TasksScreen() {
         />
 
         {isLoading ? (
-          <View style={{ paddingTop: 60, alignItems: 'center' }}>
-            <ActivityIndicator color={isDark ? '#FFF' : '#007AFF'} />
+          <View style={{ paddingTop: 8 }}>
+            {[0, 1, 2, 3].map((i) => <TaskCardSkeleton key={i} isDark={isDark} />)}
           </View>
         ) : (
           <>

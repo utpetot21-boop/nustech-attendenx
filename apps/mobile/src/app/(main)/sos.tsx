@@ -7,12 +7,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert,
-  Platform, Vibration, Animated, StatusBar, ScrollView,
+  Platform, Animated, StatusBar, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Battery from 'expo-battery';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import {
@@ -53,7 +54,10 @@ export default function SosScreen() {
   useEffect(() => {
     const init = async () => {
       setActivating(true);
-      Vibration.vibrate([0, 200, 100, 200]);
+      // Pola haptic SOS — Heavy impact berulang untuk sensasi darurat
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 200);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 400);
 
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -73,6 +77,7 @@ export default function SosScreen() {
       const sosAlert = await activateSos(loc.coords.latitude, loc.coords.longitude, batteryPct);
       setAlert(sosAlert);
       setActivating(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
       // Timer elapsed — dimulai segera setelah SOS aktif
       elapsedInterval.current = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -120,6 +125,7 @@ export default function SosScreen() {
         {
           text: 'Iya, Saya Aman', style: 'destructive',
           onPress: async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             if (trackInterval.current) clearInterval(trackInterval.current);
             if (elapsedInterval.current) clearInterval(elapsedInterval.current);
             disconnectSosSocket();

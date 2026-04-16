@@ -50,6 +50,7 @@ const STATUS_SUMMARY = [
 ] as const;
 import { useCheckoutTimer } from '@/hooks/useCheckoutTimer';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { HomeHeroSkeleton } from '@/components/ui/SkeletonLoader';
 
 // ── Status theme ─────────────────────────────────────────────────────────────
 function getStatusTheme(checkedIn: boolean, checkedOut: boolean, status?: string) {
@@ -373,6 +374,9 @@ export default function BerandaScreen() {
         <View style={{ marginTop: -20, paddingHorizontal: 16, gap: 10 }}>
 
           {/* ── STATUS ABSENSI ────────────────────────────────────────────── */}
+          {loadingAtt && !attendance ? (
+            <HomeHeroSkeleton isDark={isDark} />
+          ) : (
           <TouchableOpacity
             onPress={() => router.push('/(main)/attendance' as any)}
             activeOpacity={0.85}
@@ -494,6 +498,7 @@ export default function BerandaScreen() {
               </View>
             )}
           </TouchableOpacity>
+          )}
 
           {/* ── CHECKOUT COUNTDOWN ─────────────────────────────────────────── */}
           {alreadyCheckedIn && !alreadyCheckedOut && (

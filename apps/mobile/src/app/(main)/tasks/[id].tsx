@@ -16,6 +16,7 @@ import {
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { ConfirmCountdown } from '@/components/tasks/ConfirmCountdown';
 import NavigationButton from '@/components/tasks/NavigationButton';
@@ -96,14 +97,30 @@ export default function TaskDetailScreen() {
 
   const acceptMut = useMutation({
     mutationFn: () => tasksService.accept(id!),
-    onSuccess: () => { invalidate(); Alert.alert('Berhasil', 'Tugas berhasil diterima.'); },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      invalidate();
+      Alert.alert('Berhasil', 'Tugas berhasil diterima.');
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message);
+    },
   });
 
   const rejectMut = useMutation({
     mutationFn: () => tasksService.reject(id!, rejectReason || undefined),
-    onSuccess: () => { invalidate(); setShowRejectModal(false); setRejectReason(''); router.back(); },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      invalidate();
+      setShowRejectModal(false);
+      setRejectReason('');
+      router.back();
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message);
+    },
   });
 
   const holdMut = useMutation({
@@ -113,12 +130,16 @@ export default function TaskDetailScreen() {
       evidence_urls: [],
     }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       invalidate();
       setShowHoldModal(false);
       setHoldNotes('');
       Alert.alert('Penundaan Diajukan', 'Permintaan penundaan telah dikirim ke manajer.');
     },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message);
+    },
   });
 
   const delegateMut = useMutation({
@@ -127,11 +148,15 @@ export default function TaskDetailScreen() {
       reason: delegateReason.trim(),
     }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       invalidate();
       setShowDelegateModal(false);
       Alert.alert('Delegasi Dikirim', 'Permintaan delegasi telah dikirim ke manajer untuk disetujui.');
     },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message);
+    },
   });
 
   // ── Loading / Error ────────────────────────────────────────────────────────
@@ -351,10 +376,13 @@ export default function TaskDetailScreen() {
         {isPending && (
           <View style={{ paddingHorizontal: 20, gap: 12, marginBottom: 14 }}>
             <TouchableOpacity
-              onPress={() => Alert.alert('Terima Tugas?', `Anda akan menerima tugas "${task.title}".`, [
-                { text: 'Batal', style: 'cancel' },
-                { text: 'Terima', onPress: () => acceptMut.mutate() },
-              ])}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                Alert.alert('Terima Tugas?', `Anda akan menerima tugas "${task.title}".`, [
+                  { text: 'Batal', style: 'cancel' },
+                  { text: 'Terima', onPress: () => acceptMut.mutate() },
+                ]);
+              }}
               disabled={acceptMut.isPending}
               style={{ backgroundColor: '#16A34A', borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, shadowColor: '#16A34A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 }}
             >
@@ -366,7 +394,7 @@ export default function TaskDetailScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => setShowRejectModal(true)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowRejectModal(true); }}
               style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(239,68,68,0.35)' }}
             >
               <XCircle size={20} strokeWidth={2} color="#EF4444" />
@@ -378,7 +406,7 @@ export default function TaskDetailScreen() {
         {isAssigned && (
           <View style={{ paddingHorizontal: 20, gap: 12, marginBottom: 14 }}>
             <TouchableOpacity
-              onPress={() => setShowHoldModal(true)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowHoldModal(true); }}
               style={{ backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#FFFBEB', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.35)' }}
             >
               <PauseCircle size={20} strokeWidth={2} color="#F59E0B" />
@@ -407,7 +435,8 @@ export default function TaskDetailScreen() {
       {/* ── Reject Modal ──────────────────────────────────────────────────── */}
       <Modal visible={showRejectModal} transparent animationType="slide">
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
-          <View style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: insets.bottom + 24 }}>
+          <View style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, paddingBottom: insets.bottom + 24 }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 18 }} />
             <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, marginBottom: 6 }}>Tolak Tugas</Text>
             <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 18 }}>Sampaikan alasan penolakan kepada manajer.</Text>
             <TextInput
@@ -439,7 +468,8 @@ export default function TaskDetailScreen() {
       {/* ── Hold Modal ────────────────────────────────────────────────────── */}
       <Modal visible={showHoldModal} transparent animationType="slide">
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
-          <View style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: insets.bottom + 24, maxHeight: '82%' }}>
+          <View style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, paddingBottom: insets.bottom + 24, maxHeight: '82%' }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 18 }} />
             <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, marginBottom: 4 }}>Tunda Pekerjaan</Text>
             <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 18 }}>Pilih alasan. Manajer akan dinotifikasi segera.</Text>
             <ScrollView showsVerticalScrollIndicator={false}>

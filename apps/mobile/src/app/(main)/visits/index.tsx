@@ -31,6 +31,7 @@ import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterChips } from '@/components/ui/FilterChips';
+import { VisitCardSkeleton } from '@/components/ui/SkeletonLoader';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -214,8 +215,8 @@ export default function VisitsListScreen() {
 
         {/* List */}
         {isLoading ? (
-          <View style={{ paddingTop: 60, alignItems: 'center' }}>
-            <ActivityIndicator color={C.blue} />
+          <View style={{ paddingTop: 8 }}>
+            {[0, 1, 2, 3].map((i) => <VisitCardSkeleton key={i} isDark={isDark} />)}
           </View>
         ) : (data?.items.length ?? 0) === 0 ? (
           <EmptyState

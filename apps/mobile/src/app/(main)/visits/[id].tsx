@@ -22,6 +22,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
 import { visitsService } from '@/services/visits.service';
 import { socketService } from '@/services/socket.service';
 import { PhotoPhaseGrid } from '@/components/visits/PhotoPhaseGrid';
@@ -142,12 +143,14 @@ export default function VisitDetailScreen() {
         recommendations: recommendations.trim() || undefined,
       }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['visits'] });
       qc.invalidateQueries({ queryKey: ['visit', visitId] });
       setShowCheckoutForm(false);
       router.back();
     },
     onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Gagal Check-Out', err.message ?? 'Terjadi kesalahan.');
     },
   });
@@ -155,6 +158,7 @@ export default function VisitDetailScreen() {
   const handleCameraCapture = useCallback(
     (uri: string, lat: number, lng: number) => {
       if (!cameraPhase) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setUploadingPhase(cameraPhase);
       setCameraPhase(null); // close camera first
       addPhotoMutation.mutate({ phase: cameraPhase, uri, lat, lng });
@@ -164,9 +168,11 @@ export default function VisitDetailScreen() {
 
   const handleCheckOut = useCallback(() => {
     if (!workDescription.trim()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Deskripsi Wajib', 'Masukkan deskripsi pekerjaan sebelum check-out.');
       return;
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     checkOutMutation.mutate();
   }, [workDescription, checkOutMutation]);
 
