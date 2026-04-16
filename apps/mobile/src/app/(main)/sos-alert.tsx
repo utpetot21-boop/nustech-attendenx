@@ -4,7 +4,7 @@
  * Menampilkan: nama, lokasi koordinat, tombol navigasi Google Maps / Waze.
  * iOS 26 Liquid Glass — background merah gelap.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Linking,
   Animated, StatusBar, ScrollView, Platform,
@@ -13,6 +13,46 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
+import { api } from '@/services/api';
+
+// ── Buat HTML Leaflet — markerName null = tampilkan peta tanpa pin ────────────
+function buildLeafletHtml(lat: number, lng: number, markerName: string | null): string {
+  const markerScript = markerName
+    ? `
+    var redIcon = L.divIcon({
+      html: '<div style="width:24px;height:24px;background:#FF453A;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 5px rgba(255,69,58,0.35);"></div>',
+      iconSize: [24, 24], iconAnchor: [12, 12], className: '',
+    });
+    L.marker([${lat}, ${lng}], { icon: redIcon })
+      .addTo(map)
+      .bindPopup('<b>${markerName.replace(/'/g, "\\'")}</b><br>Lokasi SOS')
+      .openPopup();
+    ` : '';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body, #map { width:100%; height:100%; background:#111; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map', {
+      zoomControl:false, dragging:false, scrollWheelZoom:false,
+      doubleClickZoom:false, touchZoom:false, keyboard:false, attributionControl:false,
+    }).setView([${lat}, ${lng}], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+    ${markerScript}
+  </script>
+</body>
+</html>`;
+}
 
 export default function SosAlertScreen() {
   const insets = useSafeAreaInsets();
@@ -24,10 +64,25 @@ export default function SosAlertScreen() {
   }>();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [officeLat, setOfficeLat] = useState<number | null>(null);
+  const [officeLng, setOfficeLng] = useState<number | null>(null);
 
   const latNum = lat ? parseFloat(lat) : null;
   const lngNum = lng ? parseFloat(lng) : null;
   const hasCoords = latNum !== null && lngNum !== null && !isNaN(latNum) && !isNaN(lngNum);
+
+  // Koordinat peta: SOS location jika ada, fallback koordinat kantor
+  const mapLat = hasCoords ? latNum! : (officeLat ?? -5.1477);
+  const mapLng = hasCoords ? lngNum! : (officeLng ?? 119.4328);
+
+  // Fetch koordinat kantor sebagai default center peta
+  useEffect(() => {
+    api.get('/settings/attendance').then((r) => {
+      const { office_lat, office_lng } = r.data ?? {};
+      if (office_lat) setOfficeLat(parseFloat(office_lat));
+      if (office_lng) setOfficeLng(parseFloat(office_lng));
+    }).catch(() => {/* pakai fallback Makassar */});
+  }, []);
 
   // Pulse animation
   useEffect(() => {
@@ -108,61 +163,19 @@ export default function SosAlertScreen() {
           <Text style={styles.hint}>Periksa apakah kamu berada di dekat lokasi berikut</Text>
         </View>
 
-        {/* Map — Leaflet via WebView, pin merah di lokasi SOS */}
+        {/* Map — Leaflet via WebView */}
+        {/* SOS: pin merah di lokasi pengirim. Default: koordinat kantor tanpa pin */}
         <View style={styles.mapWrapper}>
-          {hasCoords ? (
-            <WebView
-              style={styles.map}
-              originWhitelist={['*']}
-              scrollEnabled={false}
-              source={{ html: `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html, body, #map { width:100%; height:100%; background:#1a1a1a; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    var map = L.map('map', {
-      zoomControl: false,
-      dragging: false,
-      scrollWheelZoom: false,
-      doubleClickZoom: false,
-      touchZoom: false,
-      keyboard: false,
-      attributionControl: false,
-    }).setView([${latNum}, ${lngNum}], 16);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map);
-
-    var redIcon = L.divIcon({
-      html: '<div style="width:22px;height:22px;background:#FF453A;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 4px rgba(255,69,58,0.4);"></div>',
-      iconSize: [22, 22],
-      iconAnchor: [11, 11],
-      className: '',
-    });
-
-    L.marker([${latNum}, ${lngNum}], { icon: redIcon })
-      .addTo(map)
-      .bindPopup('<b>${(userName ?? 'SOS').replace(/'/g, "\\'")}</b><br>Lokasi SOS')
-      .openPopup();
-  </script>
-</body>
-</html>` }}
-            />
-          ) : (
-            <View style={styles.mapPlaceholder}>
-              <Text style={styles.mapPlaceholderText}>📍 Koordinat tidak tersedia</Text>
-            </View>
-          )}
+          <WebView
+            style={styles.map}
+            originWhitelist={['*']}
+            scrollEnabled={false}
+            source={{ html: buildLeafletHtml(
+              mapLat,
+              mapLng,
+              hasCoords ? (userName ?? 'SOS') : null,
+            ) }}
+          />
           <LinearGradient
             colors={['transparent', '#1f0000']}
             style={styles.mapFade}
@@ -260,17 +273,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,69,58,0.4)',
   },
   map: { flex: 1, borderRadius: 18 },
-  mapPlaceholder: {
-    flex: 1,
-    backgroundColor: 'rgba(255,0,0,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapPlaceholderText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   mapFade: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
