@@ -274,7 +274,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Content area (header mobile + main) ─────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      {/* isolation-isolate → buat stacking context baru sehingga z-index di dalam
+          content area (mis. z-[400] overlay peta) tidak bisa menembus di atas
+          mobile sidebar (z-50) yang ada di luar stacking context ini. */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ isolation: 'isolate' }}>
 
         {/* Mobile header bar — hanya muncul di < lg */}
         <header className="lg:hidden flex items-center justify-between h-14 px-4
@@ -301,8 +304,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="w-9" />
         </header>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
+        {/* Main content — relative + min-h-0 wajib ada:
+            - relative  → jadi containing block untuk absolute-positioned children (e.g. monitoring page)
+            - min-h-0   → cegah flex-blowout di Firefox/Chrome saat konten panjang
+            - overflow-y-auto → halaman biasa bisa scroll via parent ini */}
+        <main className="relative flex-1 min-h-0 overflow-y-auto">
           {children}
         </main>
       </div>

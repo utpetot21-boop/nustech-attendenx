@@ -22,13 +22,13 @@ type TechnicianStatus = {
   lastSeen:   string | null;
 };
 
-// Warna per status — merah sebagai warna utama/default
+// Warna per status — selaras dengan TYPE_CONFIG di page.tsx
 const MARKER_COLORS: Record<string, string> = {
-  visit:  '#EA4335', // merah Google Maps
-  office: '#34A853', // hijau
-  alert:  '#FBBC04', // kuning/orange
-  idle:   '#9CA3AF', // abu
-  sos:    '#EA4335', // merah darurat
+  visit:  '#3B82F6', // biru  — kunjungan aktif
+  office: '#22C55E', // hijau — di kantor
+  alert:  '#F97316', // oranye — GPS alert
+  idle:   '#9CA3AF', // abu   — menganggur
+  sos:    '#EF4444', // merah — darurat (tidak dipakai langsung, makeSosPinIcon yang dipanggil)
 };
 
 // ── Google Maps-style teardrop pin ────────────────────────────────────────────
@@ -106,16 +106,31 @@ function makeSosPinIcon() {
   });
 }
 
-// ── Office pin — teardrop merah outline putih, titik putih tengah ─────────────
+// ── Office pin — biru tua dengan ikon bangunan, berbeda dari marker teknisi ────
 function makeOfficePinIcon() {
-  const w = 28, h = 38;
+  const w = 32, h = 44;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <defs>
+        <filter id="oshadow" x="-30%" y="-20%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.40)"/>
+        </filter>
+      </defs>
       <path
-        d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 24 14 24S28 23.333 28 14C28 6.268 21.732 0 14 0z"
-        fill="#EA4335" stroke="white" stroke-width="2"
+        d="M16 1C8.3 1 2 7.3 2 15c0 5 2.5 9.4 6.3 12.1L16 43l7.7-15.9C27.5 24.4 30 20 30 15 30 7.3 23.7 1 16 1z"
+        fill="#1D4ED8"
+        filter="url(#oshadow)"
       />
-      <circle cx="14" cy="14" r="5" fill="white"/>
+      <!-- Highlight -->
+      <path
+        d="M16 1C8.3 1 2 7.3 2 15c0 2.3.6 4.4 1.6 6.3C6.8 12.8 11.1 8.5 16 8.5s9.2 4.3 12.4 12.8c1-.7 1.6-2.3 1.6-6.3C30 7.3 23.7 1 16 1z"
+        fill="rgba(255,255,255,0.20)"
+      />
+      <!-- Ikon bangunan (gedung kecil) -->
+      <rect x="10" y="12" width="12" height="9"  fill="white" opacity="0.9" rx="1"/>
+      <rect x="10" y="10" width="12" height="3"  fill="white" opacity="0.6" rx="0.5"/>
+      <rect x="13" y="14" width="2.5" height="2.5" fill="#1D4ED8" rx="0.3"/>
+      <rect x="16.5" y="14" width="2.5" height="2.5" fill="#1D4ED8" rx="0.3"/>
     </svg>
   `.trim();
 

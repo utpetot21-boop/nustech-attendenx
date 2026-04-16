@@ -199,7 +199,9 @@ export default function MonitoringPage() {
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row h-full overflow-hidden">
+    // absolute inset-0 → mengisi <main relative> secara presisi tanpa bergantung pada h-full
+    // yang bermasalah di dalam overflow-y-auto parent. overflow-hidden mencegah Leaflet bleed out.
+    <div className="absolute inset-0 flex flex-col lg:flex-row overflow-hidden">
       {/* Map area */}
       <div className="relative h-[280px] lg:h-auto lg:flex-1">
         {/* Filter pills over map */}
