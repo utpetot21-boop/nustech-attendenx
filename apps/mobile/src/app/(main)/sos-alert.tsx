@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 
 export default function SosAlertScreen() {
   const insets = useSafeAreaInsets();
@@ -107,6 +108,39 @@ export default function SosAlertScreen() {
           <Text style={styles.hint}>Periksa apakah kamu berada di dekat lokasi berikut</Text>
         </View>
 
+        {/* Map — tampilkan pin lokasi SOS */}
+        {hasCoords && (
+          <View style={styles.mapWrapper}>
+            <MapView
+              provider={PROVIDER_DEFAULT}
+              style={styles.map}
+              initialRegion={{
+                latitude:      latNum!,
+                longitude:     lngNum!,
+                latitudeDelta:  0.005,
+                longitudeDelta: 0.005,
+              }}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              pitchEnabled={false}
+              rotateEnabled={false}
+            >
+              <Marker
+                coordinate={{ latitude: latNum!, longitude: lngNum! }}
+                title={userName ?? 'SOS'}
+                description="Lokasi terakhir pengirim SOS"
+                pinColor="#FF453A"
+              />
+            </MapView>
+            {/* Overlay gradient bawah agar menyatu dengan background */}
+            <LinearGradient
+              colors={['transparent', '#1f0000']}
+              style={styles.mapFade}
+              pointerEvents="none"
+            />
+          </View>
+        )}
+
         {/* Info cards */}
         <View style={styles.cards}>
 
@@ -186,6 +220,21 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 12, color: 'rgba(255,255,255,0.5)',
     textAlign: 'center', paddingHorizontal: 20,
+  },
+  mapWrapper: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 18,
+    overflow: 'hidden',
+    height: 220,
+    borderWidth: 1,
+    borderColor: 'rgba(255,69,58,0.4)',
+  },
+  map: { flex: 1 },
+  mapFade: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: 40,
   },
   cards: { paddingHorizontal: 16, gap: 12 },
   card: {
