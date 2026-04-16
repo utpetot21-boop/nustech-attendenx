@@ -322,7 +322,10 @@ export class AttendanceService {
 
   // ── Helpers ───────────────────────────────────────────────────
   private getTodayString(): string {
-    return new Date().toISOString().split('T')[0];
+    // Gunakan WITA (Asia/Makassar, UTC+8) bukan UTC
+    // toISOString() selalu UTC — jika dipakai, check-in antara 00:00-07:59 WITA
+    // akan terekam di tanggal kemarin
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
   }
 
   private calculateStatus(
