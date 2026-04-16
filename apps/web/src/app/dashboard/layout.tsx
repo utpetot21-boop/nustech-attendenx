@@ -320,30 +320,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="w-9" />
         </header>
 
-        {/* Page title bar — disembunyikan di monitoring (full-screen map butuh semua ruang) */}
-        {pathname !== '/dashboard/monitoring' && (() => {
-          const allItems  = NAV.flatMap((g) => g.items);
-          const canonical = ALIAS_REVERSE[pathname] ?? pathname;
-          const item      = allItems.find(
-            (it) => it.href === canonical ||
-                    (it.href !== '/dashboard' && canonical.startsWith(it.href))
-          );
-          if (!item) return null;
-          const Icon = item.icon;
-          return (
-            <div className="flex-shrink-0 flex items-center gap-3 px-5 py-2.5
-              bg-white dark:bg-[#1C1C1E]
-              border-b border-black/[0.05] dark:border-white/[0.05]">
-              <div className={`w-7 h-7 rounded-[8px] flex items-center justify-center flex-shrink-0 ${item.bg}`}>
-                <Icon size={14} className={item.color} strokeWidth={1.9} />
-              </div>
-              <h1 className="text-[14px] font-semibold text-gray-900 dark:text-white leading-none">{item.label}</h1>
-              <span className="text-gray-200 dark:text-white/15 text-xs select-none">·</span>
-              <span className="text-[11px] text-gray-400 dark:text-white/30">AttendenX</span>
-            </div>
-          );
-        })()}
-
         {/* Main content — relative + min-h-0 wajib ada:
             - relative  → jadi containing block untuk absolute-positioned children (e.g. monitoring page)
             - min-h-0   → cegah flex-blowout di Firefox/Chrome saat konten panjang
