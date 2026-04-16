@@ -37,6 +37,7 @@ import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { TemplatesModule } from './modules/templates/templates.module';
 import { RedisModule } from './modules/cache/redis.module';
 import { ScheduleSwapModule } from './modules/schedule-swap/schedule-swap.module';
+import { AttendanceRequestsModule } from './modules/attendance-requests/attendance-requests.module';
 
 @Module({
   imports: [
@@ -132,6 +133,7 @@ import { ScheduleSwapModule } from './modules/schedule-swap/schedule-swap.module
     // Work Type Templates
     TemplatesModule,
     ScheduleSwapModule,
+    AttendanceRequestsModule,
   ],
   controllers: [AppController],
   providers: [

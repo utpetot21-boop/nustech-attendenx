@@ -14,6 +14,7 @@ import { LocationEntity } from '../locations/entities/location.entity';
 import { NationalHolidayEntity } from '../schedule/entities/national-holiday.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { CompanyAttendanceConfigEntity } from '../settings/entities/company-attendance-config.entity';
+import { AttendanceRequestEntity } from '../attendance-requests/entities/attendance-request.entity';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { isWithinGeofence } from '@nustech/shared';
@@ -35,6 +36,8 @@ export class AttendanceService {
     private userRepo: Repository<UserEntity>,
     @InjectRepository(CompanyAttendanceConfigEntity)
     private configRepo: Repository<CompanyAttendanceConfigEntity>,
+    @InjectRepository(AttendanceRequestEntity)
+    private attendanceRequestRepo: Repository<AttendanceRequestEntity>,
   ) {}
 
   // ── Check-In ──────────────────────────────────────────────────
@@ -102,13 +105,20 @@ export class AttendanceService {
       }
     }
 
+    // Cek apakah ada izin terlambat yang diapprove hari ini
+    const approvedLate = await this.attendanceRequestRepo.findOne({
+      where: { user_id: userId, date: today, type: 'late_arrival', status: 'approved' },
+    });
+
     // Hitung status berdasarkan keterlambatan
     const checkInAt = new Date();
-    const { status, lateMinutes } = this.calculateStatus(
+    const { status: rawStatus, lateMinutes } = this.calculateStatus(
       checkInAt,
       schedule.start_time,
       schedule.tolerance_minutes,
     );
+    // Jika terlambat tapi ada izin approved → tetap terlambat tapi flag late_approved = true
+    const status = rawStatus;
 
     // Checkout earliest = check_in_at + 8 jam
     const checkoutEarliest = new Date(checkInAt.getTime() + 8 * 60 * 60 * 1000);
@@ -130,6 +140,7 @@ export class AttendanceService {
         checkout_earliest: checkoutEarliest,
         status: status as any,
         late_minutes: lateMinutes,
+        late_approved: !!approvedLate,
         is_holiday_work: isHolidayWork,
         user_schedule_id: schedule.id,
         schedule_type: schedule.schedule_type as any,
@@ -158,6 +169,7 @@ export class AttendanceService {
         checkout_earliest: checkoutEarliest,
         status: status as any,
         late_minutes: lateMinutes,
+        late_approved: !!approvedLate,
         is_holiday_work: isHolidayWork,
         notes: dto.notes ?? null,
       }),
@@ -180,21 +192,28 @@ export class AttendanceService {
       throw new BadRequestException('Anda sudah check-out hari ini');
     }
 
-    // Validasi 8 jam lock
-    if (!attendance.checkout_earliest) {
-      throw new ForbiddenException('Data checkout_earliest tidak tersedia');
-    }
+    // Cek izin pulang awal approved — bypass lock 8 jam
+    const approvedEarly = await this.attendanceRequestRepo.findOne({
+      where: { user_id: userId, date: today, type: 'early_departure', status: 'approved' },
+    });
 
     const now = new Date();
-    if (now < attendance.checkout_earliest) {
-      const remainingMs = attendance.checkout_earliest.getTime() - now.getTime();
-      const remainingSec = Math.ceil(remainingMs / 1000);
-      throw new ForbiddenException({
-        message: 'Checkout belum tersedia — belum 8 jam sejak check-in',
-        canCheckout: false,
-        remainingSeconds: remainingSec,
-        checkoutEarliest: attendance.checkout_earliest,
-      });
+
+    // Validasi 8 jam lock (dilewati jika ada izin pulang awal approved)
+    if (!approvedEarly) {
+      if (!attendance.checkout_earliest) {
+        throw new ForbiddenException('Data checkout_earliest tidak tersedia');
+      }
+      if (now < attendance.checkout_earliest) {
+        const remainingMs = attendance.checkout_earliest.getTime() - now.getTime();
+        const remainingSec = Math.ceil(remainingMs / 1000);
+        throw new ForbiddenException({
+          message: 'Checkout belum tersedia — belum 8 jam sejak check-in',
+          canCheckout: false,
+          remainingSeconds: remainingSec,
+          checkoutEarliest: attendance.checkout_earliest,
+        });
+      }
     }
 
     const checkOutAt = now;
@@ -210,6 +229,7 @@ export class AttendanceService {
       check_out_at: checkOutAt,
       check_out_method: dto.method as any,
       overtime_minutes: overtimeMinutes,
+      early_departure_approved: !!approvedEarly,
     });
 
     return this.attendanceRepo.findOne({ where: { id: attendance.id } }) as Promise<AttendanceEntity>;

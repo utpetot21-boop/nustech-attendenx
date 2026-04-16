@@ -99,6 +99,14 @@ export class AttendanceEntity {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  /** true jika check-in terlambat tapi ada izin terlambat yang diapprove */
+  @Column({ type: 'boolean', default: false })
+  late_approved: boolean;
+
+  /** true jika checkout lebih awal tapi ada izin pulang awal yang diapprove */
+  @Column({ type: 'boolean', default: false })
+  early_departure_approved: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 }

@@ -7,9 +7,10 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import {
   CheckCircle2, Clock, XCircle, Users,
   Timer, TrendingUp, Download, Search,
-  MapPin, MapPinOff, ClipboardList, CalendarDays,
+  MapPin, MapPinOff, ClipboardList,
   ChevronLeft, ChevronRight, Filter,
   AlertTriangle, ShieldAlert, FileWarning, Plus, X, ExternalLink, FileText,
+  AlarmClock, LogOut, Hourglass, MessageSquare, CheckCheck, Ban,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -308,7 +309,7 @@ function PelanggaranSection() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -582,14 +583,389 @@ function PelanggaranSection() {
   );
 }
 
+// ── Attendance Request Types ──────────────────────────────────────────────────
+type AttendanceRequestType   = 'late_arrival' | 'early_departure';
+type AttendanceRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+interface AttendanceRequest {
+  id: string;
+  user_id: string;
+  date: string;
+  type: AttendanceRequestType;
+  reason: string;
+  estimated_time: string | null;
+  status: AttendanceRequestStatus;
+  reviewed_by: string | null;
+  reviewer_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  user?: { id: string; full_name: string; employee_id?: string; avatar_url?: string | null; department?: { name: string } };
+}
+
+const REQ_STATUS_CFG: Record<AttendanceRequestStatus, { label: string; bg: string; text: string; dot: string; border: string }> = {
+  pending:   { label: 'Menunggu',  bg: 'bg-amber-50 dark:bg-amber-900/20',   text: 'text-amber-700 dark:text-amber-400',   dot: 'bg-amber-400',  border: 'border-amber-200 dark:border-amber-800'   },
+  approved:  { label: 'Disetujui', bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500', border: 'border-emerald-200 dark:border-emerald-800' },
+  rejected:  { label: 'Ditolak',   bg: 'bg-red-50 dark:bg-red-900/20',       text: 'text-red-600 dark:text-red-400',       dot: 'bg-red-500',    border: 'border-red-200 dark:border-red-800'       },
+  cancelled: { label: 'Dibatalkan',bg: 'bg-gray-100 dark:bg-white/10',       text: 'text-gray-500 dark:text-white/50',     dot: 'bg-gray-400',   border: 'border-gray-200 dark:border-white/10'     },
+};
+
+function ReqStatusBadge({ status }: { status: AttendanceRequestStatus }) {
+  const s = REQ_STATUS_CFG[status] ?? REQ_STATUS_CFG.pending;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${s.bg} ${s.text} ${s.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+      {s.label}
+    </span>
+  );
+}
+
+// ── Permohonan Section ────────────────────────────────────────────────────────
+function PermohonanSection() {
+  const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [typeFilter,   setTypeFilter]   = useState<string>('');
+  const [dateFilter,   setDateFilter]   = useState('');
+  const [search,       setSearch]       = useState('');
+  const [reviewModal,  setReviewModal]  = useState<{ req: AttendanceRequest; action: 'approve' | 'reject' } | null>(null);
+  const [reviewNote,   setReviewNote]   = useState('');
+
+  const { data: requests = [], isLoading } = useQuery<AttendanceRequest[]>({
+    queryKey: ['admin-attendance-requests', statusFilter, typeFilter, dateFilter],
+    queryFn: () => {
+      const q = new URLSearchParams();
+      if (statusFilter) q.set('status', statusFilter);
+      if (typeFilter)   q.set('type',   typeFilter);
+      if (dateFilter)   q.set('date',   dateFilter);
+      return apiClient.get(`/attendance-requests/admin/list?${q}`).then((r) => r.data);
+    },
+    refetchInterval: 30_000,
+  });
+
+  const { data: pendingCount } = useQuery<{ count: number }>({
+    queryKey: ['attendance-requests-pending-count'],
+    queryFn: () => apiClient.get('/attendance-requests/admin/pending-count').then((r) => r.data),
+    refetchInterval: 30_000,
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ id, note }: { id: string; note: string }) =>
+      apiClient.post(`/attendance-requests/${id}/approve`, { reviewer_note: note || undefined }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-attendance-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-requests-pending-count'] });
+      setReviewModal(null);
+      setReviewNote('');
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, note }: { id: string; note: string }) =>
+      apiClient.post(`/attendance-requests/${id}/reject`, { reviewer_note: note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-attendance-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-requests-pending-count'] });
+      setReviewModal(null);
+      setReviewNote('');
+    },
+  });
+
+  const filtered = requests.filter((r) =>
+    !search || r.user?.full_name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const pendingReqs  = requests.filter((r) => r.status === 'pending').length;
+  const approvedReqs = requests.filter((r) => r.status === 'approved').length;
+  const rejectedReqs = requests.filter((r) => r.status === 'rejected').length;
+
+  const isReviewing = approveMutation.isPending || rejectMutation.isPending;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-[20px] font-bold text-gray-900 dark:text-white">Permohonan Izin Absen</h2>
+        <p className="text-[12px] text-gray-400 dark:text-white/40 mt-0.5">Izin terlambat &amp; izin pulang awal dari karyawan</p>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { icon: Hourglass,    label: 'Menunggu',      value: pendingReqs,              color: 'text-amber-500',   bg: 'bg-amber-50 dark:bg-amber-900/20'   },
+          { icon: CheckCircle2, label: 'Disetujui',     value: approvedReqs,             color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20'},
+          { icon: XCircle,      label: 'Ditolak',       value: rejectedReqs,             color: 'text-red-500',     bg: 'bg-red-50 dark:bg-red-900/20'       },
+          { icon: ClipboardList,label: 'Total Hari ini',value: pendingCount?.count ?? 0, color: 'text-[#007AFF]',   bg: 'bg-blue-50 dark:bg-blue-900/20'     },
+        ].map(({ icon: Icon, label, value, color, bg }) => (
+          <div key={label} className="bg-white dark:bg-[#1C1C1E] rounded-2xl p-4 border border-black/[0.05] dark:border-white/[0.08] flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${bg}`}>
+              <Icon size={18} className={color} strokeWidth={1.8} />
+            </div>
+            <div className="min-w-0">
+              <p className={`text-2xl font-bold leading-none ${color}`}>{value}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-3 flex flex-col sm:flex-row gap-2.5">
+        <div className="relative flex-1 min-w-0">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 flex-shrink-0" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari karyawan…"
+            className="w-full h-9 pl-8 pr-3 rounded-lg text-[12px] bg-gray-50 dark:bg-white/10 border border-black/[0.07] dark:border-white/12 text-gray-700 dark:text-white placeholder-gray-300 dark:placeholder-white/25 focus:outline-none" />
+        </div>
+        <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
+          className="h-9 px-2.5 rounded-lg text-[12px] bg-gray-50 dark:bg-white/10 border border-black/[0.07] dark:border-white/12 text-gray-700 dark:text-white focus:outline-none flex-shrink-0" />
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+          className="h-9 px-2.5 rounded-lg text-[12px] bg-gray-50 dark:bg-white/10 border border-black/[0.07] dark:border-white/12 text-gray-700 dark:text-white focus:outline-none flex-shrink-0">
+          <option value="">Semua Tipe</option>
+          <option value="late_arrival">Izin Terlambat</option>
+          <option value="early_departure">Izin Pulang Awal</option>
+        </select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-9 px-2.5 rounded-lg text-[12px] bg-gray-50 dark:bg-white/10 border border-black/[0.07] dark:border-white/12 text-gray-700 dark:text-white focus:outline-none flex-shrink-0">
+          <option value="">Semua Status</option>
+          <option value="pending">Menunggu</option>
+          <option value="approved">Disetujui</option>
+          <option value="rejected">Ditolak</option>
+        </select>
+      </div>
+
+      {/* Content */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-[#2C2C2E] flex items-center justify-center">
+            <ClipboardList size={28} className="text-gray-400" />
+          </div>
+          <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tidak ada permohonan</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">{search ? 'Coba kata kunci lain' : 'Belum ada pengajuan izin'}</p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {filtered.map((req) => (
+              <div key={req.id} className="bg-white dark:bg-[#1C1C1E] rounded-2xl p-4 border border-black/[0.05] dark:border-white/[0.08]">
+                <div className="flex items-start gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${req.type === 'late_arrival' ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-purple-50 dark:bg-purple-900/20'}`}>
+                    {req.type === 'late_arrival'
+                      ? <AlarmClock size={16} className="text-amber-500" strokeWidth={1.8} />
+                      : <LogOut     size={16} className="text-purple-500" strokeWidth={1.8} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <p className="text-[13px] font-semibold text-gray-900 dark:text-white truncate">{req.user?.full_name ?? '—'}</p>
+                      <ReqStatusBadge status={req.status} />
+                    </div>
+                    <p className="text-[11px] text-gray-400">{req.type === 'late_arrival' ? 'Izin Terlambat' : 'Izin Pulang Awal'} · {fmtShortDate(req.date)}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{req.reason}</p>
+                    {req.estimated_time && <p className="text-[11px] text-gray-400 mt-0.5">Est. {req.estimated_time.slice(0,5)} WITA</p>}
+                    {req.reviewer_note && <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 italic">&quot;{req.reviewer_note}&quot;</p>}
+                  </div>
+                </div>
+                {req.status === 'pending' && (
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => { setReviewModal({ req, action: 'approve' }); setReviewNote(''); }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#34C759]/10 text-[#34C759] text-[12px] font-semibold border border-[#34C759]/20 hover:bg-[#34C759]/20 transition">
+                      <CheckCheck size={13} /> Setujui
+                    </button>
+                    <button onClick={() => { setReviewModal({ req, action: 'reject' }); setReviewNote(''); }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 text-[12px] font-semibold border border-red-200 dark:border-red-800 hover:bg-red-100 transition">
+                      <Ban size={13} /> Tolak
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-x-auto overflow-hidden">
+            <table className="w-full text-sm min-w-[780px]">
+              <thead>
+                <tr className="border-b border-black/[0.04] dark:border-white/[0.06]">
+                  {['Karyawan', 'Tanggal', 'Tipe', 'Alasan', 'Est. Waktu', 'Status', 'Aksi'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((req) => (
+                  <tr key={req.id} className="border-b border-black/[0.03] dark:border-white/[0.04] hover:bg-gray-50 dark:hover:bg-[#2C2C2E] transition last:border-0">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-[#007AFF]/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[10px] font-bold text-[#007AFF]">{initials(req.user?.full_name ?? '?')}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white text-[12px]">{req.user?.full_name ?? '—'}</p>
+                          {req.user?.department?.name && <p className="text-[10px] text-gray-400">{req.user.department.name}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtShortDate(req.date)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${req.type === 'late_arrival' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600' : 'bg-purple-50 dark:bg-purple-900/20 text-purple-600'}`}>
+                        {req.type === 'late_arrival' ? <AlarmClock size={9} /> : <LogOut size={9} />}
+                        {req.type === 'late_arrival' ? 'Terlambat' : 'Pulang Awal'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 max-w-[200px]">
+                      <p className="truncate">{req.reason}</p>
+                      {req.reviewer_note && <p className="text-[10px] text-gray-400 italic mt-0.5 truncate">&quot;{req.reviewer_note}&quot;</p>}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-mono text-gray-500 dark:text-gray-400">
+                      {req.estimated_time ? req.estimated_time.slice(0,5) : '—'}
+                    </td>
+                    <td className="px-4 py-3"><ReqStatusBadge status={req.status} /></td>
+                    <td className="px-4 py-3">
+                      {req.status === 'pending' ? (
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => { setReviewModal({ req, action: 'approve' }); setReviewNote(''); }}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#34C759]/10 text-[#34C759] text-[11px] font-semibold hover:bg-[#34C759]/20 transition">
+                            <CheckCheck size={11} /> Setujui
+                          </button>
+                          <button onClick={() => { setReviewModal({ req, action: 'reject' }); setReviewNote(''); }}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 text-[11px] font-semibold hover:bg-red-100 transition">
+                            <Ban size={11} /> Tolak
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-gray-400">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Review Modal */}
+      {reviewModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+          onClick={() => !isReviewing && setReviewModal(null)}>
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md flex flex-col"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Handle */}
+            <div className="w-10 h-1 rounded-full bg-gray-200 dark:bg-white/20 mx-auto mt-3 mb-1 sm:hidden" />
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${reviewModal.action === 'approve' ? 'bg-[#34C759]/10' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                  {reviewModal.action === 'approve'
+                    ? <CheckCheck size={18} className="text-[#34C759]" />
+                    : <Ban        size={18} className="text-red-500"   />}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 dark:text-white">
+                    {reviewModal.action === 'approve' ? 'Setujui Permohonan' : 'Tolak Permohonan'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">{reviewModal.req.user?.full_name ?? '—'} · {fmtShortDate(reviewModal.req.date)}</p>
+                </div>
+              </div>
+              <button onClick={() => setReviewModal(null)} disabled={isReviewing}
+                className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] flex items-center justify-center">
+                <X size={15} className="text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Request summary */}
+              <div className="bg-gray-50 dark:bg-[#2C2C2E] rounded-xl p-3 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Tipe</span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    {reviewModal.req.type === 'late_arrival' ? 'Izin Terlambat' : 'Izin Pulang Awal'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Alasan</span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 text-right max-w-[60%] line-clamp-2">{reviewModal.req.reason}</span>
+                </div>
+                {reviewModal.req.estimated_time && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Est. Waktu</span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">{reviewModal.req.estimated_time.slice(0,5)} WITA</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Note */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Catatan Reviewer
+                  {reviewModal.action === 'reject' && <span className="text-red-500 ml-1">*</span>}
+                  {reviewModal.action === 'approve' && <span className="text-gray-400 font-normal ml-1">(opsional)</span>}
+                </label>
+                <div className="flex items-start gap-2 p-3 bg-gray-50 dark:bg-[#2C2C2E] rounded-xl border border-black/[0.07] dark:border-white/[0.1]">
+                  <MessageSquare size={15} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                  <textarea
+                    rows={3}
+                    value={reviewNote}
+                    onChange={(e) => setReviewNote(e.target.value)}
+                    placeholder={reviewModal.action === 'reject' ? 'Tuliskan alasan penolakan…' : 'Catatan opsional…'}
+                    className="flex-1 text-sm bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 px-5 pb-6 sm:pb-5">
+              <button onClick={() => setReviewModal(null)} disabled={isReviewing}
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] text-gray-700 dark:text-gray-300 text-sm font-semibold disabled:opacity-50">
+                Batal
+              </button>
+              <button
+                disabled={isReviewing || (reviewModal.action === 'reject' && !reviewNote.trim())}
+                onClick={() => {
+                  if (reviewModal.action === 'approve') {
+                    approveMutation.mutate({ id: reviewModal.req.id, note: reviewNote });
+                  } else {
+                    rejectMutation.mutate({ id: reviewModal.req.id, note: reviewNote });
+                  }
+                }}
+                className={`flex-2 flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 transition ${
+                  reviewModal.action === 'approve' ? 'bg-[#34C759] hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'
+                }`}>
+                {isReviewing
+                  ? (reviewModal.action === 'approve' ? 'Menyetujui…' : 'Menolak…')
+                  : (reviewModal.action === 'approve' ? 'Setujui' : 'Tolak')
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
+type PageTab = 'absensi' | 'permohonan' | 'pelanggaran';
+
 export default function AttendancePage() {
+  const [activeTab,     setActiveTab]     = useState<PageTab>('absensi');
   const [viewMode,      setViewMode]      = useState<ViewMode>('daily');
   const [date,          setDate]          = useState(today());
   const [month,         setMonth]         = useState(currentMonth());
   const [statusFilter,  setStatusFilter]  = useState('');
   const [search,        setSearch]        = useState('');
   const [showFilters,   setShowFilters]   = useState(false);
+
+  const { data: pendingCount } = useQuery<{ count: number }>({
+    queryKey: ['attendance-requests-pending-count'],
+    queryFn: () => apiClient.get('/attendance-requests/admin/pending-count').then((r) => r.data),
+    refetchInterval: 30_000,
+  });
+
+  const PAGE_TABS: { key: PageTab; label: string; badge?: number }[] = [
+    { key: 'absensi',      label: 'Monitoring Absensi' },
+    { key: 'permohonan',   label: 'Permohonan Izin', badge: pendingCount?.count || 0 },
+    { key: 'pelanggaran',  label: 'Pelanggaran & SP' },
+  ];
 
   const params = viewMode === 'daily'
     ? { date, status: statusFilter || undefined }
@@ -628,17 +1004,47 @@ export default function AttendancePage() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-5">
 
-      {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] sm:text-[22px] font-bold text-gray-900 dark:text-white tracking-tight">
-            Monitoring Absensi
-          </h1>
-          <p className="text-[12px] text-gray-400 dark:text-white/40 mt-0.5">
-            Pantau kehadiran karyawan secara real-time
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
+      {/* ── Page Header + Tab Bar ────────────────────────────────── */}
+      <div>
+        <h1 className="text-[20px] sm:text-[22px] font-bold text-gray-900 dark:text-white tracking-tight">
+          Absensi
+        </h1>
+        <p className="text-[12px] text-gray-400 dark:text-white/40 mt-0.5">
+          Monitoring, permohonan izin, dan pelanggaran karyawan
+        </p>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide border-b border-black/[0.06] dark:border-white/[0.08] pb-0">
+        {PAGE_TABS.map((t) => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)}
+            className={`relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold whitespace-nowrap transition-colors border-b-2 -mb-px ${
+              activeTab === t.key
+                ? 'border-[#007AFF] text-[#007AFF]'
+                : 'border-transparent text-gray-500 dark:text-white/50 hover:text-gray-700 dark:hover:text-white/70'
+            }`}>
+            {t.label}
+            {t.badge !== undefined && t.badge > 0 && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === t.key ? 'bg-[#007AFF] text-white' : 'bg-red-500 text-white'}`}>
+                {t.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Tab: Permohonan ──────────────────────────────────────── */}
+      {activeTab === 'permohonan' && <PermohonanSection />}
+
+      {/* ── Tab: Pelanggaran ─────────────────────────────────────── */}
+      {activeTab === 'pelanggaran' && <PelanggaranSection />}
+
+      {/* ── Tab: Monitoring Absensi ──────────────────────────────── */}
+      {activeTab === 'absensi' && (<>
+
+      {/* ── Header actions ───────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
           {/* View toggle */}
           <div className="flex bg-gray-100 dark:bg-white/10 rounded-xl p-1">
             {(['daily', 'monthly'] as ViewMode[]).map((v) => (
@@ -655,7 +1061,7 @@ export default function AttendancePage() {
           {/* Export */}
           <a href={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/reports/attendance/export/excel?month=${month}`}
             target="_blank" rel="noreferrer"
-            className="h-9 px-3 rounded-xl text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5 shadow-[0_2px_8px_rgba(48,209,88,0.30)]">
+            className="h-9 px-3 rounded-xl text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5">
             <Download size={13} /> Export
           </a>
         </div>
@@ -886,6 +1292,7 @@ export default function AttendancePage() {
           ))}
         </div>
       )}
+      </>)}
     </div>
   );
 }

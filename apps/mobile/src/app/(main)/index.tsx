@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState as useLocalState } from 'react';
+import { useCallback, useMemo, useRef, useState as useLocalState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,11 @@ import {
   useColorScheme,
   RefreshControl,
   Animated,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -28,12 +33,18 @@ import {
   Coffee,
   Palmtree,
   ArrowLeftRight,
+  AlarmClock,
+  LogOut,
+  Hourglass,
+  XCircle,
 } from 'lucide-react-native';
 import WeatherBanner, { getPeriodLabel } from '@/components/home/WeatherBanner';
 
 import { attendanceService, type AttendanceRecord } from '@/services/attendance.service';
 import { scheduleService, getCurrentWeekString } from '@/services/schedule.service';
+import { attendanceRequestsService, type AttendanceRequest } from '@/services/attendance-requests.service';
 import { api } from '@/services/api';
+import { useMutation } from '@tanstack/react-query';
 
 const MONTH_NOW = (() => {
   const n = new Date();
@@ -219,6 +230,91 @@ function NavCard({
   );
 }
 
+// ── Attendance Request Card ───────────────────────────────────────────────────
+function AttendanceRequestCard({
+  type, request, deadlinePassed, onSubmit, isDark,
+}: {
+  type: 'late_arrival' | 'early_departure';
+  request: AttendanceRequest | null;
+  deadlinePassed?: boolean;
+  onSubmit: () => void;
+  isDark: boolean;
+}) {
+  const isLate      = type === 'late_arrival';
+  const accentColor = isLate ? C.orange : C.purple;
+  const label       = isLate ? 'Izin Terlambat' : 'Izin Pulang Awal';
+  const sublabel    = isLate
+    ? 'Ajukan sebelum 15 menit jam shift'
+    : 'Ajukan izin pulang sebelum shift selesai';
+
+  // Status aktif — tampilkan badge
+  if (request && request.status !== 'cancelled') {
+    const cfg =
+      request.status === 'approved' ? { color: C.green,  icon: CheckCircle2, text: 'Disetujui' } :
+      request.status === 'rejected' ? { color: C.red,    icon: XCircle,      text: 'Ditolak'   } :
+                                      { color: C.orange, icon: Hourglass,    text: 'Menunggu persetujuan' };
+    return (
+      <View style={{
+        backgroundColor: cardBg(isDark), borderRadius: R.lg,
+        borderWidth: B.default, borderColor: isDark ? C.separator.dark : C.separator.light,
+        padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12,
+        ...(isDark ? S.cardDark : S.card),
+      }}>
+        <View style={{ width: 42, height: 42, borderRadius: R.sm, backgroundColor: accentColor + '16', alignItems: 'center', justifyContent: 'center' }}>
+          {isLate ? <AlarmClock size={20} strokeWidth={1.8} color={accentColor} /> : <LogOut size={20} strokeWidth={1.8} color={accentColor} />}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.2 }}>{label}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+            <cfg.icon size={12} strokeWidth={2.2} color={cfg.color} />
+            <Text style={{ fontSize: 12, color: cfg.color, fontWeight: '600' }}>{cfg.text}</Text>
+          </View>
+          {request.status === 'rejected' && request.reviewer_note && (
+            <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 2 }} numberOfLines={1}>
+              {request.reviewer_note}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Belum ada request — tombol ajukan
+  const disabled = isLate && !!deadlinePassed;
+  return (
+    <TouchableOpacity
+      onPress={onSubmit}
+      disabled={disabled}
+      activeOpacity={0.85}
+      style={{
+        backgroundColor: cardBg(isDark), borderRadius: R.lg,
+        borderWidth: B.default,
+        borderColor: disabled
+          ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)')
+          : (isDark ? `${accentColor}30` : `${accentColor}28`),
+        padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12,
+        opacity: disabled ? 0.55 : 1,
+        ...(isDark ? S.cardDark : S.card),
+      }}
+    >
+      <View style={{ width: 42, height: 42, borderRadius: R.sm, backgroundColor: accentColor + '16', alignItems: 'center', justifyContent: 'center' }}>
+        {isLate ? <AlarmClock size={20} strokeWidth={1.8} color={accentColor} /> : <LogOut size={20} strokeWidth={1.8} color={accentColor} />}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 15, fontWeight: '700', color: disabled ? lTertiary(isDark) : lPrimary(isDark), letterSpacing: -0.2 }}>
+          {label}
+        </Text>
+        <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 1 }}>
+          {disabled ? 'Batas pengajuan telah lewat' : sublabel}
+        </Text>
+      </View>
+      <View style={{ width: 28, height: 28, borderRadius: R.sm - 2, backgroundColor: accentColor + '12', alignItems: 'center', justifyContent: 'center' }}>
+        <ChevronRight size={14} strokeWidth={2.2} color={disabled ? lTertiary(isDark) : accentColor} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function BerandaScreen() {
   const scheme = useColorScheme();
@@ -288,11 +384,70 @@ export default function BerandaScreen() {
     checkoutInfo?.checkedOut ?? !!attendance?.check_out_at,
   );
 
+  // ── Attendance requests (izin terlambat / pulang awal) ────────
+  const { data: todayRequests = [], refetch: refetchRequests } = useQuery<AttendanceRequest[]>({
+    queryKey: ['attendance-requests-today'],
+    queryFn: () => attendanceRequestsService.getMyToday(),
+    refetchInterval: 30_000,
+  });
+  const lateArrivalRequest    = todayRequests.find(r => r.type === 'late_arrival')    ?? null;
+  const earlyDepartureRequest = todayRequests.find(r => r.type === 'early_departure') ?? null;
+
+  const [showRequestModal, setShowRequestModal]   = useLocalState(false);
+  const [requestModalType, setRequestModalType]   = useLocalState<'late_arrival' | 'early_departure'>('late_arrival');
+  const [requestReason, setRequestReason]         = useLocalState('');
+  const [requestEstTime, setRequestEstTime]       = useLocalState('');
+
+  const submitRequestMutation = useMutation({
+    mutationFn: () => attendanceRequestsService.submit({
+      type: requestModalType,
+      reason: requestReason.trim(),
+      estimated_time: requestEstTime.trim() || undefined,
+    }),
+    onSuccess: () => {
+      setShowRequestModal(false);
+      setRequestReason('');
+      setRequestEstTime('');
+      refetchRequests();
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? 'Gagal mengajukan permohonan';
+      alert(typeof msg === 'string' ? msg : 'Gagal mengajukan permohonan');
+    },
+  });
+
+  // Hitung window visibility untuk kedua card
+  const { showLateCard, lateDeadlinePassed, showEarlyCard } = useMemo(() => {
+    const alreadyIn  = !!attendance?.check_in_at;
+    const alreadyOut = !!attendance?.check_out_at;
+    const start = todaySchedule?.start_time ?? null;
+    const end   = todaySchedule?.end_time   ?? null;
+    const now   = Date.now();
+
+    let showLate = false, deadlinePassed = false;
+    if (start && !alreadyIn) {
+      const [sh, sm] = start.split(':').map(Number);
+      const shiftMs  = new Date().setHours(sh, sm, 0, 0);
+      showLate      = now >= shiftMs - 6 * 60 * 60 * 1000;
+      deadlinePassed = now >= shiftMs - 15 * 60 * 1000;
+    }
+
+    let showEarly = false;
+    if (end && alreadyIn && !alreadyOut) {
+      const [eh, em] = end.split(':').map(Number);
+      const shiftEnd = new Date().setHours(eh, em, 0, 0);
+      showEarly = now < shiftEnd;
+    }
+
+    return { showLateCard: showLate, lateDeadlinePassed: deadlinePassed, showEarlyCard: showEarly };
+  }, [todaySchedule, attendance]);
+
   const onRefresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['attendance-today'] });
     qc.invalidateQueries({ queryKey: ['checkout-info'] });
     qc.invalidateQueries({ queryKey: ['attendance-history', MONTH_NOW] });
-  }, [qc]);
+    refetchRequests();
+  }, [qc, refetchRequests]);
 
   const greeting = getPeriodLabel;
 
@@ -545,6 +700,25 @@ export default function BerandaScreen() {
             </TouchableOpacity>
           )}
 
+          {/* ── IZIN TERLAMBAT / PULANG AWAL ─────────────────────────────── */}
+          {showLateCard && (
+            <AttendanceRequestCard
+              type="late_arrival"
+              request={lateArrivalRequest}
+              deadlinePassed={lateDeadlinePassed}
+              onSubmit={() => { setRequestModalType('late_arrival'); setShowRequestModal(true); }}
+              isDark={isDark}
+            />
+          )}
+          {showEarlyCard && (
+            <AttendanceRequestCard
+              type="early_departure"
+              request={earlyDepartureRequest}
+              onSubmit={() => { setRequestModalType('early_departure'); setShowRequestModal(true); }}
+              isDark={isDark}
+            />
+          )}
+
           {/* ── JADWAL HARI INI ────────────────────────────────────────────── */}
           <TouchableOpacity
             onPress={() => router.push('/(main)/schedule' as any)}
@@ -659,6 +833,141 @@ export default function BerandaScreen() {
           <SosButton isDark={isDark} />
         </View>
       </ScrollView>
+
+      {/* ── MODAL AJUKAN IZIN ──────────────────────────────────────────────── */}
+      <Modal
+        visible={showRequestModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowRequestModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => setShowRequestModal(false)}
+          />
+          <View style={{
+            backgroundColor: cardBg(isDark),
+            borderTopLeftRadius: R.xl + 4,
+            borderTopRightRadius: R.xl + 4,
+            borderTopWidth: B.default,
+            borderLeftWidth: B.default,
+            borderRightWidth: B.default,
+            borderColor: isDark ? C.separator.dark : C.separator.light,
+            padding: 24,
+            paddingBottom: insets.bottom + 24,
+            ...(isDark ? S.cardDark : S.card),
+          }}>
+            {/* Handle */}
+            <View style={{
+              width: 36, height: 4, borderRadius: 2,
+              backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
+              alignSelf: 'center', marginBottom: 20,
+            }} />
+
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <View style={{
+                width: 44, height: 44, borderRadius: R.sm,
+                backgroundColor: (requestModalType === 'late_arrival' ? C.orange : C.purple) + '16',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                {requestModalType === 'late_arrival'
+                  ? <AlarmClock size={22} strokeWidth={1.8} color={C.orange} />
+                  : <LogOut     size={22} strokeWidth={1.8} color={C.purple} />
+                }
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: lPrimary(isDark), letterSpacing: -0.3 }}>
+                  {requestModalType === 'late_arrival' ? 'Ajukan Izin Terlambat' : 'Ajukan Izin Pulang Awal'}
+                </Text>
+                <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 2 }}>
+                  {requestModalType === 'late_arrival'
+                    ? 'Permohonan akan diproses oleh admin'
+                    : 'Izin meninggalkan kantor lebih awal'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Alasan */}
+            <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 8 }}>
+              Alasan <Text style={{ color: C.red }}>*</Text>
+            </Text>
+            <TextInput
+              value={requestReason}
+              onChangeText={setRequestReason}
+              placeholder="Tulis alasan Anda..."
+              placeholderTextColor={lTertiary(isDark)}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              style={{
+                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                borderRadius: R.md, borderWidth: B.default,
+                borderColor: isDark ? C.separator.dark : C.separator.light,
+                padding: 12,
+                fontSize: 15, color: lPrimary(isDark),
+                minHeight: 80,
+                marginBottom: 16,
+              }}
+            />
+
+            {/* Estimasi waktu (opsional) */}
+            <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 8 }}>
+              {requestModalType === 'late_arrival' ? 'Estimasi jam tiba (misal 08:30)' : 'Estimasi jam pulang (misal 15:00)'}
+              <Text style={{ color: lTertiary(isDark), fontWeight: '400' }}> · opsional</Text>
+            </Text>
+            <TextInput
+              value={requestEstTime}
+              onChangeText={setRequestEstTime}
+              placeholder="HH:MM"
+              placeholderTextColor={lTertiary(isDark)}
+              keyboardType="numbers-and-punctuation"
+              style={{
+                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                borderRadius: R.md, borderWidth: B.default,
+                borderColor: isDark ? C.separator.dark : C.separator.light,
+                padding: 12,
+                fontSize: 15, color: lPrimary(isDark),
+                marginBottom: 24,
+              }}
+            />
+
+            {/* Tombol */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => { setShowRequestModal(false); setRequestReason(''); setRequestEstTime(''); }}
+                style={{
+                  flex: 1, padding: 14, borderRadius: R.lg,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '700', color: lSecondary(isDark) }}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => submitRequestMutation.mutate()}
+                disabled={submitRequestMutation.isPending || !requestReason.trim()}
+                style={{
+                  flex: 2, padding: 14, borderRadius: R.lg,
+                  backgroundColor: requestModalType === 'late_arrival' ? C.orange : C.purple,
+                  alignItems: 'center', justifyContent: 'center',
+                  opacity: (submitRequestMutation.isPending || !requestReason.trim()) ? 0.6 : 1,
+                }}
+              >
+                {submitRequestMutation.isPending
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>Kirim Permohonan</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
