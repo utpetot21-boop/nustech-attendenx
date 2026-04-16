@@ -371,7 +371,8 @@ export default function BerandaScreen() {
   const totalWorkHours = Math.floor(totalWorkMinutes / 60);
   const totalWorkMins  = totalWorkMinutes % 60;
 
-  const todayDate = new Date().toISOString().split('T')[0];
+  // Gunakan WITA agar cocok dengan tanggal yang dipakai backend
+  const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
   const { data: todaySchedules = [] } = useQuery({
     queryKey: ['schedule-today', todayDate],
     queryFn: () => scheduleService.getMySchedule({ week: getCurrentWeekString() }),
@@ -431,16 +432,26 @@ export default function BerandaScreen() {
       showLate      = now >= shiftMs - 6 * 60 * 60 * 1000;
       deadlinePassed = now >= shiftMs - 15 * 60 * 1000;
     }
+    // Tampilkan juga jika sudah ada request (agar status badge terlihat)
+    if (!showLate && lateArrivalRequest && !alreadyIn) showLate = true;
 
     let showEarly = false;
-    if (end && alreadyIn && !alreadyOut) {
-      const [eh, em] = end.split(':').map(Number);
-      const shiftEnd = new Date().setHours(eh, em, 0, 0);
-      showEarly = now < shiftEnd;
+    if (alreadyIn && !alreadyOut) {
+      if (earlyDepartureRequest) {
+        // Sudah ada request — selalu tampilkan agar status bisa dilihat
+        showEarly = true;
+      } else if (end) {
+        const [eh, em] = end.split(':').map(Number);
+        const shiftEnd = new Date().setHours(eh, em, 0, 0);
+        showEarly = now < shiftEnd;
+      } else {
+        // Tidak ada jadwal tersimpan tapi user sudah check-in → tetap tampilkan
+        showEarly = true;
+      }
     }
 
     return { showLateCard: showLate, lateDeadlinePassed: deadlinePassed, showEarlyCard: showEarly };
-  }, [todaySchedule, attendance]);
+  }, [todaySchedule, attendance, lateArrivalRequest, earlyDepartureRequest]);
 
   const onRefresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['attendance-today'] });
@@ -700,25 +711,6 @@ export default function BerandaScreen() {
             </TouchableOpacity>
           )}
 
-          {/* ── IZIN TERLAMBAT / PULANG AWAL ─────────────────────────────── */}
-          {showLateCard && (
-            <AttendanceRequestCard
-              type="late_arrival"
-              request={lateArrivalRequest}
-              deadlinePassed={lateDeadlinePassed}
-              onSubmit={() => { setRequestModalType('late_arrival'); setShowRequestModal(true); }}
-              isDark={isDark}
-            />
-          )}
-          {showEarlyCard && (
-            <AttendanceRequestCard
-              type="early_departure"
-              request={earlyDepartureRequest}
-              onSubmit={() => { setRequestModalType('early_departure'); setShowRequestModal(true); }}
-              isDark={isDark}
-            />
-          )}
-
           {/* ── JADWAL HARI INI ────────────────────────────────────────────── */}
           <TouchableOpacity
             onPress={() => router.push('/(main)/schedule' as any)}
@@ -779,6 +771,45 @@ export default function BerandaScreen() {
             </View>
           </TouchableOpacity>
 
+          {/* ── IZIN TERLAMBAT / PULANG AWAL ─────────────────────────────── */}
+          {showLateCard && (
+            <AttendanceRequestCard
+              type="late_arrival"
+              request={lateArrivalRequest}
+              deadlinePassed={lateDeadlinePassed}
+              onSubmit={() => { setRequestModalType('late_arrival'); setShowRequestModal(true); }}
+              isDark={isDark}
+            />
+          )}
+          {showEarlyCard && (
+            <AttendanceRequestCard
+              type="early_departure"
+              request={earlyDepartureRequest}
+              onSubmit={() => { setRequestModalType('early_departure'); setShowRequestModal(true); }}
+              isDark={isDark}
+            />
+          )}
+
+          {/* ── TUKAR JADWAL ──────────────────────────────────────────────── */}
+          <NavCard
+            label="Tukar Jadwal"
+            sub="Tukar hari kerja dengan rekan atau hari libur"
+            accentColor={C.orange}
+            icon={ArrowLeftRight}
+            onPress={() => router.push('/(main)/schedule-swap' as any)}
+            isDark={isDark}
+          />
+
+          {/* ── CUTI & IZIN ───────────────────────────────────────────────── */}
+          <NavCard
+            label="Cuti & Izin"
+            sub="Ajukan cuti, izin, dan lihat saldo"
+            accentColor={C.blue}
+            icon={Palmtree}
+            onPress={() => router.push('/(main)/leave' as any)}
+            isDark={isDark}
+          />
+
           {/* ── BENTO: TUGAS + KUNJUNGAN ───────────────────────────────────── */}
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <StatCard
@@ -810,24 +841,6 @@ export default function BerandaScreen() {
               isDark={isDark}
             />
           </View>
-
-          {/* ── CUTI & IZIN + TUKAR JADWAL ────────────────────────────────── */}
-          <NavCard
-            label="Cuti & Izin"
-            sub="Ajukan cuti, izin, dan lihat saldo"
-            accentColor={C.blue}
-            icon={Palmtree}
-            onPress={() => router.push('/(main)/leave' as any)}
-            isDark={isDark}
-          />
-          <NavCard
-            label="Tukar Jadwal"
-            sub="Tukar hari kerja dengan rekan atau hari libur"
-            accentColor={C.orange}
-            icon={ArrowLeftRight}
-            onPress={() => router.push('/(main)/schedule-swap' as any)}
-            isDark={isDark}
-          />
 
           {/* ── SOS ──────────────────────────────────────────────────────── */}
           <SosButton isDark={isDark} />
