@@ -600,7 +600,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: insets.bottom + 96 }} />
       </ScrollView>
 
       {/* Edit profil modal */}

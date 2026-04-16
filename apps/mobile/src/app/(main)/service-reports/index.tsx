@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  RefreshControl, StyleSheet, Alert,
+  RefreshControl, StyleSheet, Alert, useColorScheme,
 } from 'react-native';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   getMyServiceReports,
   createServiceReport,
   ServiceReport,
 } from '@/services/service-reports.service';
-import { LinearGradient } from 'expo-linear-gradient';
+import { pageBg, cardBg, lPrimary, lSecondary, C } from '@/constants/tokens';
 
 function currentMonth() {
   const d = new Date();
@@ -24,29 +26,31 @@ function fmtDate(s: string) {
   });
 }
 
-function StatusChip({ report }: { report: ServiceReport }) {
+function StatusChip({ report, isDark }: { report: ServiceReport; isDark: boolean }) {
   if (report.is_locked) {
     return (
-      <View style={[styles.chip, { backgroundColor: '#d1fae5' }]}>
-        <Text style={[styles.chipText, { color: '#065f46' }]}>✓ Final</Text>
+      <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(16,185,129,0.18)' : '#d1fae5' }]}>
+        <Text style={[styles.chipText, { color: isDark ? '#34D399' : '#065f46' }]}>✓ Final</Text>
       </View>
     );
   }
   if (report.tech_signature_url && !report.client_signature_url) {
     return (
-      <View style={[styles.chip, { backgroundColor: '#fef3c7' }]}>
-        <Text style={[styles.chipText, { color: '#92400e' }]}>⏳ TTD Klien</Text>
+      <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(245,158,11,0.18)' : '#fef3c7' }]}>
+        <Text style={[styles.chipText, { color: isDark ? '#FBBF24' : '#92400e' }]}>⏳ TTD Klien</Text>
       </View>
     );
   }
   return (
-    <View style={[styles.chip, { backgroundColor: '#f3f4f6' }]}>
-      <Text style={[styles.chipText, { color: '#6b7280' }]}>Draft</Text>
+    <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(255,255,255,0.09)' : '#f3f4f6' }]}>
+      <Text style={[styles.chipText, { color: isDark ? 'rgba(255,255,255,0.5)' : '#6b7280' }]}>Draft</Text>
     </View>
   );
 }
 
 export default function ServiceReportsListScreen() {
+  const isDark = useColorScheme() === 'dark';
+  const insets = useSafeAreaInsets();
   const { visit_id } = useLocalSearchParams<{ visit_id?: string }>();
   const [month] = useState(currentMonth());
 
@@ -72,8 +76,8 @@ export default function ServiceReportsListScreen() {
   }, [visit_id, triggerCreate]);
 
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#1e3a8a', '#1d4ed8']} style={styles.headerGrad}>
+    <View style={[styles.container, { backgroundColor: pageBg(isDark) }]}>
+      <LinearGradient colors={['#1e3a8a', '#1d4ed8']} style={[styles.headerGrad, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>Berita Acara</Text>
         <Text style={styles.headerSub}>Dokumen kunjungan teknis Anda</Text>
       </LinearGradient>
@@ -86,14 +90,18 @@ export default function ServiceReportsListScreen() {
         {reports.length === 0 && !isLoading && (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📄</Text>
-            <Text style={styles.emptyText}>Belum ada Berita Acara bulan ini</Text>
+            <Text style={[styles.emptyText, { color: lSecondary(isDark) }]}>Belum ada Berita Acara bulan ini</Text>
           </View>
         )}
 
         {reports.map((r) => (
           <TouchableOpacity
             key={r.id}
-            style={styles.card}
+            style={[styles.card, {
+              backgroundColor: cardBg(isDark),
+              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              borderWidth: 1,
+            }]}
             onPress={() => router.push(`/service-reports/${r.id}`)}
             activeOpacity={0.7}
           >
@@ -101,15 +109,15 @@ export default function ServiceReportsListScreen() {
               {r.report_number ? (
                 <Text style={styles.baNumber}>{r.report_number}</Text>
               ) : (
-                <Text style={styles.baDraft}>Nomor BA belum digenerate</Text>
+                <Text style={[styles.baDraft, { color: lSecondary(isDark) }]}>Nomor BA belum digenerate</Text>
               )}
-              <StatusChip report={r} />
+              <StatusChip report={r} isDark={isDark} />
             </View>
 
-            <Text style={styles.clientName}>{r.client?.name ?? '—'}</Text>
+            <Text style={[styles.clientName, { color: lPrimary(isDark) }]}>{r.client?.name ?? '—'}</Text>
 
             <View style={styles.cardFooter}>
-              <Text style={styles.dateText}>
+              <Text style={[styles.dateText, { color: lSecondary(isDark) }]}>
                 📅 {r.visit?.check_in_at ? fmtDate(r.visit.check_in_at) : '—'}
               </Text>
               {r.is_locked && r.pdf_url && (
@@ -140,8 +148,8 @@ function SigDot({ label, done }: { label: string; done: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  headerGrad: { paddingTop: 56, paddingBottom: 20, paddingHorizontal: 20 },
+  container: { flex: 1 },
+  headerGrad: { paddingBottom: 20, paddingHorizontal: 20 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#fff' },
   headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
   scroll: { flex: 1 },
@@ -150,7 +158,6 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyText: { fontSize: 15, color: '#9ca3af', textAlign: 'center' },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',

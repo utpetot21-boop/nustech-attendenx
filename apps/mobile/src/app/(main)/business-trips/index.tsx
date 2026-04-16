@@ -20,6 +20,8 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { businessTripsService, BusinessTrip, CreateBusinessTripDto } from '@/services/business-trips.service';
 
@@ -46,6 +48,7 @@ const STATUS_COLOR: Record<string, [string, string]> = {
 export default function BusinessTripsScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
 
   const [filterStatus, setFilterStatus] = useState<string>('');
@@ -160,9 +163,9 @@ export default function BusinessTripsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#0A0A0F' : '#F2F2F7' }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDark ? 'rgba(10,10,15,0.9)' : 'rgba(242,242,247,0.92)' }]}>
+      <View style={[styles.header, { backgroundColor: isDark ? 'rgba(10,10,15,0.9)' : 'rgba(242,242,247,0.92)', paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={{ color: '#007AFF', fontSize: 16 }}>←</Text>
+          <ChevronLeft size={22} color="#007AFF" />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>Surat Tugas Dinas</Text>
         <TouchableOpacity onPress={() => setShowCreate(true)}>
@@ -207,7 +210,7 @@ export default function BusinessTripsScreen() {
       ) : (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16, paddingBottom: 100, gap: 10 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 96, gap: 10 }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#007AFF" />}
         >
           {trips.length === 0 ? (
@@ -381,7 +384,7 @@ export default function BusinessTripsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 17, fontWeight: '700' },
   filterRow: { flexShrink: 0 },

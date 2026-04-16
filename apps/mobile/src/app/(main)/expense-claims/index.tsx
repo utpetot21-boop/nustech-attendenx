@@ -14,17 +14,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Receipt, Plus, Clock, CheckCircle2, XCircle, CreditCard,
+  Info, Calendar, X, Camera,
+} from 'lucide-react-native';
 import {
   getMyClaims, getConfig, createClaim, uploadReceipt,
   ExpenseClaim, ExpenseConfig, CATEGORY_LABELS, formatRupiah,
 } from '@/services/expense-claims.service';
 
 const STATUS_META = {
-  pending:  { bg: 'rgba(245,158,11,0.15)', bgLight: '#FFFBEB', text: '#F59E0B', label: 'Menunggu', icon: 'time' as const },
-  approved: { bg: 'rgba(22,163,74,0.15)',  bgLight: '#DCFCE7', text: '#16A34A', label: 'Disetujui', icon: 'checkmark-circle' as const },
-  rejected: { bg: 'rgba(239,68,68,0.15)',  bgLight: '#FEF2F2', text: '#EF4444', label: 'Ditolak',   icon: 'close-circle' as const },
-  paid:     { bg: 'rgba(124,58,237,0.15)', bgLight: '#F5F3FF', text: '#7C3AED', label: 'Dibayar',   icon: 'card' as const },
+  pending:  { bg: 'rgba(245,158,11,0.15)', bgLight: '#FFFBEB', text: '#F59E0B', label: 'Menunggu', Icon: Clock },
+  approved: { bg: 'rgba(22,163,74,0.15)',  bgLight: '#DCFCE7', text: '#16A34A', label: 'Disetujui', Icon: CheckCircle2 },
+  rejected: { bg: 'rgba(239,68,68,0.15)',  bgLight: '#FEF2F2', text: '#EF4444', label: 'Ditolak',   Icon: XCircle },
+  paid:     { bg: 'rgba(124,58,237,0.15)', bgLight: '#F5F3FF', text: '#7C3AED', label: 'Dibayar',   Icon: CreditCard },
 };
 
 type FilterStatus = 'all' | 'pending' | 'approved' | 'paid' | 'rejected';
@@ -83,7 +86,7 @@ export default function ExpenseClaimsScreen() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: isDark ? 'rgba(124,58,237,0.2)' : '#F5F3FF', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="receipt" size={22} color="#7C3AED" />
+                <Receipt size={22} color="#7C3AED" />
               </View>
             </View>
           </View>
@@ -103,7 +106,7 @@ export default function ExpenseClaimsScreen() {
               shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
             }}
           >
-            <Ionicons name="add-circle" size={20} color="#FFF" />
+            <Plus size={20} color="#FFF" />
             <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16 }}>Buat Klaim Baru</Text>
           </TouchableOpacity>
         </View>
@@ -140,7 +143,7 @@ export default function ExpenseClaimsScreen() {
           {claims.length === 0 && !isLoading && (
             <View style={{ paddingTop: 48, alignItems: 'center' }}>
               <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: isDark ? 'rgba(124,58,237,0.15)' : '#F5F3FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Ionicons name="receipt-outline" size={34} color="#7C3AED" />
+                <Receipt size={34} color="#7C3AED" />
               </View>
               <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.7)' : '#374151' }}>
                 Belum ada klaim biaya
@@ -153,7 +156,7 @@ export default function ExpenseClaimsScreen() {
           ))}
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: insets.bottom + 96 }} />
       </ScrollView>
 
       {/* Create Form Modal */}
@@ -193,7 +196,7 @@ function ClaimCard({ claim, isDark }: { claim: ExpenseClaim; isDark: boolean }) 
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: isDark ? s.bg : s.bgLight }}>
-          <Ionicons name={s.icon} size={13} color={s.text} />
+          <s.Icon size={13} color={s.text} />
           <Text style={{ fontSize: 12, fontWeight: '700', color: s.text }}>{s.label}</Text>
         </View>
       </View>
@@ -210,7 +213,7 @@ function ClaimCard({ claim, isDark }: { claim: ExpenseClaim; isDark: boolean }) 
 
       {claim.review_note && claim.status === 'rejected' && (
         <View style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', borderRadius: 10, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
-          <Ionicons name="information-circle" size={14} color="#EF4444" style={{ marginTop: 1 }} />
+          <Info size={14} color="#EF4444" style={{ marginTop: 1 }} />
           <Text style={{ fontSize: 13, color: '#EF4444', flex: 1 }}>Alasan: {claim.review_note}</Text>
         </View>
       )}
@@ -224,7 +227,7 @@ function ClaimCard({ claim, isDark }: { claim: ExpenseClaim; isDark: boolean }) 
       )}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-        <Ionicons name="calendar-outline" size={12} color={isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8'} />
+        <Calendar size={12} color={isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8'} />
         <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8' }}>
           {new Date(claim.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
         </Text>
@@ -404,7 +407,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
                   style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' }}
                   onPress={() => setReceiptUris((prev) => prev.filter((_, j) => j !== i))}
                 >
-                  <Ionicons name="close" size={12} color="#FFF" />
+                  <X size={12} color="#FFF" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -413,7 +416,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
                 onPress={addReceipt}
                 style={{ width: 80, height: 80, borderRadius: 14, borderWidth: 2, borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#CBD5E1', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 4 }}
               >
-                <Ionicons name="camera-outline" size={22} color={isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8'} />
+                <Camera size={22} color={isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8'} />
                 <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8', fontWeight: '600' }}>+ Foto</Text>
               </TouchableOpacity>
             )}
