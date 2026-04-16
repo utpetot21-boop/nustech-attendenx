@@ -29,7 +29,7 @@ export interface CheckoutInfo {
 }
 
 export const attendanceService = {
-  checkIn(payload: { method: string; lat: number | null; lng: number | null; device_id?: string }) {
+  checkIn(payload: { method: string; lat: number | null; lng: number | null; device_id?: string; notes?: string }) {
     return api.post<AttendanceRecord>('/attendance/check-in', payload).then((r) => r.data);
   },
 

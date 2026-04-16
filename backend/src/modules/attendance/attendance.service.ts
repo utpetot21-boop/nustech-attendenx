@@ -136,6 +136,7 @@ export class AttendanceService {
         shift_start: schedule.start_time,
         shift_end: schedule.end_time,
         tolerance_minutes: schedule.tolerance_minutes,
+        notes: dto.notes ?? null,
       });
       return this.attendanceRepo.findOne({ where: { id: existing.id } }) as Promise<AttendanceEntity>;
     }
@@ -158,6 +159,7 @@ export class AttendanceService {
         status: status as any,
         late_minutes: lateMinutes,
         is_holiday_work: isHolidayWork,
+        notes: dto.notes ?? null,
       }),
     );
   }

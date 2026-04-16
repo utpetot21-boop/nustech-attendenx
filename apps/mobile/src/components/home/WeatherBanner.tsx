@@ -633,31 +633,34 @@ export default function WeatherBanner({
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity
-            onPress={() => router.push('/(main)/notifications' as any)}
-            style={{
-              width: 38, height: 38, borderRadius: 19,
-              backgroundColor: 'rgba(255,255,255,0.12)',
-              borderWidth: B.glass, borderColor: 'rgba(255,255,255,0.20)',
-              alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Bell size={17} strokeWidth={1.8} color="rgba(255,255,255,0.90)" />
+          {/* Wrapper View diperlukan agar badge dapat overflow keluar lingkaran tombol */}
+          <View style={{ position: 'relative' }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(main)/notifications' as any)}
+              style={{
+                width: 38, height: 38, borderRadius: 19,
+                backgroundColor: 'rgba(255,255,255,0.12)',
+                borderWidth: B.glass, borderColor: 'rgba(255,255,255,0.20)',
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Bell size={17} strokeWidth={1.8} color={unreadCount > 0 ? '#FFFFFF' : 'rgba(255,255,255,0.70)'} />
+            </TouchableOpacity>
             {unreadCount > 0 && (
               <View style={{
-                position: 'absolute', top: 1, right: 1,
+                position: 'absolute', top: -4, right: -4,
                 minWidth: 16, height: 16, borderRadius: 8,
                 backgroundColor: '#FF3B30',
                 alignItems: 'center', justifyContent: 'center',
                 paddingHorizontal: 3,
-                borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.3)',
+                borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.25)',
               }}>
                 <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800', lineHeight: 12 }}>
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
+          </View>
           <TouchableOpacity
             onPress={() => router.push('/(main)/profile' as any)}
             style={{

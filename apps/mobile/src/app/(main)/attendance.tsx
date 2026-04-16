@@ -13,6 +13,10 @@ import {
   Alert,
   useColorScheme,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -31,6 +35,7 @@ import { useCheckoutTimer } from '@/hooks/useCheckoutTimer';
 import { PINInput } from '@/components/attendance/PINInput';
 import { GPSValidator } from '@/components/attendance/GPSValidator';
 import api from '@/services/api';
+import { scheduleService, getCurrentWeekString } from '@/services/schedule.service';
 
 type UIState = 'idle' | 'verifying_biometric' | 'show_pin' | 'checking_gps' | 'confirming' | 'done';
 
@@ -45,6 +50,11 @@ export default function AttendanceScreen() {
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsResult, setGpsResult] = useState<{ isWithinRadius: boolean; distanceMeters: number; accuracy: number | null } | null>(null);
   const [pinError, setPinError] = useState<string | undefined>(undefined);
+
+  // ── Late note modal ───────────────────────────────────────────
+  const [showLateModal, setShowLateModal] = useState(false);
+  const [lateNote, setLateNote] = useState('');
+  const [pendingPayload, setPendingPayload] = useState<{ method: string; lat: number | null; lng: number | null } | null>(null);
 
   const { verify: verifyBiometric, isVerifying } = useBiometric();
   const { validateGeofence, isLoading: gpsLoading } = useGPS();
@@ -68,15 +78,40 @@ export default function AttendanceScreen() {
     checkoutInfo?.checkedOut ?? !!attendance?.check_out_at,
   );
 
+  // Jadwal hari ini — sebagai fallback untuk deteksi terlambat sebelum attendance record ada
+  const todayDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+  const { data: todaySchedules = [] } = useQuery({
+    queryKey: ['schedule-today-checkin', todayDateStr],
+    queryFn: () => scheduleService.getMySchedule({ week: getCurrentWeekString() }),
+    staleTime: 5 * 60_000,
+    enabled: !attendance?.check_in_at, // hanya butuh jadwal jika belum check-in
+  });
+  const todaySchedule = todaySchedules.find((s) => s.date === todayDateStr) ?? null;
+
+  // Hitung apakah user sudah melewati toleransi keterlambatan saat ini
+  const computeIsLate = useCallback((): { isLate: boolean; lateMin: number } => {
+    const shiftStart = attendance?.shift_start ?? todaySchedule?.start_time ?? null;
+    const tolerance = attendance?.tolerance_minutes ?? todaySchedule?.tolerance_minutes ?? 0;
+    if (!shiftStart) return { isLate: false, lateMin: 0 };
+    const [h, m] = shiftStart.split(':').map(Number);
+    const toleranceEnd = new Date();
+    toleranceEnd.setHours(h, m + tolerance, 0, 0);
+    const diffMin = Math.floor((new Date().getTime() - toleranceEnd.getTime()) / 60000);
+    return { isLate: diffMin > 0, lateMin: diffMin };
+  }, [attendance, todaySchedule]);
+
   // Mutations
   const checkInMutation = useMutation({
-    mutationFn: (payload: { method: string; lat: number | null; lng: number | null }) =>
+    mutationFn: (payload: { method: string; lat: number | null; lng: number | null; notes?: string }) =>
       attendanceService.checkIn(payload),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['attendance-today'] });
       qc.invalidateQueries({ queryKey: ['checkout-info'] });
       setUiState('done');
+      setShowLateModal(false);
+      setLateNote('');
+      setPendingPayload(null);
       Alert.alert('Check-in Berhasil ✓', 'Absensi Anda telah tercatat.');
     },
     onError: (err: any) => {
@@ -164,8 +199,16 @@ export default function AttendanceScreen() {
             {
               text: 'Lanjutkan',
               onPress: () => {
-                checkInMutation.mutate({ method, lat: null, lng: null });
-                setUiState('idle');
+                const { isLate } = computeIsLate();
+                if (isLate) {
+                  setPendingPayload({ method, lat: null, lng: null });
+                  setLateNote('');
+                  setUiState('idle');
+                  setShowLateModal(true);
+                } else {
+                  checkInMutation.mutate({ method, lat: null, lng: null });
+                  setUiState('idle');
+                }
               },
             },
           ],
@@ -177,6 +220,17 @@ export default function AttendanceScreen() {
       const lat = parseFloat(loc.coords.latitude.toFixed(6));
       const lng = parseFloat(loc.coords.longitude.toFixed(6));
       setPendingCoords({ lat, lng });
+
+      // Cek apakah terlambat melebihi toleransi — wajib isi alasan
+      const { isLate } = computeIsLate();
+      if (isLate) {
+        setPendingPayload({ method, lat, lng });
+        setLateNote('');
+        setUiState('idle');
+        setShowLateModal(true);
+        return;
+      }
+
       checkInMutation.mutate({ method, lat, lng });
       setUiState('idle');
     } catch {
@@ -189,14 +243,22 @@ export default function AttendanceScreen() {
           {
             text: 'Lanjutkan',
             onPress: () => {
-              checkInMutation.mutate({ method, lat: null, lng: null });
-              setUiState('idle');
+              const { isLate } = computeIsLate();
+              if (isLate) {
+                setPendingPayload({ method, lat: null, lng: null });
+                setLateNote('');
+                setUiState('idle');
+                setShowLateModal(true);
+              } else {
+                checkInMutation.mutate({ method, lat: null, lng: null });
+                setUiState('idle');
+              }
             },
           },
         ],
       );
     }
-  }, [checkInMutation]);
+  }, [checkInMutation, computeIsLate]);
 
   // ── Render helpers ────────────────────────────────────────────
   const today = new Date().toLocaleDateString('id-ID', {
@@ -472,6 +534,137 @@ export default function AttendanceScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Modal Alasan Terlambat ────────────────────────────────── */}
+      <Modal
+        visible={showLateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setShowLateModal(false);
+          setLateNote('');
+          setPendingPayload(null);
+          setUiState('idle');
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
+          {/* Backdrop semi-transparan */}
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' }}
+            activeOpacity={1}
+            onPress={() => {
+              setShowLateModal(false);
+              setLateNote('');
+              setPendingPayload(null);
+              setUiState('idle');
+            }}
+          />
+
+          <View style={{
+            backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+            borderTopLeftRadius: 28, borderTopRightRadius: 28,
+            padding: 24, paddingBottom: insets.bottom + 24,
+            borderTopWidth: 0.5,
+            borderTopColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+          }}>
+            {/* Handle bar */}
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.15)', alignSelf: 'center', marginBottom: 20 }} />
+
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <View style={{
+                width: 44, height: 44, borderRadius: 14,
+                backgroundColor: `${C.orange}18`,
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Lock size={22} strokeWidth={1.8} color={C.orange} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#FFFFFF' : '#111111', letterSpacing: -0.3 }}>
+                  Anda Terlambat
+                </Text>
+                <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280', marginTop: 2 }}>
+                  {(() => {
+                    const { lateMin } = computeIsLate();
+                    return `${lateMin} menit melewati batas toleransi`;
+                  })()}
+                </Text>
+              </View>
+            </View>
+
+            {/* Info */}
+            <View style={{
+              backgroundColor: isDark ? `${C.orange}14` : '#FFF7ED',
+              borderRadius: R.md, borderWidth: B.default,
+              borderColor: isDark ? `${C.orange}28` : `${C.orange}22`,
+              padding: 12, marginBottom: 16,
+            }}>
+              <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.70)' : '#92400E', lineHeight: 18 }}>
+                Sesuai aturan perusahaan, check-in melebihi batas toleransi wajib disertai keterangan alasan keterlambatan.
+              </Text>
+            </View>
+
+            {/* TextInput alasan */}
+            <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.60)' : '#374151', marginBottom: 8 }}>
+              Alasan keterlambatan <Text style={{ color: C.red }}>*</Text>
+            </Text>
+            <TextInput
+              value={lateNote}
+              onChangeText={setLateNote}
+              placeholder="Contoh: Macet di jalan tol, ban bocor, urusan keluarga mendadak…"
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.25)' : '#9CA3AF'}
+              multiline
+              numberOfLines={3}
+              maxLength={300}
+              textAlignVertical="top"
+              style={{
+                backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#F9FAFB',
+                borderRadius: R.md, borderWidth: B.default,
+                borderColor: lateNote.length > 0
+                  ? (isDark ? 'rgba(0,122,255,0.45)' : 'rgba(0,122,255,0.35)')
+                  : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)'),
+                padding: 12, fontSize: 15,
+                color: isDark ? '#FFFFFF' : '#111111',
+                minHeight: 90,
+                marginBottom: 6,
+              }}
+            />
+            <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.30)' : '#9CA3AF', textAlign: 'right', marginBottom: 20 }}>
+              {lateNote.length}/300
+            </Text>
+
+            {/* Tombol kirim */}
+            <TouchableOpacity
+              onPress={() => {
+                if (!pendingPayload) return;
+                checkInMutation.mutate({ ...pendingPayload, notes: lateNote.trim() });
+              }}
+              disabled={lateNote.trim().length < 5 || checkInMutation.isPending}
+              style={{
+                height: 56, borderRadius: 16,
+                backgroundColor: lateNote.trim().length >= 5 ? C.orange : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)'),
+                alignItems: 'center', justifyContent: 'center',
+                opacity: checkInMutation.isPending ? 0.6 : 1,
+              }}
+              activeOpacity={0.85}
+            >
+              {checkInMutation.isPending ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={{
+                  fontSize: 17, fontWeight: '700',
+                  color: lateNote.trim().length >= 5 ? '#FFFFFF' : (isDark ? 'rgba(255,255,255,0.25)' : '#9CA3AF'),
+                }}>
+                  Kirim Absensi
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
