@@ -135,8 +135,7 @@ export default function NotificationsScreen() {
   });
 
   // Tipe pengumuman tidak ditampilkan di tab Notif — hanya ada di tab Pengumuman
-  const ANNOUNCEMENT_TYPES = new Set(['announcement_approved', 'announcement_rejected', 'announcement_pending']);
-  const visibleNotifs = (notifData?.items ?? []).filter((n) => !ANNOUNCEMENT_TYPES.has(n.type));
+  const visibleNotifs = (notifData?.items ?? []).filter((n) => !n.type?.startsWith('announcement'));
 
   // Announcements
   // L7: enabled hanya saat tab aktif — loading state muncul saat pertama kali buka tab,
