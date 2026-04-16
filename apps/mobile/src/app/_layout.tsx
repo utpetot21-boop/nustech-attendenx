@@ -142,10 +142,11 @@ export default function RootLayout() {
         leave_rejected:                 '/(main)/leave',
         leave_expiry_reminder:          '/(main)/leave',
         collective_leave_deduction:     '/(main)/leave',
-        // Pengumuman
-        announcement_approved:          '/(main)/notifications',
-        announcement_rejected:          '/(main)/notifications',
-        announcement_pending:           '/(main)/notifications',
+        // Absensi izin terlambat / pulang awal
+        late_arrival_approved:          '/(main)/attendance',
+        late_arrival_rejected:          '/(main)/attendance',
+        early_departure_approved:       '/(main)/attendance',
+        early_departure_rejected:       '/(main)/attendance',
         // Absensi / SP
         sp_reminder:                    '/(main)/attendance',
         alfa_detected:                  '/(main)/attendance',
@@ -158,6 +159,12 @@ export default function RootLayout() {
         ba_generated:                   '/(main)/service-reports/index',
       };
 
+      // Pengumuman — buka tab Pengumuman di halaman notifikasi
+      if (data.type === 'announcement_approved' || data.type === 'announcement_rejected' || data.type === 'announcement_pending') {
+        router.push({ pathname: '/(main)/notifications', params: { tab: 'ann' } } as any);
+        return;
+      }
+
       const route = ROUTE_MAP[data.type];
       if (route) router.push(route as any);
     });
@@ -167,8 +174,8 @@ export default function RootLayout() {
       if (!response) return;
       const data = response.notification.request.content.data as Record<string, string> | undefined;
       if (!data) return;
-      if (data.type === 'sos_alert') {
-        setTimeout(() => {
+      setTimeout(() => {
+        if (data.type === 'sos_alert') {
           router.push({
             pathname: '/(main)/sos-alert',
             params: {
@@ -178,8 +185,10 @@ export default function RootLayout() {
               userName: data.userName ?? 'Rekan Anda',
             },
           } as any);
-        }, 500); // delay kecil agar router sudah siap
-      }
+        } else if (data.type === 'announcement_approved' || data.type === 'announcement_rejected' || data.type === 'announcement_pending') {
+          router.push({ pathname: '/(main)/notifications', params: { tab: 'ann' } } as any);
+        }
+      }, 500); // delay kecil agar router sudah siap
     }).catch(() => null);
 
     receivedListenerRef.current = addNotificationReceivedListener((_notification) => {});

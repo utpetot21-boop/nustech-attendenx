@@ -8,7 +8,7 @@ import {
   RefreshControl, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { C, R, B, T, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NotifCardSkeleton } from '@/components/ui/SkeletonLoader';
@@ -91,10 +91,11 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   // SOS
   sos:                             '/(main)/sos',
   sos_alert:                       '/(main)/sos-alert',
-  // Pengumuman (buka tab ann di halaman ini)
-  announcement_approved:           '/(main)/notifications',
-  announcement_rejected:           '/(main)/notifications',
-  announcement_pending:            '/(main)/notifications',
+  // Pengumuman — navigasi ke halaman notifikasi dengan tab ann
+  // (route khusus, ditangani lewat params bukan string biasa)
+  announcement_approved:           '__ann__',
+  announcement_rejected:           '__ann__',
+  announcement_pending:            '__ann__',
 };
 
 type Tab = 'notif' | 'ann';
@@ -103,7 +104,8 @@ export default function NotificationsScreen() {
   const isDark = useColorScheme() === 'dark';
   const qc = useQueryClient();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<Tab>('notif');
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const [activeTab, setActiveTab] = useState<Tab>(tab === 'ann' ? 'ann' : 'notif');
 
   // Notifications
   const { data: notifData, isLoading: notifLoading, isRefetching: notifRefetching, refetch: refetchNotif } = useQuery({
@@ -269,10 +271,12 @@ export default function NotificationsScreen() {
                     onPress={() => {
                       if (!notif.is_read) markReadMut.mutate(notif.id);
                       const route = NOTIF_ROUTE_MAP[notif.type];
-                      if (route && route !== '/(main)/notifications') {
-                        router.push(route as any);
-                      } else if (notif.type.startsWith('announcement_')) {
+                      if (route === '__ann__') {
+                        // Buka tab Pengumuman — kalau sudah di halaman ini cukup switch tab,
+                        // kalau dari layar lain router.push dengan params
                         setActiveTab('ann');
+                      } else if (route) {
+                        router.push(route as any);
                       }
                     }}
                     activeOpacity={0.78}
