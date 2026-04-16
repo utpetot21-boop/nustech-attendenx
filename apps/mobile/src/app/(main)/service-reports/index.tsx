@@ -4,6 +4,7 @@ import {
   RefreshControl, StyleSheet, Alert, useColorScheme,
 } from 'react-native';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -62,9 +63,12 @@ export default function ServiceReportsListScreen() {
   // If arriving from visit detail, auto-create BA and redirect
   const createMut = useMutation({
     mutationFn: () => createServiceReport(visit_id!),
-    onSuccess: (report) => router.replace(`/service-reports/${report.id}`),
+    onSuccess: (report) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace(`/service-reports/${report.id}`);
+    },
     onError: (err: any) => {
-      // If BA already exists, it's returned in the error or we can navigate to it
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Info', err?.response?.data?.message ?? 'Gagal membuat Berita Acara');
     },
   });

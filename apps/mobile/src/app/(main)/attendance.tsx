@@ -17,6 +17,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Lock, CheckCircle2 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
@@ -72,12 +73,14 @@ export default function AttendanceScreen() {
     mutationFn: (payload: { method: string; lat: number | null; lng: number | null }) =>
       attendanceService.checkIn(payload),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['attendance-today'] });
       qc.invalidateQueries({ queryKey: ['checkout-info'] });
       setUiState('done');
       Alert.alert('Check-in Berhasil ✓', 'Absensi Anda telah tercatat.');
     },
     onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.response?.data?.message ?? 'Check-in gagal. Coba lagi.';
       Alert.alert('Gagal', typeof msg === 'string' ? msg : 'Check-in gagal');
       setUiState('idle');
@@ -87,11 +90,13 @@ export default function AttendanceScreen() {
   const checkOutMutation = useMutation({
     mutationFn: () => attendanceService.checkOut({ method: 'manual' }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['attendance-today'] });
       qc.invalidateQueries({ queryKey: ['checkout-info'] });
       Alert.alert('Check-out Berhasil ✓', 'Sampai jumpa besok!');
     },
     onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const data = err?.response?.data;
       if (data?.canCheckout === false) {
         const h = Math.floor(data.remainingSeconds / 3600);

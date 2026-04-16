@@ -38,6 +38,7 @@ import {
   Camera,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '@/services/api';
@@ -140,13 +141,17 @@ export default function ProfileScreen() {
         reason: form.reason,
       }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['leave-balance'] });
       qc.invalidateQueries({ queryKey: ['leave-requests-me'] });
       setShowRequestForm(false);
       setForm({ type: 'cuti', start_date: '', end_date: '', reason: '' });
       Alert.alert('Berhasil', 'Pengajuan cuti telah dikirim.');
     },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message);
+    },
   });
 
   const handleRefresh = useCallback(() => { refetchBalance(); }, [refetchBalance]);
@@ -172,11 +177,13 @@ export default function ProfileScreen() {
         new_password: pwForm.new_password,
       }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowPasswordModal(false);
       setPwForm({ current_password: '', new_password: '', confirm_password: '' });
       Alert.alert('Berhasil', 'Password berhasil diperbarui.');
     },
     onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.response?.data?.message ?? err.message ?? 'Gagal memperbarui password.';
       Alert.alert('Gagal', typeof msg === 'string' ? msg : JSON.stringify(msg));
     },
@@ -189,12 +196,14 @@ export default function ProfileScreen() {
         phone: editForm.phone.trim() || undefined,
       }),
     onSuccess: (res) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const { full_name, phone } = res.data as { full_name: string; phone: string };
       updateUser({ full_name, phone });
       setShowEditModal(false);
       Alert.alert('Berhasil', 'Profil berhasil diperbarui.');
     },
     onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.response?.data?.message ?? err.message ?? 'Gagal memperbarui profil.';
       Alert.alert('Gagal', typeof msg === 'string' ? msg : JSON.stringify(msg));
     },
@@ -211,10 +220,12 @@ export default function ProfileScreen() {
       });
     },
     onSuccess: (res) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       updateUser({ avatar_url: res.data.avatar_url });
       setAvatarError(false);
     },
     onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.response?.data?.message ?? err.message ?? 'Gagal upload foto.';
       Alert.alert('Gagal', typeof msg === 'string' ? msg : JSON.stringify(msg));
     },

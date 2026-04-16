@@ -22,10 +22,12 @@ import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Plane } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { C, R, T, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterChips } from '@/components/ui/FilterChips';
+import { TripCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { businessTripsService, BusinessTrip, CreateBusinessTripDto } from '@/services/business-trips.service';
 
@@ -72,30 +74,34 @@ export default function BusinessTripsScreen() {
   const createMutation = useMutation({
     mutationFn: (dto: CreateBusinessTripDto) => businessTripsService.create(dto),
     onSuccess: (created) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Berhasil', `Surat tugas ${created.trip_number} dibuat sebagai draft.`);
       setShowCreate(false);
       resetForm();
       invalidate();
     },
-    onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? e.message ?? 'Gagal membuat surat tugas'),
+    onError: (e: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', e?.response?.data?.message ?? e.message ?? 'Gagal membuat surat tugas');
+    },
   });
 
   const submitMutation = useMutation({
     mutationFn: (id: string) => businessTripsService.submit(id),
-    onSuccess: () => { setSelected(null); invalidate(); },
-    onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? e.message ?? 'Gagal mengajukan'),
+    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setSelected(null); invalidate(); },
+    onError: (e: any) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); Alert.alert('Gagal', e?.response?.data?.message ?? e.message ?? 'Gagal mengajukan'); },
   });
 
   const departMutation = useMutation({
     mutationFn: (id: string) => businessTripsService.depart(id),
-    onSuccess: () => { setSelected(null); invalidate(); },
-    onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? e.message ?? 'Gagal memulai perjalanan'),
+    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setSelected(null); invalidate(); },
+    onError: (e: any) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); Alert.alert('Gagal', e?.response?.data?.message ?? e.message ?? 'Gagal memulai perjalanan'); },
   });
 
   const completeMutation = useMutation({
     mutationFn: (id: string) => businessTripsService.complete(id, {}),
-    onSuccess: () => { setSelected(null); invalidate(); },
-    onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? e.message ?? 'Gagal menyelesaikan'),
+    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setSelected(null); invalidate(); },
+    onError: (e: any) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); Alert.alert('Gagal', e?.response?.data?.message ?? e.message ?? 'Gagal menyelesaikan'); },
   });
 
   const handleCreate = () => {
@@ -177,8 +183,8 @@ export default function BusinessTripsScreen() {
 
       {/* List */}
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#007AFF" />
+        <View style={{ paddingTop: 8 }}>
+          {[0, 1, 2, 3].map((i) => <TripCardSkeleton key={i} isDark={isDark} />)}
         </View>
       ) : isError ? (
         <View style={styles.center}>

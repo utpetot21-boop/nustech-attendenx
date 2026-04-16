@@ -36,9 +36,11 @@ import {
   Navigation,
 } from 'lucide-react-native';
 
+import * as Haptics from 'expo-haptics';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { visitsService, type VisitSummary } from '@/services/visits.service';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, separator } from '@/constants/tokens';
+import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -371,10 +373,14 @@ export default function PekerjaanScreen() {
   const acceptMutation = useMutation({
     mutationFn: (id: string) => tasksService.accept(id),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['tasks-all'] });
       Alert.alert('Berhasil', 'Tugas diterima. Silakan lakukan check-in saat tiba di lokasi.');
     },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message);
+    },
   });
 
   // ── Derived data ───────────────────────────────────────────────────────────
@@ -436,8 +442,8 @@ export default function PekerjaanScreen() {
         </View>
 
         {isLoading ? (
-          <View style={{ paddingTop: 60, alignItems: 'center' }}>
-            <ActivityIndicator color={C.orange} />
+          <View style={{ paddingTop: 8 }}>
+            {[0, 1, 2, 3].map((i) => <TaskCardSkeleton key={i} isDark={isDark} />)}
           </View>
         ) : (
           <>

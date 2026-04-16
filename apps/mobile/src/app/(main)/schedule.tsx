@@ -12,6 +12,7 @@ import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, R, B, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ScheduleWeekSkeleton } from '@/components/ui/SkeletonLoader';
 import { useQuery } from '@tanstack/react-query';
 
 import {
@@ -262,11 +263,7 @@ export default function ScheduleScreen() {
           />
         }
       >
-        {isLoading && (
-          <View style={{ paddingTop: 40, alignItems: 'center' }}>
-            <ActivityIndicator color={isDark ? '#FFFFFF' : C.blue} />
-          </View>
-        )}
+        {isLoading && <ScheduleWeekSkeleton isDark={isDark} />}
 
         {!isLoading && (
           <>

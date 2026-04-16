@@ -119,3 +119,119 @@ export function HomeHeroSkeleton({ isDark }: { isDark: boolean }) {
     </View>
   );
 }
+
+// ── LeaveCard skeleton ────────────────────────────────────────────────────────
+
+export function LeaveCardSkeleton({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={{
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+      borderRadius: 16, borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
+      padding: 16, marginBottom: 10, gap: 10,
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <SkeletonBone width={38} height={38} borderRadius={10} />
+        <View style={{ flex: 1, gap: 6 }}>
+          <SkeletonBone width="55%" height={15} borderRadius={5} />
+          <SkeletonBone width="70%" height={12} borderRadius={4} />
+        </View>
+        <SkeletonBone width={72} height={22} borderRadius={10} />
+      </View>
+      <SkeletonBone width="80%" height={13} borderRadius={4} />
+    </View>
+  );
+}
+
+// ── NotifCard skeleton ────────────────────────────────────────────────────────
+
+export function NotifCardSkeleton({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={{
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+      borderRadius: 16, borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
+      padding: 16, flexDirection: 'row', gap: 14, marginBottom: 10,
+    }}>
+      <SkeletonBone width={44} height={44} borderRadius={14} />
+      <View style={{ flex: 1, gap: 8 }}>
+        <SkeletonBone width="65%" height={15} borderRadius={5} />
+        <SkeletonBone width="90%" height={13} borderRadius={4} />
+        <SkeletonBone width="40%" height={11} borderRadius={4} />
+      </View>
+    </View>
+  );
+}
+
+// ── TripCard skeleton ─────────────────────────────────────────────────────────
+
+export function TripCardSkeleton({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={{
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+      borderRadius: 16, borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
+      padding: 16, marginBottom: 10, gap: 10,
+    }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <SkeletonBone width="55%" height={16} borderRadius={5} />
+        <SkeletonBone width={80} height={22} borderRadius={10} />
+      </View>
+      <SkeletonBone width="40%" height={12} borderRadius={4} />
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <SkeletonBone width="45%" height={12} borderRadius={4} />
+        <SkeletonBone width="35%" height={12} borderRadius={4} />
+      </View>
+    </View>
+  );
+}
+
+// ── ClaimCard skeleton ────────────────────────────────────────────────────────
+
+export function ClaimCardSkeleton({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={{
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+      borderRadius: 16, borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
+      padding: 16, marginBottom: 10, gap: 10,
+    }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <SkeletonBone width="50%" height={16} borderRadius={5} />
+        <SkeletonBone width={75} height={22} borderRadius={10} />
+      </View>
+      <SkeletonBone width="35%" height={22} borderRadius={5} />
+      <SkeletonBone width="60%" height={12} borderRadius={4} />
+    </View>
+  );
+}
+
+// ── ScheduleWeek skeleton ─────────────────────────────────────────────────────
+
+export function ScheduleWeekSkeleton({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={{ paddingHorizontal: 16, gap: 10 }}>
+      {/* Week strip */}
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <View key={i} style={{ flex: 1, gap: 6, alignItems: 'center' }}>
+            <SkeletonBone width={32} height={12} borderRadius={4} />
+            <SkeletonBone width={36} height={36} borderRadius={18} />
+          </View>
+        ))}
+      </View>
+      {/* Event cards */}
+      {[0, 1, 2].map((i) => (
+        <View key={i} style={{
+          backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+          borderRadius: 14, borderWidth: 1,
+          borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
+          padding: 14, gap: 8,
+        }}>
+          <SkeletonBone width="50%" height={15} borderRadius={5} />
+          <SkeletonBone width="70%" height={12} borderRadius={4} />
+        </View>
+      ))}
+    </View>
+  );
+}

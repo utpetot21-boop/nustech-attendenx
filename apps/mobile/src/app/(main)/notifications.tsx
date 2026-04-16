@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, R, B, T, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NotifCardSkeleton } from '@/components/ui/SkeletonLoader';
 import {
   Bell,
   BellOff,
@@ -216,8 +217,8 @@ export default function NotificationsScreen() {
         {/* Notifications tab */}
         {activeTab === 'notif' && (
           notifLoading ? (
-            <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <ActivityIndicator color="#007AFF" />
+            <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 10 }}>
+              {[0, 1, 2, 3, 4].map((i) => <NotifCardSkeleton key={i} isDark={isDark} />)}
             </View>
           ) : (notifData?.items ?? []).length === 0 ? (
             <EmptyState icon={BellOff} iconColor={C.blue} title="Tidak ada notifikasi" />
@@ -274,8 +275,8 @@ export default function NotificationsScreen() {
         {/* Announcements tab */}
         {activeTab === 'ann' && (
           annLoading ? (
-            <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <ActivityIndicator color="#007AFF" />
+            <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 10 }}>
+              {[0, 1, 2, 3].map((i) => <NotifCardSkeleton key={i} isDark={isDark} />)}
             </View>
           ) : announcements.length === 0 ? (
             <EmptyState icon={Megaphone} iconColor={C.blue} title="Tidak ada pengumuman" />

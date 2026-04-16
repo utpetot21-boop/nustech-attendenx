@@ -11,6 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -295,8 +296,12 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
         receipt_urls: uploadedUrls,
       });
     },
-    onSuccess: () => onSuccess(),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onSuccess();
+    },
     onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setUploading(false);
       Alert.alert('Gagal', err?.response?.data?.message ?? 'Gagal mengajukan klaim');
     },

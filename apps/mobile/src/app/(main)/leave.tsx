@@ -22,9 +22,11 @@ import {
   LEAVE_TYPE_LABELS,
   LEAVE_TYPE_COLORS,
 } from '@/services/leave.service';
+import * as Haptics from 'expo-haptics';
 import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { LeaveCardSkeleton } from '@/components/ui/SkeletonLoader';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -158,6 +160,7 @@ export default function LeaveScreen() {
       reason,
     }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['my-leave-requests'] });
       qc.invalidateQueries({ queryKey: ['my-leave-balance'] });
       setShowForm(false);
@@ -165,6 +168,7 @@ export default function LeaveScreen() {
       Alert.alert('Berhasil', 'Pengajuan berhasil dikirim. Menunggu persetujuan admin.');
     },
     onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Gagal', err?.response?.data?.message ?? 'Terjadi kesalahan');
     },
   });
@@ -313,7 +317,9 @@ export default function LeaveScreen() {
         {/* ── List ── */}
         <View style={{ paddingHorizontal: 20 }}>
           {isLoading ? (
-            <ActivityIndicator color={C.blue} style={{ marginTop: 40 }} />
+            <View style={{ paddingTop: 8 }}>
+              {[0, 1, 2, 3].map((i) => <LeaveCardSkeleton key={i} isDark={isDark} />)}
+            </View>
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={Calendar}
