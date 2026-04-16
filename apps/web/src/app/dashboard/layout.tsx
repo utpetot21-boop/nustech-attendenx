@@ -17,8 +17,6 @@ import {
   BarChart3,
   FileStack,
   Wallet,
-  Plane,
-  Receipt,
   Siren,
   Megaphone,
   Settings,
@@ -49,9 +47,8 @@ const NAV: NavGroup[] = [
       { href: '/dashboard/attendance', label: 'Absensi',    icon: ClipboardCheck,color: 'text-[#30D158]',  bg: 'bg-[#F0FDF4] dark:bg-[rgba(48,209,88,0.15)]'  },
       { href: '/dashboard/visits',     label: 'Kunjungan',  icon: Navigation,    color: 'text-[#007AFF]',  bg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)]'  },
       { href: '/dashboard/tasks',      label: 'Tugas',      icon: ListTodo,      color: 'text-[#AF52DE]',  bg: 'bg-[#FAF5FF] dark:bg-[rgba(175,82,222,0.15)]' },
-      { href: '/dashboard/keuangan',   label: 'Klaim Biaya',   icon: Receipt, color: 'text-[#FF9500]',  bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.15)]'  },
-      { href: '/dashboard/business-trips', label: 'Surat Tugas', icon: Plane,   color: 'text-[#5856D6]',  bg: 'bg-[#F0EFFE] dark:bg-[rgba(88,86,214,0.15)]'  },
-      { href: '/dashboard/leave',      label: 'Cuti',          icon: UmbrellaOff, color: 'text-[#32ADE6]',  bg: 'bg-[#EFF9FF] dark:bg-[rgba(50,173,230,0.15)]' },
+      { href: '/dashboard/keuangan',   label: 'Keuangan',   icon: Wallet,     color: 'text-[#FF9500]',  bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.15)]'  },
+      { href: '/dashboard/leave',      label: 'Cuti',       icon: UmbrellaOff, color: 'text-[#32ADE6]',  bg: 'bg-[#EFF9FF] dark:bg-[rgba(50,173,230,0.15)]' },
     ],
   },
   {
@@ -176,10 +173,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {group.items.map((item) => {
               // Pages merged into other routes — treat as active for their canonical route
               const ALIAS: Record<string, string[]> = {
-                '/dashboard/keuangan':       ['/dashboard/expense-claims'],
-                '/dashboard/business-trips': [],
-                '/dashboard/visits':         ['/dashboard/service-reports'],
-                '/dashboard/attendance':     ['/dashboard/violations'],
+                '/dashboard/keuangan':   ['/dashboard/expense-claims', '/dashboard/business-trips'],
+                '/dashboard/visits':     ['/dashboard/service-reports'],
+                '/dashboard/attendance': ['/dashboard/violations'],
               };
               const aliases = ALIAS[item.href] ?? [];
               const active = pathname === item.href ||
