@@ -1,6 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import 'leaflet/dist/leaflet.css';
 
+/*
+ * Leaflet fix: paksa .leaflet-container membentuk stacking context sendiri
+ * dengan isolation: isolate. Tanpa ini, pane internal Leaflet (z-200 s/d z-1000)
+ * keluar ke stacking context parent dan menindih overlay button kita (z-400).
+ */
+.leaflet-container {
+  isolation: isolate;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

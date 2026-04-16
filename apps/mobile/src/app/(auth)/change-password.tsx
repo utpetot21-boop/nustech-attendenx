@@ -13,14 +13,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Eye, EyeOff, Lock, ShieldCheck, ArrowLeft } from 'lucide-react-native';
+import { Eye, EyeOff, Lock, ShieldCheck, LogOut } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import api from '@/services/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function ChangePasswordScreen() {
-  const isDark  = useColorScheme() === 'dark';
-  const insets  = useSafeAreaInsets();
+  const isDark   = useColorScheme() === 'dark';
+  const insets   = useSafeAreaInsets();
+  const logout   = useAuthStore((s) => s.logout);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword]         = useState('');
@@ -56,6 +58,8 @@ export default function ChangePasswordScreen() {
         current_password: currentPassword,
         new_password: newPassword,
       });
+      // Hapus flag must_change_password dari store agar AuthGuard tidak loop
+      await useAuthStore.getState().updateUser({ must_change_password: false } as any);
       Alert.alert('Berhasil', 'Password berhasil diperbarui.', [
         { text: 'OK', onPress: () => router.replace('/(main)') },
       ]);
@@ -79,14 +83,19 @@ export default function ChangePasswordScreen() {
         style={{ paddingTop: insets.top + 16, paddingBottom: 32, paddingHorizontal: 24 }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => {
+            Alert.alert('Keluar?', 'Anda harus mengganti password sebelum melanjutkan. Keluar dari akun?', [
+              { text: 'Batal', style: 'cancel' },
+              { text: 'Keluar', style: 'destructive', onPress: () => logout().then(() => router.replace('/(auth)/login')) },
+            ]);
+          }}
           style={{
             width: 36, height: 36, borderRadius: 10,
             backgroundColor: 'rgba(255,255,255,0.18)',
             alignItems: 'center', justifyContent: 'center', marginBottom: 20,
           }}
         >
-          <ArrowLeft size={18} strokeWidth={2.2} color="#FFFFFF" />
+          <LogOut size={18} strokeWidth={2.2} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={{

@@ -56,11 +56,21 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
 
-    const inAuth = segments[0] === '(auth)';
+    const inAuth          = segments[0] === '(auth)';
+    const onChangePw      = segments[1] === 'change-password';
+    const mustChangePw    = !!(user as any)?.must_change_password;
 
     if (!user && !inAuth) {
+      // Belum login → ke halaman login
       router.replace('/(auth)/login');
-    } else if (user && inAuth) {
+    } else if (user && mustChangePw) {
+      // Password harus diganti — paksa ke halaman ganti password
+      // (kecuali sudah di halaman itu)
+      if (!onChangePw) {
+        router.replace('/(auth)/change-password');
+      }
+    } else if (user && inAuth && !mustChangePw) {
+      // Sudah login + password oke, tapi masih di auth area → ke main
       router.replace('/(main)');
     }
   }, [ready, user, segments]);

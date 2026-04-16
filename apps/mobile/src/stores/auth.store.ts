@@ -9,6 +9,7 @@ export interface AuthUser {
   employee_id: string;
   role: { name: string };
   avatar_url?: string | null;
+  must_change_password?: boolean;
 }
 
 interface AuthState {
