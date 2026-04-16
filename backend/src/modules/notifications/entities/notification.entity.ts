@@ -44,6 +44,9 @@ export class NotificationEntity {
   @Column({ type: 'boolean', default: false })
   is_read: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  hidden_for_user: boolean;
+
   @Column({ type: 'timestamptz', nullable: true })
   read_at: Date | null;
 

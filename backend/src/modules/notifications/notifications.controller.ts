@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -38,6 +38,15 @@ export class NotificationsController {
   @Post('read-all')
   markAllRead(@CurrentUser('id') userId: string) {
     return this.notifications.markAllRead(userId);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  hideNotif(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.notifications.hideForUser(userId, id);
   }
 
   // ── Admin WA management ─────────────────────────────────────────────────────

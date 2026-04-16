@@ -112,12 +112,19 @@ export class NotificationsService {
 
   async getForUser(userId: string, page = 1, limit = 30) {
     const [items, total] = await this.notifRepo.findAndCount({
-      where: { user_id: userId },
+      where: { user_id: userId, hidden_for_user: false },
       order: { created_at: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
     return { items, total };
+  }
+
+  async hideForUser(userId: string, notifId: string): Promise<void> {
+    await this.notifRepo.update(
+      { id: notifId, user_id: userId },
+      { hidden_for_user: true },
+    );
   }
 
   async markRead(userId: string, notifId: string): Promise<void> {

@@ -30,8 +30,10 @@ import {
   Hand,
   Repeat2,
   X,
+  Trash2,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Swipeable } from 'react-native-gesture-handler';
 import { api } from '@/services/api';
 
 interface Notif {
@@ -127,6 +129,15 @@ export default function NotificationsScreen() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
+  const deleteNotifMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/notifications/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  // Tipe pengumuman tidak ditampilkan di tab Notif — hanya ada di tab Pengumuman
+  const ANNOUNCEMENT_TYPES = new Set(['announcement_approved', 'announcement_rejected', 'announcement_pending']);
+  const visibleNotifs = (notifData?.items ?? []).filter((n) => !ANNOUNCEMENT_TYPES.has(n.type));
+
   // Announcements
   // L7: enabled hanya saat tab aktif — loading state muncul saat pertama kali buka tab,
   //     dan tidak fetch sia-sia saat user sedang di tab Notifikasi
@@ -148,7 +159,7 @@ export default function NotificationsScreen() {
   }, [activeTab, refetchNotif, refetchAnn]);
 
   const isRefreshing = activeTab === 'notif' ? notifRefetching : annRefetching;
-  const unread = (notifData?.items ?? []).filter((n) => !n.is_read).length;
+  const unread = visibleNotifs.filter((n) => !n.is_read).length;
   const unreadAnn = announcements.filter((a) => !a.is_read).length;
 
   const cardBg = (isRead: boolean) => isDark
@@ -262,21 +273,39 @@ export default function NotificationsScreen() {
             <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 10 }}>
               {[0, 1, 2, 3, 4].map((i) => <NotifCardSkeleton key={i} isDark={isDark} />)}
             </View>
-          ) : (notifData?.items ?? []).length === 0 ? (
+          ) : visibleNotifs.length === 0 ? (
             <EmptyState icon={BellOff} iconColor={C.blue} title="Tidak ada notifikasi" />
           ) : (
             <View style={{ paddingHorizontal: 20, gap: 10 }}>
-              {(notifData?.items ?? []).map((notif) => {
+              {visibleNotifs.map((notif) => {
                 const iconMeta = NOTIF_ICON_MAP[notif.type] ?? NOTIF_ICON_MAP.default;
                 return (
-                  <TouchableOpacity
+                  <Swipeable
                     key={notif.id}
+                    overshootRight={false}
+                    renderRightActions={() => (
+                      <TouchableOpacity
+                        onPress={() => deleteNotifMut.mutate(notif.id)}
+                        style={{
+                          backgroundColor: '#FF3B30',
+                          borderRadius: R.lg,
+                          marginLeft: 8,
+                          width: 72,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Trash2 size={20} strokeWidth={2} color="#FFF" />
+                        <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700' }}>Hapus</Text>
+                      </TouchableOpacity>
+                    )}
+                  >
+                  <TouchableOpacity
                     onPress={() => {
                       if (!notif.is_read) markReadMut.mutate(notif.id);
                       const route = NOTIF_ROUTE_MAP[notif.type];
                       if (route === '__ann__') {
-                        // Buka tab Pengumuman — kalau sudah di halaman ini cukup switch tab,
-                        // kalau dari layar lain router.push dengan params
                         setActiveTab('ann');
                       } else if (route) {
                         router.push(route as any);
@@ -318,6 +347,7 @@ export default function NotificationsScreen() {
                       </Text>
                     </View>
                   </TouchableOpacity>
+                  </Swipeable>
                 );
               })}
             </View>
