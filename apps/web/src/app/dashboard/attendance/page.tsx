@@ -693,7 +693,8 @@ export default function AttendancePage() {
 
       {/* ── Filter Bar ───────────────────────────────────────────── */}
       <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.06] dark:border-white/10 p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-2.5">
+        {/* flex-wrap agar tidak overflow di viewport medium ketika semua kontrol muat dalam satu baris */}
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
 
           {/* Date/Month navigator */}
           {viewMode === 'daily' ? (
@@ -739,6 +740,12 @@ export default function AttendancePage() {
               }`}>
               <Filter size={12} /> Filter
             </button>
+            {/* Export — di sini agar tetap terlihat saat row wrap di viewport medium */}
+            <a href={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/reports/attendance/export/excel?month=${month}`}
+              target="_blank" rel="noreferrer"
+              className="h-9 px-3 rounded-lg text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5 flex-shrink-0">
+              <Download size={13} /> Excel
+            </a>
           </div>
         </div>
 

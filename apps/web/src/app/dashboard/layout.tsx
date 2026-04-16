@@ -73,6 +73,13 @@ const NAV: NavGroup[] = [
   },
 ];
 
+// ── Alias reverse — path alternatif → href nav canonical ──────────────────────
+const ALIAS_REVERSE: Record<string, string> = {
+  '/dashboard/expense-claims':  '/dashboard/keuangan',
+  '/dashboard/service-reports': '/dashboard/visits',
+  '/dashboard/violations':      '/dashboard/attendance',
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
   super_admin: 'bg-orange-100 text-orange-700',
@@ -87,7 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [mounted,    setMounted]    = useState(false);
   const [collapsed,  setCollapsed]  = useState(false);
-  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [user,        setUser]        = useState<AuthUser | null>(null);
   const [avatarError, setAvatarError] = useState(false);
 
@@ -95,7 +102,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMounted(true);
     if (!isAuthenticated()) { router.replace('/login'); return; }
     setUser(getAuthUser());
+    // Pulihkan state collapsed dari localStorage
+    const saved = localStorage.getItem('sidebar_collapsed');
+    if (saved !== null) setCollapsed(saved === 'true');
   }, [router]);
+
+  const handleCollapse = (val: boolean) => {
+    setCollapsed(val);
+    localStorage.setItem('sidebar_collapsed', String(val));
+  };
 
   // Tutup drawer saat navigasi ke halaman lain
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -126,7 +141,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         {/* Desktop collapse btn */}
         {!isMobile && !collapsed && (
-          <button onClick={() => setCollapsed(true)}
+          <button onClick={() => handleCollapse(true)}
             className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
             <ChevronLeft size={14} />
           </button>
@@ -143,7 +158,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
         {(collapsed && !isMobile) && (
-          <button onClick={() => setCollapsed(false)}
+          <button onClick={() => handleCollapse(false)}
             className="w-full flex items-center justify-center h-8 mb-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">
             <ChevronRight size={14} />
           </button>
@@ -278,10 +293,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Content area (header mobile + main) ─────────────────── */}
-      {/* isolation-isolate → buat stacking context baru sehingga z-index di dalam
-          content area (mis. z-[400] overlay peta) tidak bisa menembus di atas
-          mobile sidebar (z-50) yang ada di luar stacking context ini. */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ isolation: 'isolate' }}>
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* Mobile header bar — hanya muncul di < lg */}
         <header className="lg:hidden flex items-center justify-between h-14 px-4
@@ -307,6 +319,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Spacer kanan agar logo tetap center */}
           <div className="w-9" />
         </header>
+
+        {/* Page title bar — disembunyikan di monitoring (full-screen map butuh semua ruang) */}
+        {pathname !== '/dashboard/monitoring' && (() => {
+          const allItems  = NAV.flatMap((g) => g.items);
+          const canonical = ALIAS_REVERSE[pathname] ?? pathname;
+          const item      = allItems.find(
+            (it) => it.href === canonical ||
+                    (it.href !== '/dashboard' && canonical.startsWith(it.href))
+          );
+          if (!item) return null;
+          const Icon = item.icon;
+          return (
+            <div className="flex-shrink-0 flex items-center gap-3 px-5 py-2.5
+              bg-white dark:bg-[#1C1C1E]
+              border-b border-black/[0.05] dark:border-white/[0.05]">
+              <div className={`w-7 h-7 rounded-[8px] flex items-center justify-center flex-shrink-0 ${item.bg}`}>
+                <Icon size={14} className={item.color} strokeWidth={1.9} />
+              </div>
+              <h1 className="text-[14px] font-semibold text-gray-900 dark:text-white leading-none">{item.label}</h1>
+              <span className="text-gray-200 dark:text-white/15 text-xs select-none">·</span>
+              <span className="text-[11px] text-gray-400 dark:text-white/30">AttendenX</span>
+            </div>
+          );
+        })()}
 
         {/* Main content — relative + min-h-0 wajib ada:
             - relative  → jadi containing block untuk absolute-positioned children (e.g. monitoring page)

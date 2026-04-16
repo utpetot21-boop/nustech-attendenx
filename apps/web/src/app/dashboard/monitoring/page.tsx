@@ -202,11 +202,15 @@ export default function MonitoringPage() {
     // absolute inset-0 → mengisi <main relative> secara presisi tanpa bergantung pada h-full
     // yang bermasalah di dalam overflow-y-auto parent. overflow-hidden mencegah Leaflet bleed out.
     <div className="absolute inset-0 flex flex-col lg:flex-row overflow-hidden">
-      {/* Map area — h-[360px] di mobile (cukup ruang untuk filter+stats tanpa overlap),
-          flex-1 di desktop */}
-      <div className="relative h-[360px] lg:h-auto lg:flex-1">
-        {/* Filter pills over map — dark mode variant ditambah */}
-        <div className="absolute top-4 left-4 right-28 lg:right-44 z-[400] flex gap-2 overflow-x-auto scrollbar-hide">
+      {/* Map area — z-[0] + relative = stacking context lokal untuk overlay peta (z-[400]).
+          Overlay tidak bisa bocor ke atas sidebar (z-50) karena terikat di stacking context ini.
+          Modals halaman lain (fixed z-50 di root) tidak terpengaruh. */}
+      <div className="relative z-[0] h-[360px] lg:h-auto lg:flex-1">
+        {/* Filter pills over map — wrapper relatif agar gradient fade bisa absolute */}
+        <div className="absolute top-4 left-4 right-28 lg:right-44 z-[400]">
+          {/* Gradient fade kanan — visual cue ada pills tersembunyi */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/10 to-transparent z-10 rounded-r-full" />
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
           {FILTER_PILLS.map((pill) => (
             <button
               key={pill.key}
@@ -220,6 +224,7 @@ export default function MonitoringPage() {
               {pill.label}
             </button>
           ))}
+          </div>
         </div>
 
         {/* Legend top-right — dark mode variant ditambah */}
