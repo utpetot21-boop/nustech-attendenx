@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 
 export default function SosAlertScreen() {
   const insets = useSafeAreaInsets();
@@ -108,38 +108,67 @@ export default function SosAlertScreen() {
           <Text style={styles.hint}>Periksa apakah kamu berada di dekat lokasi berikut</Text>
         </View>
 
-        {/* Map — tampilkan pin lokasi SOS */}
-        {hasCoords && (
-          <View style={styles.mapWrapper}>
-            <MapView
-              provider={PROVIDER_DEFAULT}
+        {/* Map — Leaflet via WebView, pin merah di lokasi SOS */}
+        <View style={styles.mapWrapper}>
+          {hasCoords ? (
+            <WebView
               style={styles.map}
-              initialRegion={{
-                latitude:      latNum!,
-                longitude:     lngNum!,
-                latitudeDelta:  0.005,
-                longitudeDelta: 0.005,
-              }}
+              originWhitelist={['*']}
               scrollEnabled={false}
-              zoomEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            >
-              <Marker
-                coordinate={{ latitude: latNum!, longitude: lngNum! }}
-                title={userName ?? 'SOS'}
-                description="Lokasi terakhir pengirim SOS"
-                pinColor="#FF453A"
-              />
-            </MapView>
-            {/* Overlay gradient bawah agar menyatu dengan background */}
-            <LinearGradient
-              colors={['transparent', '#1f0000']}
-              style={styles.mapFade}
-              pointerEvents="none"
+              source={{ html: `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body, #map { width:100%; height:100%; background:#1a1a1a; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map', {
+      zoomControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      touchZoom: false,
+      keyboard: false,
+      attributionControl: false,
+    }).setView([${latNum}, ${lngNum}], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    var redIcon = L.divIcon({
+      html: '<div style="width:22px;height:22px;background:#FF453A;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 4px rgba(255,69,58,0.4);"></div>',
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+      className: '',
+    });
+
+    L.marker([${latNum}, ${lngNum}], { icon: redIcon })
+      .addTo(map)
+      .bindPopup('<b>${(userName ?? 'SOS').replace(/'/g, "\\'")}</b><br>Lokasi SOS')
+      .openPopup();
+  </script>
+</body>
+</html>` }}
             />
-          </View>
-        )}
+          ) : (
+            <View style={styles.mapPlaceholder}>
+              <Text style={styles.mapPlaceholderText}>📍 Koordinat tidak tersedia</Text>
+            </View>
+          )}
+          <LinearGradient
+            colors={['transparent', '#1f0000']}
+            style={styles.mapFade}
+            pointerEvents="none"
+          />
+        </View>
 
         {/* Info cards */}
         <View style={styles.cards}>
@@ -230,7 +259,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,69,58,0.4)',
   },
-  map: { flex: 1 },
+  map: { flex: 1, borderRadius: 18 },
+  mapPlaceholder: {
+    flex: 1,
+    backgroundColor: 'rgba(255,0,0,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapPlaceholderText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   mapFade: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
