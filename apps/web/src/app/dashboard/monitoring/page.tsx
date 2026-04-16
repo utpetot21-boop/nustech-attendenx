@@ -202,18 +202,19 @@ export default function MonitoringPage() {
     // absolute inset-0 → mengisi <main relative> secara presisi tanpa bergantung pada h-full
     // yang bermasalah di dalam overflow-y-auto parent. overflow-hidden mencegah Leaflet bleed out.
     <div className="absolute inset-0 flex flex-col lg:flex-row overflow-hidden">
-      {/* Map area */}
-      <div className="relative h-[280px] lg:h-auto lg:flex-1">
-        {/* Filter pills over map */}
-        <div className="absolute top-4 left-4 right-4 z-[400] flex gap-2 overflow-x-auto scrollbar-hide">
+      {/* Map area — h-[360px] di mobile (cukup ruang untuk filter+stats tanpa overlap),
+          flex-1 di desktop */}
+      <div className="relative h-[360px] lg:h-auto lg:flex-1">
+        {/* Filter pills over map — dark mode variant ditambah */}
+        <div className="absolute top-4 left-4 right-28 lg:right-44 z-[400] flex gap-2 overflow-x-auto scrollbar-hide">
           {FILTER_PILLS.map((pill) => (
             <button
               key={pill.key}
               onClick={() => setFilter(pill.key)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold shadow transition backdrop-blur-sm ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold shadow transition backdrop-blur-sm ${
                 filter === pill.key
                   ? 'bg-blue-600 text-white shadow-blue-200'
-                  : 'bg-white/90 text-gray-700 hover:bg-white'
+                  : 'bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-700/90'
               }`}
             >
               {pill.label}
@@ -221,29 +222,29 @@ export default function MonitoringPage() {
           ))}
         </div>
 
-        {/* Legend top-right — hidden on mobile (filter pills take the full row) */}
-        <div className="hidden lg:block absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur-sm rounded-xl shadow px-4 py-3 space-y-1.5">
+        {/* Legend top-right — dark mode variant ditambah */}
+        <div className="absolute top-4 right-4 z-[400] bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl shadow px-4 py-3 space-y-1.5">
           {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
             <div key={key} className="flex items-center gap-2 text-xs">
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dotColor.split(' ')[0]}`} />
-              <span className={cfg.color}>{cfg.label}</span>
+              <span className={`${cfg.color} dark:brightness-125`}>{cfg.label}</span>
             </div>
           ))}
         </div>
 
-        {/* Stats bottom */}
-        <div className="absolute bottom-4 left-4 z-[400] bg-white/90 backdrop-blur-sm rounded-xl shadow px-5 py-2.5 flex gap-4 text-sm">
+        {/* Stats bottom — dark mode variant ditambah */}
+        <div className="absolute bottom-4 left-4 z-[400] bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl shadow px-4 py-2 flex gap-3 text-sm flex-wrap">
           {[
-            { label: 'Kunjungan', value: stats.visit, color: 'text-blue-600' },
-            { label: 'Kantor', value: stats.office, color: 'text-green-600' },
-            { label: 'Alert', value: stats.alert, color: 'text-orange-500' },
-            { label: 'Idle', value: stats.idle, color: 'text-gray-500' },
-            ...(stats.sos > 0 ? [{ label: '🚨 SOS', value: stats.sos, color: 'text-red-600 font-bold animate-pulse' }] : []),
-          ].map((s, i) => (
+            { label: 'Kunjungan', value: stats.visit, color: 'text-blue-600 dark:text-blue-400' },
+            { label: 'Kantor',    value: stats.office, color: 'text-green-600 dark:text-green-400' },
+            { label: 'Alert',     value: stats.alert,  color: 'text-orange-500 dark:text-orange-400' },
+            { label: 'Idle',      value: stats.idle,   color: 'text-gray-500 dark:text-gray-400' },
+            ...(stats.sos > 0 ? [{ label: '🚨 SOS', value: stats.sos, color: 'text-red-600 dark:text-red-400 font-bold animate-pulse' }] : []),
+          ].map((s, i, arr) => (
             <div key={i} className="flex items-center gap-1.5">
-              <span className={`font-bold ${s.color}`}>{s.value}</span>
-              <span className="text-gray-400 text-xs">{s.label}</span>
-              {i < 3 && <span className="text-gray-200 text-xs">·</span>}
+              <span className={`font-bold text-sm ${s.color}`}>{s.value}</span>
+              <span className="text-gray-400 dark:text-gray-500 text-xs">{s.label}</span>
+              {i < arr.length - 1 && <span className="text-gray-200 dark:text-gray-600 text-xs ml-1">·</span>}
             </div>
           ))}
         </div>
@@ -258,21 +259,21 @@ export default function MonitoringPage() {
         />
       </div>
 
-      {/* Right panel — full width on mobile, 220px sidebar on desktop */}
-      <aside className="flex-1 lg:flex-none lg:w-[220px] bg-white dark:bg-[#1C1C1E] border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-white/[0.07] flex flex-col z-[300] min-h-0">
+      {/* Right panel — full width on mobile, 280px sidebar on desktop (naik dari 220px) */}
+      <aside className="flex-1 lg:flex-none lg:w-[280px] bg-white dark:bg-[#1C1C1E] border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-white/[0.07] flex flex-col z-[300] min-h-0">
         {/* Search */}
-        <div className="p-3 border-b border-gray-100">
+        <div className="p-3 border-b border-gray-100 dark:border-white/[0.05]">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari teknisi…"
-            className="w-full text-xs border border-gray-200 rounded-xl px-2.5 py-2 focus:outline-none focus:border-blue-400 bg-gray-50"
+            className="w-full text-xs border border-gray-200 dark:border-white/10 rounded-xl px-2.5 py-2 focus:outline-none focus:border-blue-400 bg-gray-50 dark:bg-white/[0.05] dark:text-white dark:placeholder-white/30"
           />
         </div>
 
         {/* Active count */}
-        <div className="px-3 py-2 border-b border-gray-100">
-          <span className="text-xs font-semibold text-gray-700">{filtered.length} Aktif</span>
+        <div className="px-3 py-2 border-b border-gray-100 dark:border-white/[0.05]">
+          <span className="text-xs font-semibold text-gray-700 dark:text-white/60">{filtered.length} Aktif</span>
         </div>
 
         {/* Technician cards */}
@@ -297,20 +298,24 @@ export default function MonitoringPage() {
                 <button
                   key={t.userId}
                   onClick={() => handleCardClick(t)}
-                  className={`w-full text-left px-3 py-3 border-b border-gray-50 hover:bg-gray-50 transition ${isSelected ? 'bg-blue-50' : ''}`}
+                  className={`w-full text-left px-3 py-3 border-b border-gray-50 dark:border-white/[0.04] transition ${
+                    isSelected
+                      ? 'bg-blue-50 dark:bg-blue-500/10'
+                      : 'hover:bg-gray-50 dark:hover:bg-white/[0.04]'
+                  }`}
                 >
-                  <div className="flex items-start gap-2">
-                    <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600 flex-shrink-0">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center text-[10px] font-bold text-gray-600 dark:text-white/60 flex-shrink-0">
                       {t.name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 truncate">{t.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-gray-800 dark:text-white/90 truncate" title={t.name}>{t.name}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dotColor.split(' ')[0]}`} />
                         <span className={`text-[10px] ${cfg.color}`}>{cfg.label}</span>
                       </div>
                       {t.clientName && (
-                        <p className="text-[10px] text-gray-400 truncate mt-0.5">{t.clientName}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-white/30 truncate mt-0.5" title={t.clientName}>{t.clientName}</p>
                       )}
                     </div>
                   </div>
