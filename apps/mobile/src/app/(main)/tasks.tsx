@@ -28,7 +28,8 @@ import {
   ArrowUpRight,
   ClipboardList,
 } from 'lucide-react-native';
-import { C, R, B, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { C, R, B, T, S, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { FilterChips } from '@/components/ui/FilterChips';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksService, type TaskSummary, type HoldTaskPayload } from '@/services/tasks.service';
 import { TaskCard } from '@/components/tasks/TaskCard';
@@ -201,10 +202,10 @@ export default function TasksScreen() {
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ fontSize: 30, fontWeight: '800', color: textPrimary, letterSpacing: -0.8 }}>
+              <Text style={{ ...T.title1, color: textPrimary }}>
                 Tugas
               </Text>
-              <Text style={{ fontSize: 14, color: textSecondary, marginTop: 3 }}>
+              <Text style={{ ...T.footnote, color: textSecondary, marginTop: 3 }}>
                 {data?.total ?? 0} tugas ditugaskan
               </Text>
             </View>
@@ -219,43 +220,13 @@ export default function TasksScreen() {
         </View>
 
         {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 14 }}
-        >
-          {STATUS_FILTERS.map((f) => {
-            const active = f.value === statusFilter;
-            return (
-              <TouchableOpacity
-                key={String(f.value)}
-                onPress={() => setStatusFilter(f.value)}
-                style={{
-                  paddingHorizontal: 18,
-                  paddingVertical: 9,
-                  borderRadius: 22,
-                  backgroundColor: active
-                    ? C.green
-                    : isDark
-                      ? 'rgba(255,255,255,0.09)'
-                      : '#FFFFFF',
-                  borderWidth: active ? 0 : B.default,
-                  borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(60,60,67,0.18)',
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: active ? '700' : '500',
-                    color: active ? '#FFF' : isDark ? 'rgba(255,255,255,0.75)' : '#475569',
-                  }}
-                >
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <FilterChips
+          options={STATUS_FILTERS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          accentColor={C.green}
+          isDark={isDark}
+        />
 
         {isLoading ? (
           <View style={{ paddingTop: 60, alignItems: 'center' }}>
@@ -276,7 +247,7 @@ export default function TasksScreen() {
                   }}
                 >
                   <Zap size={14} strokeWidth={2.2} color="#FF3B30" />
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: C.red, letterSpacing: 0.5 }}>
+                  <Text style={{ ...T.sectionLabel, color: C.red }}>
                     MENDADAK
                   </Text>
                   <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,59,48,0.25)', borderRadius: 1 }} />

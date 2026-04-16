@@ -27,7 +27,10 @@ import {
   Navigation,
 } from 'lucide-react-native';
 import { visitsService, type VisitSummary } from '@/services/visits.service';
-import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterChips } from '@/components/ui/FilterChips';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -88,14 +91,7 @@ function VisitCard({ visit, onPress }: { visit: VisitSummary; onPress: () => voi
             </Text>
           )}
         </View>
-        <View style={{
-          backgroundColor: meta.color + '1A',
-          borderRadius: R.xs, paddingHorizontal: 9, paddingVertical: 4,
-          flexDirection: 'row', alignItems: 'center', gap: 4,
-        }}>
-          {isOngoing && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.color }} />}
-          <Text style={{ fontSize: 12, fontWeight: '700', color: meta.color }}>{meta.label}</Text>
-        </View>
+        <StatusBadge label={meta.label} color={meta.color} dot={isOngoing} />
       </View>
 
       {/* Row 2 — time + duration */}
@@ -164,10 +160,10 @@ export default function VisitsListScreen() {
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ fontSize: 30, fontWeight: '800', color: lPrimary(isDark), letterSpacing: -0.8 }}>
+              <Text style={{ ...T.title1, color: lPrimary(isDark) }}>
                 Kunjungan
               </Text>
-              <Text style={{ fontSize: 14, color: lSecondary(isDark), marginTop: 3 }}>
+              <Text style={{ ...T.footnote, color: lSecondary(isDark), marginTop: 3 }}>
                 {data?.total ?? 0} kunjungan tercatat
               </Text>
             </View>
@@ -182,34 +178,12 @@ export default function VisitsListScreen() {
         </View>
 
         {/* Filter chips */}
-        <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 14 }}
-        >
-          {FILTERS.map((f) => {
-            const active = f.value === statusFilter;
-            return (
-              <TouchableOpacity
-                key={String(f.value)}
-                onPress={() => setStatusFilter(f.value)}
-                style={{
-                  paddingHorizontal: 18, paddingVertical: 9,
-                  borderRadius: R.pill,
-                  backgroundColor: active ? C.blue : isDark ? 'rgba(255,255,255,0.09)' : '#FFFFFF',
-                  borderWidth: active ? 0 : B.default,
-                  borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(60,60,67,0.18)',
-                }}
-              >
-                <Text style={{
-                  fontSize: 14, fontWeight: active ? '700' : '500',
-                  color: active ? '#FFF' : lSecondary(isDark),
-                }}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <FilterChips
+          options={FILTERS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          isDark={isDark}
+        />
 
         {/* Ongoing banner */}
         {ongoingVisit && (
@@ -244,17 +218,12 @@ export default function VisitsListScreen() {
             <ActivityIndicator color={C.blue} />
           </View>
         ) : (data?.items.length ?? 0) === 0 ? (
-          <View style={{ paddingTop: 60, alignItems: 'center', paddingHorizontal: 32 }}>
-            <View style={{ width: 72, height: 72, borderRadius: R.xl, backgroundColor: isDark ? 'rgba(0,122,255,0.12)' : '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <MapPin size={34} strokeWidth={1.5} color={C.blue} />
-            </View>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: lPrimary(isDark), textAlign: 'center' }}>
-              Belum ada kunjungan
-            </Text>
-            <Text style={{ fontSize: 14, color: lSecondary(isDark), textAlign: 'center', marginTop: 8, lineHeight: 22 }}>
-              Kunjungan lapangan akan muncul di sini setelah check-in dimulai dari halaman Pekerjaan.
-            </Text>
-          </View>
+          <EmptyState
+            icon={MapPin}
+            iconColor={C.blue}
+            title="Belum ada kunjungan"
+            message="Kunjungan lapangan akan muncul di sini setelah check-in dimulai dari halaman Pekerjaan."
+          />
         ) : (
           data?.items.map((visit) => (
             <VisitCard

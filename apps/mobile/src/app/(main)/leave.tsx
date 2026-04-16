@@ -11,8 +11,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Calendar, ChevronDown, ChevronLeft, Plus, X } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import {
@@ -22,7 +22,9 @@ import {
   LEAVE_TYPE_LABELS,
   LEAVE_TYPE_COLORS,
 } from '@/services/leave.service';
-import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,7 +39,7 @@ function toISODate(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
-// ── Status chip ───────────────────────────────────────────────────────────────
+// ── Status meta ───────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   pending:  { label: 'Menunggu', color: '#FF9500' },
@@ -45,25 +47,11 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   rejected: { label: 'Ditolak',   color: '#FF3B30' },
 };
 
-function StatusChip({ status }: { status: string }) {
-  const m = STATUS_META[status] ?? STATUS_META.pending;
-  return (
-    <View style={{
-      flexDirection: 'row', alignItems: 'center', gap: 5,
-      backgroundColor: m.color + '18',
-      borderRadius: 20, borderWidth: B.default, borderColor: m.color + '30',
-      paddingHorizontal: 10, paddingVertical: 4,
-    }}>
-      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: m.color }} />
-      <Text style={{ fontSize: 12, fontWeight: '700', color: m.color }}>{m.label}</Text>
-    </View>
-  );
-}
-
 // ── Leave Request Card ────────────────────────────────────────────────────────
 
 function LeaveCard({ item, isDark }: { item: LeaveRequest; isDark: boolean }) {
   const color = LEAVE_TYPE_COLORS[item.type] ?? C.blue;
+  const statusMeta = STATUS_META[item.status] ?? STATUS_META.pending;
   return (
     <View style={{
       backgroundColor: cardBg(isDark),
@@ -75,18 +63,18 @@ function LeaveCard({ item, isDark }: { item: LeaveRequest; isDark: boolean }) {
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
           <View style={{ width: 38, height: 38, borderRadius: R.sm, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="calendar-outline" size={18} color={color} />
+            <Calendar size={18} color={color} strokeWidth={1.8} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: lPrimary(isDark) }}>
+            <Text style={{ ...T.subhead, fontWeight: '700', color: lPrimary(isDark) }}>
               {LEAVE_TYPE_LABELS[item.type]}
             </Text>
-            <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 1 }}>
+            <Text style={{ ...T.caption1, color: lTertiary(isDark), marginTop: 1 }}>
               {fmtDate(item.start_date)} – {fmtDate(item.end_date)} · {item.total_days} hari
             </Text>
           </View>
         </View>
-        <StatusChip status={item.status} />
+        <StatusBadge label={statusMeta.label} color={statusMeta.color} dot />
       </View>
 
       {item.reason ? (
@@ -126,7 +114,7 @@ function DateRow({
         <Text style={{ fontSize: 14, fontWeight: '600', color: lPrimary(isDark) }}>
           {date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
         </Text>
-        <Ionicons name="chevron-down" size={14} color={lTertiary(isDark)} />
+        <ChevronDown size={14} color={lTertiary(isDark)} />
       </View>
     </TouchableOpacity>
   );
@@ -230,13 +218,13 @@ export default function LeaveScreen() {
                   borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                 }}
               >
-                <Ionicons name="chevron-back" size={20} color={lPrimary(isDark)} />
+                <ChevronLeft size={20} color={lPrimary(isDark)} />
               </TouchableOpacity>
               <View>
-                <Text style={{ fontSize: 28, fontWeight: '800', color: lPrimary(isDark), letterSpacing: -0.8 }}>
+                <Text style={{ ...T.title1, color: lPrimary(isDark) }}>
                   Cuti & Izin
                 </Text>
-                <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 2 }}>
+                <Text style={{ ...T.footnote, color: lSecondary(isDark), marginTop: 2 }}>
                   Kelola pengajuan cuti dan izin Anda
                 </Text>
               </View>
@@ -316,7 +304,7 @@ export default function LeaveScreen() {
                 backgroundColor: C.blue, borderRadius: R.md,
               }}
             >
-              <Ionicons name="add" size={18} color="#FFFFFF" />
+              <Plus size={18} color="#FFFFFF" />
               <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>Ajukan</Text>
             </TouchableOpacity>
           </View>
@@ -327,17 +315,12 @@ export default function LeaveScreen() {
           {isLoading ? (
             <ActivityIndicator color={C.blue} style={{ marginTop: 40 }} />
           ) : filtered.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingTop: 60 }}>
-              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: C.blue + '12', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Ionicons name="calendar-outline" size={30} color={C.blue} />
-              </View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: lPrimary(isDark), marginBottom: 6 }}>
-                Belum ada pengajuan
-              </Text>
-              <Text style={{ fontSize: 14, color: lSecondary(isDark), textAlign: 'center' }}>
-                Ketuk "Ajukan" untuk membuat pengajuan baru
-              </Text>
-            </View>
+            <EmptyState
+              icon={Calendar}
+              iconColor={C.blue}
+              title="Belum ada pengajuan"
+              message={'Ketuk "Ajukan" untuk membuat pengajuan baru'}
+            />
           ) : (
             filtered.map((item) => <LeaveCard key={item.id} item={item} isDark={isDark} />)
           )}
@@ -359,7 +342,7 @@ export default function LeaveScreen() {
                 onPress={() => { setShowForm(false); resetForm(); }}
                 style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#EBEBF0', alignItems: 'center', justifyContent: 'center' }}
               >
-                <Ionicons name="close" size={20} color={lSecondary(isDark)} />
+                <X size={20} color={lSecondary(isDark)} />
               </TouchableOpacity>
             </View>
           </View>
