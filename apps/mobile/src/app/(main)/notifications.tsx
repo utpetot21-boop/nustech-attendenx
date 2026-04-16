@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, useColorScheme,
   RefreshControl, StatusBar, ActivityIndicator,
+  Modal, Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -28,6 +29,7 @@ import {
   Ban,
   Hand,
   Repeat2,
+  X,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -106,6 +108,7 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>(tab === 'ann' ? 'ann' : 'notif');
+  const [selectedAnn, setSelectedAnn] = useState<Announcement | null>(null);
 
   // Notifications
   const { data: notifData, isLoading: notifLoading, isRefetching: notifRefetching, refetch: refetchNotif } = useQuery({
@@ -337,7 +340,10 @@ export default function NotificationsScreen() {
                 return (
                   <TouchableOpacity
                     key={ann.id}
-                    onPress={() => { if (!ann.is_read) markAnnReadMut.mutate(ann.id); }}
+                    onPress={() => {
+                      if (!ann.is_read) markAnnReadMut.mutate(ann.id);
+                      setSelectedAnn(ann);
+                    }}
                     activeOpacity={0.78}
                     style={{
                       backgroundColor: isDark ? (ann.is_read ? 'rgba(255,255,255,0.06)' : `${accentColor}18`) : (ann.is_read ? '#FFFFFF' : `${accentColor}0D`),
@@ -394,6 +400,105 @@ export default function NotificationsScreen() {
 
         <View style={{ height: insets.bottom + 96 }} />
       </ScrollView>
+
+      {/* ── Modal Detail Pengumuman ── */}
+      <Modal
+        visible={!!selectedAnn}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedAnn(null)}
+      >
+        {selectedAnn && (() => {
+          const accentColor = ANN_COLOR[selectedAnn.type] ?? C.blue;
+          const AnnIcon = ANN_ICON_MAP[selectedAnn.type] ?? Info;
+          return (
+            <View style={{ flex: 1, backgroundColor: isDark ? '#0A0A0F' : '#F2F2F7' }}>
+              {/* Handle bar */}
+              <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
+                <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }} />
+              </View>
+
+              {/* Header modal */}
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                paddingHorizontal: 20, paddingVertical: 12,
+                borderBottomWidth: 0.5,
+                borderBottomColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${accentColor}20`, alignItems: 'center', justifyContent: 'center' }}>
+                    <AnnIcon size={18} strokeWidth={1.8} color={accentColor} />
+                  </View>
+                  <View>
+                    <View style={{ backgroundColor: `${accentColor}20`, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' }}>
+                      <Text style={{ color: accentColor, fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>
+                        {selectedAnn.type}
+                      </Text>
+                    </View>
+                    {selectedAnn.is_pinned && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        <Pin size={10} strokeWidth={2} color="#FF9500" />
+                        <Text style={{ color: '#FF9500', fontSize: 10, fontWeight: '700' }}>DISEMATKAN</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSelectedAnn(null)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={{
+                    width: 32, height: 32, borderRadius: 16,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <X size={16} strokeWidth={2.2} color={isDark ? '#FFF' : '#0F172A'} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Konten */}
+              <ScrollView
+                contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 32 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Accent bar kiri */}
+                <View style={{
+                  borderLeftWidth: 4, borderLeftColor: accentColor,
+                  paddingLeft: 14, marginBottom: 20,
+                }}>
+                  <Text style={{ fontSize: 20, fontWeight: '800', color: isDark ? '#FFF' : '#0F172A', lineHeight: 28 }}>
+                    {selectedAnn.title}
+                  </Text>
+                  {selectedAnn.sent_at && (
+                    <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.40)' : '#94A3B8', marginTop: 6 }}>
+                      {new Date(selectedAnn.sent_at).toLocaleDateString('id-ID', {
+                        timeZone: 'Asia/Makassar',
+                        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+                      })}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Body pengumuman */}
+                <View style={{
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+                  borderRadius: 16,
+                  borderWidth: 0.5,
+                  borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
+                  padding: 18,
+                }}>
+                  <Text style={{
+                    fontSize: 15, lineHeight: 24,
+                    color: isDark ? 'rgba(255,255,255,0.85)' : '#374151',
+                  }}>
+                    {selectedAnn.body}
+                  </Text>
+                </View>
+              </ScrollView>
+            </View>
+          );
+        })()}
+      </Modal>
     </View>
   );
 }
