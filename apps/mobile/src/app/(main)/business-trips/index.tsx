@@ -340,7 +340,7 @@ export default function BusinessTripsScreen() {
       />
 
       {/* Filter chips */}
-      <View style={{ marginTop: -10 }}>
+      <View style={{ marginTop: -5 }}>
         <FilterChips options={FILTER_OPTIONS} value={filterStatus} onChange={setFilterStatus} isDark={isDark} />
       </View>
 
