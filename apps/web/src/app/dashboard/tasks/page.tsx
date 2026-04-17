@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import {
   ListTodo, Plus, LayoutGrid, List, AlertTriangle, MapPin,
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
@@ -230,17 +232,28 @@ export default function TasksPage() {
       qc.invalidateQueries({ queryKey: ['tasks-web'] });
       setForm((f) => ({ ...f, title: '', description: '', notes: '' }));
       setShowForm(false);
+      toast.success('Tugas berhasil dibuat');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal membuat tugas')),
   });
 
   const approveDelegMut = useMutation({
     mutationFn: (id: string) => apiClient.post(`/tasks/delegations/${id}/approve`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['pending-delegations'] }); qc.invalidateQueries({ queryKey: ['tasks-web'] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pending-delegations'] });
+      qc.invalidateQueries({ queryKey: ['tasks-web'] });
+      toast.success('Delegasi disetujui');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyetujui delegasi')),
   });
 
   const rejectDelegMut = useMutation({
     mutationFn: (id: string) => apiClient.post(`/tasks/delegations/${id}/reject`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pending-delegations'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pending-delegations'] });
+      toast.success('Delegasi ditolak');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak delegasi')),
   });
 
   const tasks: Task[] = tasksData?.items ?? [];

@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import {
   Building2, Search, Plus, X, ExternalLink,
   MapPin, FileText, Clock, AlertTriangle,
@@ -645,12 +647,35 @@ function ClientFormModal({
     notes:               client?.notes ?? '',
   });
 
+  const buildPayload = () => {
+    const str = (v: string) => v.trim() || undefined;
+    return {
+      name:                 form.name.trim(),
+      pic_name:             str(form.pic_name),
+      pic_phone:            str(form.pic_phone),
+      pic_email:            str(form.pic_email),
+      address:              str(form.address),
+      contract_type:        form.contract_type,
+      contract_number:      str(form.contract_number),
+      contract_start:       str(form.contract_start),
+      contract_end:         str(form.contract_end),
+      sla_response_hours:   form.sla_response_hours,
+      sla_completion_hours: form.sla_completion_hours,
+      monthly_visit_quota:  form.monthly_visit_quota,
+      notes:                str(form.notes),
+    };
+  };
+
   const mut = useMutation({
     mutationFn: () =>
       client
-        ? apiClient.patch(`/clients/${client.id}`, form).then((r) => r.data)
-        : apiClient.post('/clients', form).then((r) => r.data),
-    onSuccess: onSaved,
+        ? apiClient.patch(`/clients/${client.id}`, buildPayload()).then((r) => r.data)
+        : apiClient.post('/clients', buildPayload()).then((r) => r.data),
+    onSuccess: () => {
+      toast.success(client ? 'Data klien berhasil diperbarui' : 'Klien baru berhasil ditambahkan');
+      onSaved();
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyimpan data klien')),
   });
 
   const set = (k: string, v: string | number) => setForm((f) => ({ ...f, [k]: v }));

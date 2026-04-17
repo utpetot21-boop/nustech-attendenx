@@ -6,7 +6,9 @@ import {
   Palmtree, Clock, CheckCircle2, XCircle, MessageSquareWarning,
   Users, Calendar, Check, X, ExternalLink, ChevronRight, Search, ArrowLeftRight,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LeaveRequest {
@@ -251,21 +253,25 @@ export default function LeavePage() {
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => apiClient.post(`/leave/requests/${id}/approve`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['leave-requests-web'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leave-requests-web'] }); toast.success('Pengajuan cuti disetujui'); },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyetujui pengajuan cuti')),
   });
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       apiClient.post(`/leave/requests/${id}/reject`, { reason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leave-requests-web'] }); setRejectId(null); setRejectReason(''); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leave-requests-web'] }); setRejectId(null); setRejectReason(''); toast.success('Pengajuan ditolak'); },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak pengajuan cuti')),
   });
   const approveObjMutation = useMutation({
     mutationFn: (id: string) => apiClient.post(`/leave/objections/${id}/approve`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['leave-objections'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leave-objections'] }); toast.success('Keberatan disetujui'); },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyetujui keberatan')),
   });
   const rejectObjMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       apiClient.post(`/leave/objections/${id}/reject`, { reason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leave-objections'] }); setRejectObjId(null); setRejectObjReason(''); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leave-objections'] }); setRejectObjId(null); setRejectObjReason(''); toast.success('Keberatan ditolak'); },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak keberatan')),
   });
 
   const { data: swapsData, isLoading: loadingSwaps } = useQuery({
@@ -275,12 +281,14 @@ export default function LeavePage() {
   });
   const approveSwapMutation = useMutation({
     mutationFn: (id: string) => apiClient.post(`/schedule-swap/requests/${id}/approve`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['swap-requests-admin'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['swap-requests-admin'] }); toast.success('Tukar jadwal disetujui'); },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyetujui tukar jadwal')),
   });
   const rejectSwapMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       apiClient.post(`/schedule-swap/requests/${id}/reject`, { reason }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['swap-requests-admin'] }); setRejectSwapId(null); setRejectSwapReason(''); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['swap-requests-admin'] }); setRejectSwapId(null); setRejectSwapReason(''); toast.success('Tukar jadwal ditolak'); },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak tukar jadwal')),
   });
 
   const requests     = requestsData?.items ?? [];

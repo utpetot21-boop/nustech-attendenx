@@ -449,6 +449,7 @@ function LeaveBalancePanel() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [selected, setSelected] = useState<LeaveBalance | null>(null);
   const [adjForm, setAdjForm] = useState({ amount: '', notes: '' });
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: balances = [], isLoading } = useQuery<LeaveBalance[]>({
     queryKey: ['leave-balances', year],
@@ -597,11 +598,31 @@ function LeaveBalancePanel() {
                       {new Date(log.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
-                  <button onClick={() => { if (confirm('Hapus penyesuaian ini?')) deleteMut.mutate(log.id); }}
-                    disabled={deleteMut.isPending}
-                    className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 flex items-center justify-center text-red-500 transition shrink-0">
-                    <Trash2 size={12} />
-                  </button>
+                  {confirmDeleteId === log.id ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => { deleteMut.mutate(log.id); setConfirmDeleteId(null); }}
+                        disabled={deleteMut.isPending}
+                        className="px-2.5 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold transition"
+                      >
+                        Hapus
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-white/[0.08] text-gray-600 dark:text-white/60 text-[11px] font-semibold transition"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteId(log.id)}
+                      disabled={deleteMut.isPending}
+                      className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 flex items-center justify-center text-red-500 transition shrink-0"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

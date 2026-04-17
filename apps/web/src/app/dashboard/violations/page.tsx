@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import {
   AlertTriangle, ShieldAlert, FileWarning, CheckCircle2,
   Clock, Plus, X, ExternalLink, FileText, User,
@@ -203,7 +205,9 @@ export default function ViolationsPage() {
       queryClient.invalidateQueries({ queryKey: ['warning-letters'] });
       setShowCreateModal(false);
       setForm({ user_id: '', level: 'SP1', reason: '', valid_until: '', notes: '', reference_violation_id: '' });
+      toast.success('Surat Peringatan berhasil dibuat');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal membuat Surat Peringatan')),
   });
 
   const totalVio = violations.length;

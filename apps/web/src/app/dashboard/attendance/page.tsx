@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import {
   CheckCircle2, Clock, XCircle, Users,
@@ -292,7 +294,9 @@ function PelanggaranSection() {
       queryClient.invalidateQueries({ queryKey: ['warning-letters'] });
       setShowCreateModal(false);
       setForm({ user_id: '', level: 'SP1', reason: '', valid_until: '', notes: '', reference_violation_id: '' });
+      toast.success('Surat Peringatan berhasil dibuat');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal membuat Surat Peringatan')),
   });
 
   const totalVio = violations.length;
@@ -655,7 +659,9 @@ function PermohonanSection() {
       queryClient.invalidateQueries({ queryKey: ['attendance-requests-pending-count'] });
       setReviewModal(null);
       setReviewNote('');
+      toast.success('Permohonan disetujui');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyetujui permohonan')),
   });
 
   const rejectMutation = useMutation({
@@ -666,7 +672,9 @@ function PermohonanSection() {
       queryClient.invalidateQueries({ queryKey: ['attendance-requests-pending-count'] });
       setReviewModal(null);
       setReviewNote('');
+      toast.success('Permohonan ditolak');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak permohonan')),
   });
 
   const filtered = requests.filter((r) =>

@@ -2,7 +2,7 @@
  * SCREEN CUTI & IZIN
  * Karyawan dapat melihat riwayat dan mengajukan cuti / izin
  */
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, Alert, ActivityIndicator, RefreshControl,
@@ -131,15 +131,22 @@ export default function LeaveScreen() {
   const [pickerFor, setPickerFor] = useState<'start' | 'end' | null>(null);
 
   // Queries
-  const { data: balance } = useQuery({
-    queryKey: ['my-leave-balance'],
+  const { data: balance, refetch: refetchBalance } = useQuery({
+    queryKey: ['leave-balance'],
     queryFn: () => leaveService.getMyBalance(),
+    staleTime: 30_000,
   });
 
-  const { data: requests = [], isLoading, refetch } = useQuery({
-    queryKey: ['my-leave-requests'],
+  const { data: requests = [], isLoading, refetch: refetchRequests } = useQuery({
+    queryKey: ['leave-requests-me'],
     queryFn: () => leaveService.getMyRequests(),
+    staleTime: 30_000,
   });
+
+  const handleRefresh = useCallback(() => {
+    refetchBalance();
+    refetchRequests();
+  }, [refetchBalance, refetchRequests]);
 
   const createMutation = useMutation({
     mutationFn: () => leaveService.create({
@@ -150,8 +157,8 @@ export default function LeaveScreen() {
     }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      qc.invalidateQueries({ queryKey: ['my-leave-requests'] });
-      qc.invalidateQueries({ queryKey: ['my-leave-balance'] });
+      qc.invalidateQueries({ queryKey: ['leave-requests-me'] });
+      qc.invalidateQueries({ queryKey: ['leave-balance'] });
       setShowForm(false);
       resetForm();
       Alert.alert('Berhasil', 'Pengajuan berhasil dikirim. Menunggu persetujuan admin.');
@@ -195,7 +202,7 @@ export default function LeaveScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={isDark ? '#FFF' : C.blue} />
+          <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={isDark ? '#FFF' : C.blue} />
         }
       >
         {/* ── Header ── */}

@@ -118,18 +118,21 @@ export default function ProfileScreen() {
   const { data: balance, refetch: refetchBalance, isRefetching, isLoading: balanceLoading } = useQuery({
     queryKey: ['leave-balance'],
     queryFn: () => api.get('/leave/balance/me').then((r) => r.data as LeaveBalance),
+    staleTime: 30_000,
   });
 
   const { data: logs = [] } = useQuery({
     queryKey: ['leave-logs'],
     queryFn: () => api.get('/leave/balance/me/logs').then((r) => r.data as LeaveLog[]),
     enabled: tab === 'history',
+    staleTime: 30_000,
   });
 
   const { data: requestsData } = useQuery({
     queryKey: ['leave-requests-me'],
     queryFn: () => api.get('/leave/requests').then((r) => r.data as { items: LeaveRequest[] }),
     enabled: tab === 'requests',
+    staleTime: 30_000,
   });
 
   const requestMutation = useMutation({
@@ -154,7 +157,11 @@ export default function ProfileScreen() {
     },
   });
 
-  const handleRefresh = useCallback(() => { refetchBalance(); }, [refetchBalance]);
+  const handleRefresh = useCallback(() => {
+    refetchBalance();
+    qc.invalidateQueries({ queryKey: ['leave-logs'] });
+    qc.invalidateQueries({ queryKey: ['leave-requests-me'] });
+  }, [refetchBalance, qc]);
 
   const handleLogout = () => {
     Alert.alert('Keluar', 'Apakah Anda yakin ingin keluar?', [

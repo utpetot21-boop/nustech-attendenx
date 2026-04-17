@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type FieldType = 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'date' | 'textarea';
@@ -331,7 +333,11 @@ export default function TemplatesPage() {
 
   const toggleActiveMut = useMutation({
     mutationFn: (id: string) => apiClient.patch(`/templates/${id}/toggle-active`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['templates'] });
+      toast.success('Status template diperbarui');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal mengubah status template')),
   });
 
   const openCreate = () => {

@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { getRealtimeSocket } from '@/lib/socket';
 import {
   Siren, MapPin, Phone, Battery, Clock, CheckCircle2,
@@ -77,11 +79,13 @@ function SosStatusBadge({ status }: { status: string }) {
 
 // ── SosCard ────────────────────────────────────────────────────────────────────
 function SosCard({
-  alert: a, tick, onRespond, onResolve, resolveNote, setResolveNote,
+  alert: a, onRespond, onResolve, resolveNote, setResolveNote,
+  respondPending, resolvePending,
 }: {
-  alert: SosAlert; tick: number;
+  alert: SosAlert;
   onRespond: () => void; onResolve: (notes?: string) => void;
   resolveNote: string; setResolveNote: (v: string) => void;
+  respondPending: boolean; resolvePending: boolean;
 }) {
   const isActive = a.status === 'active';
 
@@ -181,10 +185,14 @@ function SosCard({
         {a.status === 'active' && (
           <button
             onClick={onRespond}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-[#007AFF] hover:bg-[#0066CC] active:scale-[0.98] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.30)]"
+            disabled={respondPending}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-[#007AFF] hover:bg-[#0066CC] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.30)]"
           >
-            <PhoneCall size={16} />
-            Tandai Direspons
+            {respondPending
+              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <PhoneCall size={16} />
+            }
+            {respondPending ? 'Memproses…' : 'Tandai Direspons'}
           </button>
         )}
         <div className="flex gap-2">
@@ -196,10 +204,14 @@ function SosCard({
           />
           <button
             onClick={() => onResolve(resolveNote || undefined)}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#34C759] hover:bg-[#28A745] active:scale-[0.97] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(52,199,89,0.30)]"
+            disabled={resolvePending}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#34C759] hover:bg-[#28A745] active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(52,199,89,0.30)]"
           >
-            <CheckCircle2 size={16} />
-            Selesai
+            {resolvePending
+              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <CheckCircle2 size={16} />
+            }
+            {resolvePending ? 'Memproses…' : 'Selesai'}
           </button>
         </div>
       </div>
@@ -214,7 +226,7 @@ export default function SosPage() {
   const [resolveNote,  setResolveNote]  = useState('');
   const [addContact,   setAddContact]   = useState(false);
   const [newContact,   setNewContact]   = useState({ name: '', role: '', phone: '', priority: '1' });
-  const [tick,         setTick]         = useState(0);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setTick((x) => x + 1), 1000);
@@ -241,7 +253,11 @@ export default function SosPage() {
 
   const respondMut = useMutation({
     mutationFn: (id: string) => apiClient.post(`/sos/${id}/respond`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sos-active'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sos-active'] });
+      toast.success('SOS ditandai sebagai direspons');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal merespons SOS')),
   });
 
   const resolveMut = useMutation({
@@ -250,25 +266,38 @@ export default function SosPage() {
       qc.invalidateQueries({ queryKey: ['sos-active'] });
       qc.invalidateQueries({ queryKey: ['sos-history'] });
       setResolveNote('');
+      toast.success('SOS berhasil diselesaikan');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyelesaikan SOS')),
   });
 
   const addContactMut = useMutation({
     mutationFn: () => apiClient.post('/sos/contacts', {
-      name: newContact.name, role: newContact.role,
+      name: newContact.name, role: newContact.role || undefined,
       phone: newContact.phone, priority: parseInt(newContact.priority),
     }),
     onSuccess: () => {
       refetchContacts();
       setAddContact(false);
       setNewContact({ name: '', role: '', phone: '', priority: '1' });
+      toast.success('Kontak darurat berhasil ditambahkan');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menambahkan kontak')),
   });
 
   const removeContactMut = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/sos/contacts/${id}`),
-    onSuccess: () => refetchContacts(),
+    onSuccess: () => {
+      refetchContacts();
+      toast.success('Kontak dihapus');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menghapus kontak')),
   });
+
+  const handleRemoveContact = (id: string, name: string) => {
+    if (!window.confirm(`Hapus kontak "${name}" dari daftar darurat?`)) return;
+    removeContactMut.mutate(id);
+  };
 
   // Real-time — listen via /realtime namespace (web dashboard socket)
   useEffect(() => {
@@ -432,11 +461,12 @@ export default function SosPage() {
                   <SosCard
                     key={a.id}
                     alert={a}
-                    tick={tick}
                     onRespond={() => respondMut.mutate(a.id)}
                     onResolve={(notes) => resolveMut.mutate({ id: a.id, notes })}
                     resolveNote={resolveNote}
                     setResolveNote={setResolveNote}
+                    respondPending={respondMut.isPending}
+                    resolvePending={resolveMut.isPending}
                   />
                 ))}
               </>
@@ -579,7 +609,7 @@ export default function SosPage() {
                         </td>
                         <td className="px-4 py-3">
                           <button
-                            onClick={() => removeContactMut.mutate(c.id)}
+                            onClick={() => handleRemoveContact(c.id, c.name)}
                             disabled={removeContactMut.isPending}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FEF2F2] hover:bg-[#FEE2E2] dark:bg-[rgba(255,59,48,0.10)] dark:hover:bg-[rgba(255,59,48,0.18)] text-[#FF3B30] rounded-xl text-xs font-medium transition border border-[#FECACA] dark:border-[rgba(255,59,48,0.25)]"
                           >
@@ -615,7 +645,7 @@ export default function SosPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => removeContactMut.mutate(c.id)}
+                        onClick={() => handleRemoveContact(c.id, c.name)}
                         className="w-8 h-8 rounded-xl bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.10)] flex items-center justify-center text-[#FF3B30] hover:bg-[#FEE2E2] transition border border-[#FECACA] dark:border-[rgba(255,59,48,0.20)]"
                       >
                         <Trash2 size={13} />

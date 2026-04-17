@@ -4,7 +4,9 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { getAuthUser } from '@/lib/auth';
 import {
   Users, Navigation, ListTodo, FileText,
@@ -203,13 +205,15 @@ export default function DashboardPage() {
   const approveMut = useMutation({
     mutationFn: ({ taskId, holdId }: { taskId: string; holdId: string }) =>
       apiClient.post(`/tasks/${taskId}/holds/${holdId}/approve`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard-on-hold'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard-on-hold'] }); toast.success('Hold disetujui'); },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyetujui hold')),
   });
 
   const rejectMut = useMutation({
     mutationFn: ({ taskId, holdId }: { taskId: string; holdId: string }) =>
       apiClient.post(`/tasks/${taskId}/holds/${holdId}/reject`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard-on-hold'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['dashboard-on-hold'] }); toast.success('Hold ditolak'); },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak hold')),
   });
 
   // ── Derived ────────────────────────────────────────────────────────────────

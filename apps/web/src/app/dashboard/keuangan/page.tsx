@@ -66,29 +66,29 @@ type MainTab  = 'trips' | 'claims';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const TRIP_STATUS: Record<TripStatus, { label: string; bg: string; text: string; dot: string; ring: string }> = {
-  draft:            { label: 'Draft',       bg: 'bg-gray-100 dark:bg-white/[0.08]', text: 'text-gray-500 dark:text-white/40', dot: 'bg-gray-300', ring: 'border-gray-200 dark:border-white/20' },
-  pending_approval: { label: 'Menunggu',    bg: 'bg-[#FFF7ED]', text: 'text-[#9A3412]', dot: 'bg-[#FF9500]', ring: 'border-[#FF9500]/30' },
-  approved:         { label: 'Disetujui',   bg: 'bg-[#EFF6FF]', text: 'text-[#1D4ED8]', dot: 'bg-[#007AFF]', ring: 'border-[#007AFF]/30' },
-  rejected:         { label: 'Ditolak',     bg: 'bg-[#FFF1F2]', text: 'text-[#9F1239]', dot: 'bg-[#FF3B30]', ring: 'border-[#FF3B30]/30' },
-  ongoing:          { label: 'Berlangsung', bg: 'bg-[#F0FDF4]', text: 'text-[#166534]', dot: 'bg-[#34C759]', ring: 'border-[#34C759]/30' },
-  completed:        { label: 'Selesai',     bg: 'bg-[#F5F3FF]', text: 'text-[#6D28D9]', dot: 'bg-[#AF52DE]', ring: 'border-[#AF52DE]/30' },
-  cancelled:        { label: 'Dibatalkan',  bg: 'bg-gray-100 dark:bg-white/[0.08]', text: 'text-gray-400 dark:text-white/30', dot: 'bg-gray-300', ring: 'border-gray-200 dark:border-white/20' },
+  draft:            { label: 'Draft',       bg: 'bg-gray-100 dark:bg-white/[0.08]',                      text: 'text-gray-500 dark:text-white/40',   dot: 'bg-gray-300',    ring: 'border-gray-200 dark:border-white/20'      },
+  pending_approval: { label: 'Menunggu',    bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.15)]',           text: 'text-[#FF9500] dark:text-[#FF9F0A]', dot: 'bg-[#FF9500]',   ring: 'border-[#FF9500]/30'                       },
+  approved:         { label: 'Disetujui',   bg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)]',           text: 'text-[#007AFF] dark:text-[#0A84FF]', dot: 'bg-[#007AFF]',   ring: 'border-[#007AFF]/30'                       },
+  rejected:         { label: 'Ditolak',     bg: 'bg-[#FFF1F2] dark:bg-[rgba(255,59,48,0.15)]',           text: 'text-[#FF3B30] dark:text-[#FF453A]', dot: 'bg-[#FF3B30]',   ring: 'border-[#FF3B30]/30'                       },
+  ongoing:          { label: 'Berlangsung', bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.15)]',           text: 'text-[#34C759] dark:text-[#30D158]', dot: 'bg-[#34C759]',   ring: 'border-[#34C759]/30'                       },
+  completed:        { label: 'Selesai',     bg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.15)]',          text: 'text-[#AF52DE] dark:text-[#BF5AF2]', dot: 'bg-[#AF52DE]',   ring: 'border-[#AF52DE]/30'                       },
+  cancelled:        { label: 'Dibatalkan',  bg: 'bg-gray-100 dark:bg-white/[0.08]',                      text: 'text-gray-400 dark:text-white/30',   dot: 'bg-gray-300',    ring: 'border-gray-200 dark:border-white/20'      },
 };
 
 const CLAIM_STATUS: Record<string, { label: string; bg: string; text: string; dot: string; ring: string }> = {
-  pending:  { label: 'Pending',   bg: 'bg-[#FFFBEB]', text: 'text-[#92400E]', dot: 'bg-[#FF9500]', ring: 'border-[#FF9500]/30' },
-  approved: { label: 'Disetujui', bg: 'bg-[#F0FDF4]', text: 'text-[#166534]', dot: 'bg-[#34C759]', ring: 'border-[#34C759]/30' },
-  rejected: { label: 'Ditolak',   bg: 'bg-[#FFF1F2]', text: 'text-[#9F1239]', dot: 'bg-[#FF3B30]', ring: 'border-[#FF3B30]/30' },
-  paid:     { label: 'Dibayar',   bg: 'bg-[#F5F3FF]', text: 'text-[#6D28D9]', dot: 'bg-[#AF52DE]', ring: 'border-[#AF52DE]/30' },
+  pending:  { label: 'Pending',   bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.15)]',  text: 'text-[#FF9500] dark:text-[#FF9F0A]', dot: 'bg-[#FF9500]', ring: 'border-[#FF9500]/30' },
+  approved: { label: 'Disetujui', bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.15)]',  text: 'text-[#34C759] dark:text-[#30D158]', dot: 'bg-[#34C759]', ring: 'border-[#34C759]/30' },
+  rejected: { label: 'Ditolak',   bg: 'bg-[#FFF1F2] dark:bg-[rgba(255,59,48,0.15)]',  text: 'text-[#FF3B30] dark:text-[#FF453A]', dot: 'bg-[#FF3B30]', ring: 'border-[#FF3B30]/30' },
+  paid:     { label: 'Dibayar',   bg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.15)]', text: 'text-[#AF52DE] dark:text-[#BF5AF2]', dot: 'bg-[#AF52DE]', ring: 'border-[#AF52DE]/30' },
 };
 
 const CATEGORY_MAP: Record<string, { label: string; bg: string; text: string }> = {
-  transport: { label: 'Transport', bg: 'bg-[#EFF6FF]', text: 'text-[#1D4ED8]' },
-  parkir:    { label: 'Parkir',    bg: 'bg-[#F0FDF4]', text: 'text-[#166534]' },
-  material:  { label: 'Material',  bg: 'bg-[#FFF7ED]', text: 'text-[#9A3412]' },
-  konsumsi:  { label: 'Konsumsi',  bg: 'bg-[#FAF5FF]', text: 'text-[#6D28D9]' },
-  akomodasi: { label: 'Akomodasi', bg: 'bg-[#FFFBEB]', text: 'text-[#92400E]' },
-  lainnya:   { label: 'Lainnya',   bg: 'bg-gray-100',  text: 'text-gray-600'  },
+  transport: { label: 'Transport', bg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)]',  text: 'text-[#007AFF] dark:text-[#0A84FF]' },
+  parkir:    { label: 'Parkir',    bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.15)]',  text: 'text-[#34C759] dark:text-[#30D158]' },
+  material:  { label: 'Material',  bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.15)]',  text: 'text-[#FF9500] dark:text-[#FF9F0A]' },
+  konsumsi:  { label: 'Konsumsi',  bg: 'bg-[#FAF5FF] dark:bg-[rgba(175,82,222,0.15)]', text: 'text-[#AF52DE] dark:text-[#BF5AF2]' },
+  akomodasi: { label: 'Akomodasi', bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.12)]',  text: 'text-[#FF9500] dark:text-[#FF9F0A]' },
+  lainnya:   { label: 'Lainnya',   bg: 'bg-gray-100 dark:bg-white/[0.08]',              text: 'text-gray-600 dark:text-white/50'   },
 };
 
 const PAYROLL_COLS = ['transport', 'parkir', 'material', 'konsumsi', 'akomodasi', 'lainnya'] as const;

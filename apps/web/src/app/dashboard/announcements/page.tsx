@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { getAuthUser } from '@/lib/auth';
 import {
   Megaphone, Plus, X, CheckCircle2, FileEdit, Pin,
@@ -201,11 +203,14 @@ export default function AnnouncementsPage() {
         return r.data;
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, mode) => {
       qc.invalidateQueries({ queryKey: ['announcements'] });
       setShowCreate(false);
       resetForm();
+      const msg = mode === 'send' ? 'Pengumuman dikirim' : mode === 'submit' ? 'Pengumuman diajukan untuk review' : 'Draft disimpan';
+      toast.success(msg);
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyimpan pengumuman')),
   });
 
   const submitMut = useMutation({
@@ -215,7 +220,9 @@ export default function AnnouncementsPage() {
       setSelected((prev) => prev ? { ...prev, status: data.status } : null);
       setShowCreate(false);
       resetForm();
+      toast.success('Pengumuman diajukan untuk review');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal mengajukan pengumuman')),
   });
 
   const sendMut = useMutation({
@@ -223,7 +230,9 @@ export default function AnnouncementsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['announcements'] });
       setSelected((prev) => prev ? { ...prev, status: 'sent' } : null);
+      toast.success('Pengumuman berhasil dikirim');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal mengirim pengumuman')),
   });
 
   const approveMut = useMutation({
@@ -231,7 +240,9 @@ export default function AnnouncementsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['announcements'] });
       setSelected(null);
+      toast.success('Pengumuman disetujui');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyetujui pengumuman')),
   });
 
   const rejectMut = useMutation({
@@ -242,7 +253,9 @@ export default function AnnouncementsPage() {
       setSelected(null);
       setShowRejectInput(false);
       setRejectReason('');
+      toast.success('Pengumuman ditolak');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak pengumuman')),
   });
 
   const deleteMut = useMutation({
@@ -251,7 +264,9 @@ export default function AnnouncementsPage() {
       qc.invalidateQueries({ queryKey: ['announcements'] });
       setSelected(null);
       setDeleteAnnId(null);
+      toast.success('Pengumuman dihapus');
     },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menghapus pengumuman')),
   });
 
   const filtered = announcements
