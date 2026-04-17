@@ -904,7 +904,7 @@ export default function ProfileScreen() {
                   onChange={(_, date) => {
                     setShowStartPicker(false);
                     if (date) {
-                      const iso = date.toISOString().split('T')[0];
+                      const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                       setForm((f) => ({ ...f, start_date: iso, end_date: f.end_date && f.end_date < iso ? iso : f.end_date }));
                     }
                   }}
@@ -936,7 +936,10 @@ export default function ProfileScreen() {
                   minimumDate={form.start_date ? new Date(form.start_date + 'T00:00:00') : new Date()}
                   onChange={(_, date) => {
                     setShowEndPicker(false);
-                    if (date) setForm((f) => ({ ...f, end_date: date.toISOString().split('T')[0] }));
+                    if (date) {
+                      const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                      setForm((f) => ({ ...f, end_date: iso }));
+                    }
                   }}
                 />
               )}
