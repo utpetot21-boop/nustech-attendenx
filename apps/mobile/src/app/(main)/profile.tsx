@@ -39,6 +39,7 @@ import {
   Megaphone,
   BellRing,
 } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -124,6 +125,8 @@ export default function ProfileScreen() {
     end_date: '',
     reason: '',
   });
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker]     = useState(false);
 
   // ── Pengingat Check-in ─────────────────────────────────────────────
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
@@ -876,21 +879,68 @@ export default function ProfileScreen() {
               ))}
             </View>
 
-            {/* Dates */}
-            {['start_date', 'end_date'].map((field) => (
-              <View key={field} style={{ marginBottom: 14 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
-                  {field === 'start_date' ? 'Tanggal Mulai' : 'Tanggal Selesai'}
+            {/* Tanggal Mulai */}
+            <View style={{ marginBottom: 14 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
+                Tanggal Mulai
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowStartPicker(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12 }}
+              >
+                <Calendar size={16} strokeWidth={1.8} color={form.start_date ? C.blue : lTertiary(isDark)} />
+                <Text style={{ fontSize: 14, color: form.start_date ? lPrimary(isDark) : lTertiary(isDark) }}>
+                  {form.start_date
+                    ? new Date(form.start_date + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+                    : 'Pilih tanggal mulai'}
                 </Text>
-                <TextInput
-                  value={form[field as keyof typeof form]}
-                  onChangeText={(v) => setForm((f) => ({ ...f, [field]: v }))}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={lTertiary(isDark)}
-                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: lPrimary(isDark) }}
+              </TouchableOpacity>
+              {showStartPicker && (
+                <DateTimePicker
+                  value={form.start_date ? new Date(form.start_date + 'T00:00:00') : new Date()}
+                  mode="date"
+                  display="default"
+                  minimumDate={new Date()}
+                  onChange={(_, date) => {
+                    setShowStartPicker(false);
+                    if (date) {
+                      const iso = date.toISOString().split('T')[0];
+                      setForm((f) => ({ ...f, start_date: iso, end_date: f.end_date && f.end_date < iso ? iso : f.end_date }));
+                    }
+                  }}
                 />
-              </View>
-            ))}
+              )}
+            </View>
+
+            {/* Tanggal Selesai */}
+            <View style={{ marginBottom: 14 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
+                Tanggal Selesai
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowEndPicker(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12 }}
+              >
+                <Calendar size={16} strokeWidth={1.8} color={form.end_date ? C.blue : lTertiary(isDark)} />
+                <Text style={{ fontSize: 14, color: form.end_date ? lPrimary(isDark) : lTertiary(isDark) }}>
+                  {form.end_date
+                    ? new Date(form.end_date + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+                    : 'Pilih tanggal selesai'}
+                </Text>
+              </TouchableOpacity>
+              {showEndPicker && (
+                <DateTimePicker
+                  value={form.end_date ? new Date(form.end_date + 'T00:00:00') : (form.start_date ? new Date(form.start_date + 'T00:00:00') : new Date())}
+                  mode="date"
+                  display="default"
+                  minimumDate={form.start_date ? new Date(form.start_date + 'T00:00:00') : new Date()}
+                  onChange={(_, date) => {
+                    setShowEndPicker(false);
+                    if (date) setForm((f) => ({ ...f, end_date: date.toISOString().split('T')[0] }));
+                  }}
+                />
+              )}
+            </View>
 
             <View style={{ marginBottom: 20 }}>
               <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
