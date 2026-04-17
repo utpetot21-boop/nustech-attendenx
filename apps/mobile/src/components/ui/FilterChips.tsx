@@ -71,12 +71,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical:   10,
     gap:               8,
+    flexDirection:     'row',
+    alignItems:        'center',
   },
   chip: {
     paddingHorizontal: 16,
     paddingVertical:    8,
     borderRadius:      R.pill,
     borderWidth:       B.default,
+    alignSelf:         'center',
   },
   label: {
     fontSize:      13,
