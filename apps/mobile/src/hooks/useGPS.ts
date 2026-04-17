@@ -68,8 +68,8 @@ export function useGPS() {
       if (!gps) return null;
 
       const distanceMeters = calculateDistance(
-        { lat: gps.lat, lng: gps.lng },
-        { lat: officeLat, lng: officeLng },
+        gps.lat, gps.lng,
+        officeLat, officeLng,
       );
 
       return {

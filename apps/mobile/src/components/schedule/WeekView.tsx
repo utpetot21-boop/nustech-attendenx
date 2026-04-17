@@ -8,10 +8,12 @@ interface DayData {
 
 interface ScheduleEvent {
   id: string;
-  type: 'shift' | 'visit' | 'oncall';
+  type: 'shift' | 'visit' | 'oncall' | 'holiday' | 'day_off';
   title: string;
   subtitle?: string;
   time?: string;
+  time_start?: string;
+  time_end?: string;
   color: string;
   is_day_off?: boolean;
   is_holiday?: boolean;
