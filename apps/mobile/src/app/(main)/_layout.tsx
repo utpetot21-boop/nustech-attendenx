@@ -139,7 +139,7 @@ export default function MainLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Saya',
+          title: 'Profil',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon icon={LayoutGrid} focused={focused} color={color} activeColor={TAB_COLORS.profile} />
           ),

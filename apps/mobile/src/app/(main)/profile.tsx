@@ -413,9 +413,9 @@ export default function ProfileScreen() {
             overflow: 'hidden',
           }}>
             {[
-              { label: 'Klaim Biaya', Icon: Receipt,   color: C.orange,  route: '/(main)/expense-claims/index' },
-              { label: 'Berita Acara',Icon: FileText,   color: C.teal,    route: '/(main)/service-reports/index' },
-              { label: 'Surat Tugas', Icon: Briefcase,  color: C.indigo,  route: '/(main)/business-trips/index' },
+              { label: 'Klaim Biaya', Icon: Receipt,   color: C.orange,  route: '/(main)/expense-claims' },
+              { label: 'Berita Acara',Icon: FileText,   color: C.teal,    route: '/(main)/service-reports' },
+              { label: 'Surat Tugas', Icon: Briefcase,  color: C.indigo,  route: '/(main)/business-trips' },
               { label: 'SOS Darurat', Icon: ShieldAlert, color: C.red,   route: '/(main)/sos' },
             ].map((item, idx, arr) => (
               <TouchableOpacity
