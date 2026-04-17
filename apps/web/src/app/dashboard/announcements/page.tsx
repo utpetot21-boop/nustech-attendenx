@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
@@ -171,6 +171,8 @@ export default function AnnouncementsPage() {
     body: '',
     type: 'info' as Announcement['type'],
     target_type: 'all' as Announcement['target_type'],
+    target_dept_id: '',
+    target_user_ids: [] as string[],
     is_pinned: false,
     pinned_until: '',
     send_push: true,
@@ -179,6 +181,7 @@ export default function AnnouncementsPage() {
 
   const resetForm = () => setForm({
     title: '', body: '', type: 'info', target_type: 'all',
+    target_dept_id: '', target_user_ids: [],
     is_pinned: false, pinned_until: '', send_push: true, send_whatsapp: false,
   });
 
@@ -197,6 +200,9 @@ export default function AnnouncementsPage() {
     mutationFn: (mode: 'draft' | 'send' | 'submit') => {
       const payload: Record<string, unknown> = { ...form };
       if (!payload.pinned_until) delete payload.pinned_until;
+      if (payload.target_type !== 'department') delete payload.target_dept_id;
+      if (payload.target_type !== 'individual') delete payload.target_user_ids;
+      if (payload.target_type === 'individual' && (payload.target_user_ids as string[]).length === 0) delete payload.target_user_ids;
       return apiClient.post('/announcements', payload).then(async (r) => {
         if (mode === 'send') await apiClient.post(`/announcements/${r.data.id}/send`);
         if (mode === 'submit') await apiClient.post(`/announcements/${r.data.id}/submit`);
@@ -694,24 +700,57 @@ function DetailModal({
   );
 }
 
+type CreateFormState = {
+  title: string; body: string; type: Announcement['type'];
+  target_type: Announcement['target_type'];
+  target_dept_id: string; target_user_ids: string[];
+  is_pinned: boolean; pinned_until: string;
+  send_push: boolean; send_whatsapp: boolean;
+};
+
 // ── Create Modal ──────────────────────────────────────────────────────────────
 function CreateModal({
   form, setForm, isAdmin, pending, onClose, onSend, onDraft,
 }: {
-  form: {
-    title: string; body: string; type: Announcement['type'];
-    target_type: Announcement['target_type']; is_pinned: boolean;
-    pinned_until: string; send_push: boolean; send_whatsapp: boolean;
-  };
-  setForm: React.Dispatch<React.SetStateAction<typeof form>>;
+  form: CreateFormState;
+  setForm: React.Dispatch<React.SetStateAction<CreateFormState>>;
   isAdmin: boolean;
   pending: boolean;
   onClose: () => void;
   onSend: () => void;
   onDraft: () => void;
 }) {
-  const set = <K extends keyof typeof form>(k: K, v: typeof form[K]) =>
+  const set = <K extends keyof CreateFormState>(k: K, v: CreateFormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  const [userSearch, setUserSearch] = useState('');
+
+  const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['departments'],
+    queryFn: () => apiClient.get('/departments').then((r) => r.data),
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: users = [] } = useQuery<{ id: string; full_name: string; department?: { name: string } }[]>({
+    queryKey: ['users-colleagues'],
+    queryFn: () => apiClient.get('/users/colleagues').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: form.target_type === 'individual',
+  });
+
+  const filteredUsers = useMemo(() =>
+    users.filter((u) =>
+      !userSearch || u.full_name.toLowerCase().includes(userSearch.toLowerCase())
+    ), [users, userSearch]);
+
+  const toggleUser = (id: string) => {
+    set('target_user_ids', form.target_user_ids.includes(id)
+      ? form.target_user_ids.filter((x) => x !== id)
+      : [...form.target_user_ids, id]
+    );
+  };
+
+  const selectedUsers = users.filter((u) => form.target_user_ids.includes(u.id));
 
   return (
     <div
@@ -790,7 +829,10 @@ function CreateModal({
               ].map((t) => (
                 <button
                   key={t.key}
-                  onClick={() => set('target_type', t.key as Announcement['target_type'])}
+                  onClick={() => {
+                    set('target_type', t.key as Announcement['target_type']);
+                    setForm((f) => ({ ...f, target_type: t.key as Announcement['target_type'], target_dept_id: '', target_user_ids: [] }));
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold ring-1 transition ${
                     form.target_type === t.key
                       ? 'bg-[#007AFF]/10 text-[#007AFF] ring-[#007AFF]/20'
@@ -802,6 +844,100 @@ function CreateModal({
               ))}
             </div>
           </div>
+
+          {/* Department picker */}
+          {form.target_type === 'department' && (
+            <div>
+              <label className={labelCls}>Pilih Departemen *</label>
+              <select
+                value={form.target_dept_id}
+                onChange={(e) => set('target_dept_id', e.target.value)}
+                className={inputCls}
+              >
+                <option value="">— Pilih departemen —</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Individual multi-picker */}
+          {form.target_type === 'individual' && (
+            <div>
+              <label className={labelCls}>
+                Pilih Karyawan *
+                {form.target_user_ids.length > 0 && (
+                  <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#007AFF]/10 text-[#007AFF]">
+                    {form.target_user_ids.length} dipilih
+                  </span>
+                )}
+              </label>
+
+              {/* Selected tags */}
+              {selectedUsers.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {selectedUsers.map((u) => (
+                    <span
+                      key={u.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#007AFF]/10 text-[#007AFF] text-xs font-semibold"
+                    >
+                      {u.full_name}
+                      <button
+                        onClick={() => toggleUser(u.id)}
+                        className="hover:text-[#FF3B30] transition-colors"
+                      >
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Search box */}
+              <div className="relative mb-1.5">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Cari nama karyawan…"
+                  className={`${inputCls} pl-9`}
+                />
+              </div>
+
+              {/* Scrollable list */}
+              <div className="max-h-44 overflow-y-auto rounded-xl border border-black/[0.08] dark:border-white/[0.1] divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+                {filteredUsers.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-4">Tidak ditemukan</p>
+                ) : (
+                  filteredUsers.map((u) => {
+                    const checked = form.target_user_ids.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() => toggleUser(u.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition ${
+                          checked ? 'bg-[#007AFF]/08' : 'bg-white dark:bg-[#2C2C2E] hover:bg-gray-50 dark:hover:bg-[#3A3A3C]'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition ${
+                          checked ? 'bg-[#007AFF] border-[#007AFF]' : 'border-gray-300 dark:border-gray-600'
+                        }`}>
+                          {checked && <CheckCircle2 size={10} className="text-white" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{u.full_name}</p>
+                          {u.department?.name && (
+                            <p className="text-[11px] text-gray-400 truncate">{u.department.name}</p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Opsi */}
           <div>
@@ -891,7 +1027,11 @@ function CreateModal({
         <div className="flex gap-3 px-5 py-4 border-t border-black/[0.06] dark:border-white/[0.08]">
           <button
             onClick={onSend}
-            disabled={pending || !form.title.trim() || !form.body.trim()}
+            disabled={
+              pending || !form.title.trim() || !form.body.trim() ||
+              (form.target_type === 'department' && !form.target_dept_id) ||
+              (form.target_type === 'individual' && form.target_user_ids.length === 0)
+            }
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#007AFF] hover:bg-[#0071e3] disabled:opacity-50 text-white text-sm font-semibold transition"
           >
             <Send size={14} />
