@@ -512,16 +512,23 @@ export default function BusinessTripsScreen() {
 
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48, gap: 12 }} showsVerticalScrollIndicator={false}>
               {/* Form fields dalam card group */}
-              {[
-                { key: 'destination',      label: 'Tujuan / Kota *',               placeholder: 'Makassar, Sulawesi Selatan', icon: MapPin },
-                { key: 'purpose',          label: 'Tujuan Penugasan *',             placeholder: 'Deskripsi tugas yang dikerjakan', icon: Send, multiline: true },
-                { key: 'depart_date',      label: 'Tanggal Pergi * (YYYY-MM-DD)',   placeholder: '2026-08-01', icon: Calendar },
-                { key: 'return_date',      label: 'Tanggal Kembali * (YYYY-MM-DD)', placeholder: '2026-08-05', icon: Calendar },
-                { key: 'transport_mode',   label: 'Moda Transportasi',              placeholder: 'Pesawat, Kapal, Mobil', icon: Plane },
-                { key: 'estimated_cost_str', label: 'Estimasi Biaya (Rp)',          placeholder: '5000000', icon: Banknote, keyboard: 'numeric' as const },
-                { key: 'advance_amount_str', label: 'Uang Muka (Rp)',               placeholder: '2000000', icon: Banknote, keyboard: 'numeric' as const },
-                { key: 'notes',            label: 'Catatan',                        placeholder: 'Catatan tambahan (opsional)', icon: null, multiline: true },
-              ].map((f) => (
+              {([
+                { key: 'destination',        label: 'Tujuan / Kota *',                placeholder: 'Makassar, Sulawesi Selatan',      icon: MapPin },
+                { key: 'purpose',            label: 'Tujuan Penugasan *',             placeholder: 'Deskripsi tugas yang dikerjakan', icon: Send,     multiline: true },
+                { key: 'depart_date',        label: 'Tanggal Pergi * (YYYY-MM-DD)',   placeholder: '2026-08-01',                      icon: Calendar },
+                { key: 'return_date',        label: 'Tanggal Kembali * (YYYY-MM-DD)', placeholder: '2026-08-05',                      icon: Calendar },
+                { key: 'transport_mode',     label: 'Moda Transportasi',              placeholder: 'Pesawat, Kapal, Mobil',           icon: Plane },
+                { key: 'estimated_cost_str', label: 'Estimasi Biaya (Rp)',            placeholder: '5000000',                         icon: Banknote, keyboard: 'numeric' },
+                { key: 'advance_amount_str', label: 'Uang Muka (Rp)',                 placeholder: '2000000',                         icon: Banknote, keyboard: 'numeric' },
+                { key: 'notes',              label: 'Catatan',                        placeholder: 'Catatan tambahan (opsional)',     icon: null,     multiline: true },
+              ] satisfies Array<{
+                key: keyof typeof form;
+                label: string;
+                placeholder: string;
+                icon: React.ComponentType<{ size: number; strokeWidth: number; color: string; style?: any }> | null;
+                multiline?: boolean;
+                keyboard?: 'numeric';
+              }>).map((f) => (
                 <View key={f.key} style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF', borderRadius: R.lg, padding: 14, borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)' }}>
                   <Text style={{ fontSize: 11, fontWeight: '700', color: lTertiary(isDark), textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
                     {f.label}
@@ -529,7 +536,7 @@ export default function BusinessTripsScreen() {
                   <View style={{ flexDirection: 'row', alignItems: f.multiline ? 'flex-start' : 'center', gap: 10 }}>
                     {f.icon && <f.icon size={16} strokeWidth={1.8} color={lTertiary(isDark)} style={{ marginTop: f.multiline ? 2 : 0 }} />}
                     <TextInput
-                      value={(form as any)[f.key]}
+                      value={form[f.key]}
                       onChangeText={(v) => setForm((prev) => ({ ...prev, [f.key]: v }))}
                       placeholder={f.placeholder}
                       placeholderTextColor={isDark ? 'rgba(255,255,255,0.2)' : '#C4C4C4'}

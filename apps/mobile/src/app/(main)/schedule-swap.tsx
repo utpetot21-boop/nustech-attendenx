@@ -26,6 +26,7 @@ import {
   SWAP_STATUS_COLORS,
 } from '@/services/schedule-swap.service';
 import api from '@/services/api';
+import type { UserSchedule } from '@/services/schedule.service';
 import { C, R, B, S, T, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -419,8 +420,8 @@ export default function ScheduleSwapScreen() {
   const { data: myShiftData } = useQuery({
     queryKey: ['my-schedule-date', requesterDateStr],
     queryFn: () =>
-      api.get('/schedules/me', { params: { date: requesterDateStr } })
-         .then((r) => (r.data as any[])[0] ?? null),
+      api.get<UserSchedule[]>('/schedules/me', { params: { date: requesterDateStr } })
+         .then((r) => r.data[0] ?? null),
     enabled: showForm,
     staleTime: 60_000,
   });
@@ -428,8 +429,8 @@ export default function ScheduleSwapScreen() {
   const { data: targetShiftData } = useQuery({
     queryKey: ['user-schedule-date', selectedUser?.id, targetDateStr],
     queryFn: () =>
-      api.get(`/schedules/user/${selectedUser!.id}`, { params: { date: targetDateStr } })
-         .then((r) => (r.data as any[])[0] ?? null),
+      api.get<UserSchedule[]>(`/schedules/user/${selectedUser!.id}`, { params: { date: targetDateStr } })
+         .then((r) => r.data[0] ?? null),
     enabled: showForm && swapType === 'with_person' && !!selectedUser?.id,
     staleTime: 60_000,
   });
@@ -683,7 +684,7 @@ export default function ScheduleSwapScreen() {
                     backgroundColor: '#007AFF15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
                     <Clock size={13} strokeWidth={2} color="#007AFF" />
                     <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '600' }}>
-                      {myShiftData.shift_type.name} · {myShiftData.shift_type.start_time?.slice(0,5)}–{myShiftData.shift_type.end_time?.slice(0,5)}
+                      {myShiftData.shift_type.name} · {myShiftData.start_time?.slice(0,5)}–{myShiftData.end_time?.slice(0,5)}
                     </Text>
                   </View>
                 ) : (
@@ -722,7 +723,7 @@ export default function ScheduleSwapScreen() {
                     backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
                     <Clock size={13} strokeWidth={2} color="#34C759" />
                     <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>
-                      {targetShiftData.shift_type.name} · {targetShiftData.shift_type.start_time?.slice(0,5)}–{targetShiftData.shift_type.end_time?.slice(0,5)}
+                      {targetShiftData.shift_type.name} · {targetShiftData.start_time?.slice(0,5)}–{targetShiftData.end_time?.slice(0,5)}
                     </Text>
                   </View>
                 ) : (
