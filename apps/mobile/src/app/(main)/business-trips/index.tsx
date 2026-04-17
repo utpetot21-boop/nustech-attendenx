@@ -328,6 +328,7 @@ export default function BusinessTripsScreen() {
       <BackHeader
         title="Surat Tugas Dinas"
         accentColor={C.indigo}
+        onBack={() => router.navigate('/(main)/profile')}
         right={
           <TouchableOpacity
             onPress={() => setShowCreate(true)}
@@ -340,9 +341,7 @@ export default function BusinessTripsScreen() {
       />
 
       {/* Filter chips */}
-      <View style={{ marginTop: -5 }}>
-        <FilterChips options={FILTER_OPTIONS} value={filterStatus} onChange={setFilterStatus} isDark={isDark} />
-      </View>
+      <FilterChips options={FILTER_OPTIONS} value={filterStatus} onChange={setFilterStatus} isDark={isDark} />
 
       {/* Content */}
       {isLoading ? (

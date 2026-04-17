@@ -4,6 +4,7 @@
  * Redesigned UI — consistent with app design language
  */
 import React, { useState } from 'react';
+import { router } from 'expo-router';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Alert, ActivityIndicator, Image, Modal,
@@ -77,7 +78,7 @@ export default function ExpenseClaimsScreen() {
       >
         {/* Header */}
         <View>
-          <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor="#7C3AED" />
+          <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor="#7C3AED" onBack={() => router.navigate('/(main)/profile')} />
 
           {/* Buat Klaim button */}
           <TouchableOpacity

@@ -82,7 +82,7 @@ export default function ServiceReportsListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: pageBg(isDark) }]}>
-      <BackHeader title="Berita Acara" subtitle="Dokumen kunjungan teknis Anda" accentColor={C.blue} />
+      <BackHeader title="Berita Acara" subtitle="Dokumen kunjungan teknis Anda" accentColor={C.blue} onBack={() => router.navigate('/(main)/profile')} />
 
       <ScrollView
         style={styles.scroll}

@@ -7,13 +7,12 @@ import { lPrimary, lSecondary, C } from '@/constants/tokens';
 interface BackHeaderProps {
   title: string;
   subtitle?: string;
-  /** Warna aksen untuk judul & tombol kembali, default C.blue */
   accentColor?: string;
-  /** Elemen kanan opsional (misal tombol tambah) */
   right?: React.ReactNode;
+  onBack?: () => void;
 }
 
-export function BackHeader({ title, subtitle, accentColor = C.blue, right }: BackHeaderProps) {
+export function BackHeader({ title, subtitle, accentColor = C.blue, right, onBack }: BackHeaderProps) {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -22,7 +21,7 @@ export function BackHeader({ title, subtitle, accentColor = C.blue, right }: Bac
     <View
       style={{
         paddingTop: insets.top + 8,
-        paddingBottom: 2,
+        paddingBottom: 8,
         paddingHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
@@ -31,7 +30,7 @@ export function BackHeader({ title, subtitle, accentColor = C.blue, right }: Bac
     >
       {/* Tombol kembali */}
       <TouchableOpacity
-        onPress={() => router.back()}
+        onPress={() => onBack ? onBack() : router.back()}
         activeOpacity={0.7}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         style={{
