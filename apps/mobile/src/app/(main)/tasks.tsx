@@ -32,7 +32,7 @@ import {
   ArrowUpRight,
   ClipboardList,
 } from 'lucide-react-native';
-import { C, R, B, T, S, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { C, R, B, T, S, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -335,7 +335,7 @@ export default function TasksScreen() {
                 <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.7)' : '#374151', textAlign: 'center' }}>
                   Tidak ada tugas
                 </Text>
-                <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF', textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
+                <Text style={{ fontSize: 14, color: lTertiary(isDark), textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
                   Tugas yang ditugaskan ke Anda akan muncul di sini.
                 </Text>
               </View>
@@ -399,14 +399,14 @@ export default function TasksScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <View
             style={{
-              backgroundColor: isDark ? '#1C1C1E' : '#FFF',
+              backgroundColor: cardBg(isDark),
               borderRadius: R.sheet,
               padding: 20,
               paddingBottom: 36,
             }}
           >
             <Text
-              style={{ fontSize: 17, fontWeight: '700', color: isDark ? '#FFF' : '#111', marginBottom: 16 }}
+              style={{ fontSize: 17, fontWeight: '700', color: lPrimary(isDark), marginBottom: 16 }}
             >
               Tolak Tugas
             </Text>
@@ -414,7 +414,7 @@ export default function TasksScreen() {
               value={rejectReason}
               onChangeText={setRejectReason}
               placeholder="Alasan penolakan (opsional)..."
-              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+              placeholderTextColor={lTertiary(isDark)}
               multiline
               numberOfLines={3}
               style={{
@@ -422,7 +422,7 @@ export default function TasksScreen() {
                 borderRadius: 12,
                 padding: 12,
                 fontSize: 14,
-                color: isDark ? '#FFF' : '#111',
+                color: lPrimary(isDark),
                 marginBottom: 16,
                 minHeight: 80,
                 textAlignVertical: 'top',
@@ -439,7 +439,7 @@ export default function TasksScreen() {
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ color: isDark ? '#FFF' : '#111', fontWeight: '600' }}>Batal</Text>
+                <Text style={{ color: lPrimary(isDark), fontWeight: '600' }}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
@@ -472,16 +472,16 @@ export default function TasksScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <View
             style={{
-              backgroundColor: isDark ? '#1C1C1E' : '#FFF',
+              backgroundColor: cardBg(isDark),
               borderRadius: R.sheet,
               padding: 20,
               paddingBottom: 36,
             }}
           >
-            <Text style={{ fontSize: 17, fontWeight: '700', color: isDark ? '#FFF' : '#111', marginBottom: 4 }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: lPrimary(isDark), marginBottom: 4 }}>
               Limpahkan Tugas
             </Text>
-            <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280', marginBottom: 16 }}>
+            <Text style={{ fontSize: 13, color: lSecondary(isDark), marginBottom: 16 }}>
               Delegasikan "{selectedTask?.title}" ke rekan lain. Manajer akan menyetujui permintaan ini.
             </Text>
 
@@ -492,13 +492,13 @@ export default function TasksScreen() {
               value={delegateToUserId}
               onChangeText={setDelegateToUserId}
               placeholder="UUID karyawan tujuan..."
-              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+              placeholderTextColor={lTertiary(isDark)}
               style={{
                 backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6',
                 borderRadius: 12,
                 padding: 12,
                 fontSize: 14,
-                color: isDark ? '#FFF' : '#111',
+                color: lPrimary(isDark),
                 marginBottom: 12,
               }}
             />
@@ -510,7 +510,7 @@ export default function TasksScreen() {
               value={delegateReason}
               onChangeText={setDelegateReason}
               placeholder="Jelaskan alasan melimpahkan tugas ini..."
-              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+              placeholderTextColor={lTertiary(isDark)}
               multiline
               numberOfLines={3}
               style={{
@@ -518,7 +518,7 @@ export default function TasksScreen() {
                 borderRadius: 12,
                 padding: 12,
                 fontSize: 14,
-                color: isDark ? '#FFF' : '#111',
+                color: lPrimary(isDark),
                 marginBottom: 16,
                 minHeight: 80,
                 textAlignVertical: 'top',
@@ -536,7 +536,7 @@ export default function TasksScreen() {
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ color: isDark ? '#FFF' : '#111', fontWeight: '600' }}>Batal</Text>
+                <Text style={{ color: lPrimary(isDark), fontWeight: '600' }}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
@@ -564,8 +564,8 @@ export default function TasksScreen() {
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <ArrowUpRight size={15} strokeWidth={2.2} color={delegateToUserId.trim() && delegateReason.trim() ? '#FFF' : isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF'} />
-                    <Text style={{ color: delegateToUserId.trim() && delegateReason.trim() ? '#FFF' : isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF', fontWeight: '700' }}>
+                    <ArrowUpRight size={15} strokeWidth={2.2} color={delegateToUserId.trim() && delegateReason.trim() ? '#FFF' : lTertiary(isDark)} />
+                    <Text style={{ color: delegateToUserId.trim() && delegateReason.trim() ? '#FFF' : lTertiary(isDark), fontWeight: '700' }}>
                       Limpahkan
                     </Text>
                   </View>
@@ -581,7 +581,7 @@ export default function TasksScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <View
             style={{
-              backgroundColor: isDark ? '#1C1C1E' : '#FFF',
+              backgroundColor: cardBg(isDark),
               borderRadius: R.sheet,
               padding: 20,
               paddingBottom: 36,
@@ -589,12 +589,12 @@ export default function TasksScreen() {
             }}
           >
             <Text
-              style={{ fontSize: 17, fontWeight: '700', color: isDark ? '#FFF' : '#111', marginBottom: 4 }}
+              style={{ fontSize: 17, fontWeight: '700', color: lPrimary(isDark), marginBottom: 4 }}
             >
               Tunda Pekerjaan
             </Text>
             <Text
-              style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280', marginBottom: 16 }}
+              style={{ fontSize: 13, color: lSecondary(isDark), marginBottom: 16 }}
             >
               Pilih alasan penundaan. Manajer akan di-notif segera.
             </Text>
@@ -639,7 +639,7 @@ export default function TasksScreen() {
                 value={holdNotes}
                 onChangeText={setHoldNotes}
                 placeholder="Keterangan detail (wajib)..."
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                placeholderTextColor={lTertiary(isDark)}
                 multiline
                 numberOfLines={3}
                 style={{
@@ -647,7 +647,7 @@ export default function TasksScreen() {
                   borderRadius: 12,
                   padding: 12,
                   fontSize: 14,
-                  color: isDark ? '#FFF' : '#111',
+                  color: lPrimary(isDark),
                   marginTop: 14,
                   marginBottom: 16,
                   minHeight: 80,
@@ -655,7 +655,7 @@ export default function TasksScreen() {
                 }}
               />
 
-              <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF', marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: lTertiary(isDark), marginBottom: 12 }}>
                 ℹ Foto bukti perlu diupload via halaman detail kunjungan (min 1, max 5).
               </Text>
 
@@ -670,7 +670,7 @@ export default function TasksScreen() {
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={{ color: isDark ? '#FFF' : '#111', fontWeight: '600' }}>Batal</Text>
+                  <Text style={{ color: lPrimary(isDark), fontWeight: '600' }}>Batal</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -699,8 +699,8 @@ export default function TasksScreen() {
                     <ActivityIndicator color="#FFF" />
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <PauseCircle size={15} strokeWidth={2.2} color={holdNotes.trim() ? '#FFF' : isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF'} />
-                      <Text style={{ color: holdNotes.trim() ? '#FFF' : isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF', fontWeight: '700' }}>
+                      <PauseCircle size={15} strokeWidth={2.2} color={holdNotes.trim() ? '#FFF' : lTertiary(isDark)} />
+                      <Text style={{ color: holdNotes.trim() ? '#FFF' : lTertiary(isDark), fontWeight: '700' }}>
                         Tunda
                       </Text>
                     </View>

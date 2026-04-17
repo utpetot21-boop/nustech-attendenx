@@ -271,10 +271,10 @@ export default function AttendanceScreen() {
         }}
       >
         <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
-          <Text style={{ fontSize: 17, fontWeight: '600', color: isDark ? '#FFFFFF' : '#111111', letterSpacing: -0.3 }}>
+          <Text style={{ fontSize: 17, fontWeight: '600', color: lPrimary(isDark), letterSpacing: -0.3 }}>
             Absensi Kantor
           </Text>
-          <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280', marginTop: 2 }}>
+          <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 2 }}>
             {today}
           </Text>
         </View>
@@ -303,7 +303,7 @@ export default function AttendanceScreen() {
             </Text>
           )}
           {attendance?.tolerance_minutes && !alreadyCheckedIn && (
-            <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280' }}>
+            <Text style={{ fontSize: 14, color: lSecondary(isDark) }}>
               Toleransi s/d {(() => {
                 if (!attendance.shift_start) return '—';
                 const [h, m] = attendance.shift_start.split(':').map(Number);
@@ -316,11 +316,11 @@ export default function AttendanceScreen() {
           {alreadyCheckedIn && (
             <View style={{ flexDirection: 'row', gap: 20, marginTop: 6 }}>
               <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.65)' : '#6B7280' }}>
-                Check-in: <Text style={{ fontWeight: '600', color: isDark ? '#FFFFFF' : '#111111' }}>{formatTime(attendance?.check_in_at)}</Text>
+                Check-in: <Text style={{ fontWeight: '600', color: lPrimary(isDark) }}>{formatTime(attendance?.check_in_at)}</Text>
               </Text>
               {alreadyCheckedOut && (
                 <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.65)' : '#6B7280' }}>
-                  Check-out: <Text style={{ fontWeight: '600', color: isDark ? '#FFFFFF' : '#111111' }}>{formatTime(attendance?.check_out_at)}</Text>
+                  Check-out: <Text style={{ fontWeight: '600', color: lPrimary(isDark) }}>{formatTime(attendance?.check_out_at)}</Text>
                 </Text>
               )}
             </View>
@@ -358,16 +358,16 @@ export default function AttendanceScreen() {
               {/* Lock icon */}
               <View style={{
                 width: 72, height: 72, borderRadius: 36,
-                backgroundColor: isDark ? 'rgba(0,122,255,0.20)' : '#EFF6FF',
+                backgroundColor: isDark ? C.blue + '33' : C.blue + '14',
                 borderWidth: B.glass,
-                borderColor: isDark ? 'rgba(0,122,255,0.40)' : '#BFDBFE',
+                borderColor: isDark ? C.blue + '66' : C.blue + '40',
                 alignItems: 'center', justifyContent: 'center',
                 marginBottom: 18,
               }}>
-                <Lock size={32} strokeWidth={1.6} color="#007AFF" />
+                <Lock size={32} strokeWidth={1.6} color={C.blue} />
               </View>
 
-              <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#FFFFFF' : '#111111', marginBottom: 6, letterSpacing: -0.3 }}>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: lPrimary(isDark), marginBottom: 6, letterSpacing: -0.3 }}>
                 Face ID / Fingerprint
               </Text>
               <Text style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280', textAlign: 'center', marginBottom: 28 }}>
@@ -383,7 +383,7 @@ export default function AttendanceScreen() {
                   backgroundColor: 'rgba(0,122,255,0.90)',
                   borderWidth: B.glass, borderColor: 'rgba(0,122,255,0.60)',
                   alignItems: 'center', justifyContent: 'center',
-                  shadowColor: '#007AFF', shadowOffset: { width: 0, height: 6 },
+                  shadowColor: C.blue, shadowOffset: { width: 0, height: 6 },
                   shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
                   opacity: (uiState === 'verifying_biometric' || checkInMutation.isPending) ? 0.60 : 1,
                 }}
@@ -402,7 +402,7 @@ export default function AttendanceScreen() {
                 onPress={() => setUiState('show_pin')}
                 style={{ marginTop: 16 }}
               >
-                <Text style={{ fontSize: 15, color: '#007AFF' }}>
+                <Text style={{ fontSize: 15, color: C.blue }}>
                   Tidak bisa? Gunakan PIN 6 digit
                 </Text>
               </TouchableOpacity>
@@ -473,7 +473,7 @@ export default function AttendanceScreen() {
               ) : (
                 <Text style={{
                   fontSize: 17, fontWeight: '700',
-                  color: timer.canCheckout ? '#FFFFFF' : isDark ? 'rgba(255,255,255,0.30)' : '#9CA3AF',
+                  color: timer.canCheckout ? '#FFFFFF' : lTertiary(isDark),
                 }}>
                   {timer.canCheckout ? 'Check-Out Sekarang' : 'Menunggu 8 Jam...'}
                 </Text>
@@ -497,7 +497,7 @@ export default function AttendanceScreen() {
             <Text style={{ fontSize: 18, fontWeight: '700', color: C.green }}>
               Absensi Selesai
             </Text>
-            <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280', marginTop: 6 }}>
+            <Text style={{ fontSize: 14, color: lSecondary(isDark), marginTop: 6 }}>
               {formatTime(attendance?.check_in_at)} – {formatTime(attendance?.check_out_at)}
               {attendance?.overtime_minutes ? ` · Lembur ${attendance.overtime_minutes}m` : ''}
             </Text>
@@ -534,7 +534,7 @@ export default function AttendanceScreen() {
           />
 
           <View style={{
-            backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+            backgroundColor: cardBg(isDark),
             borderTopLeftRadius: 28, borderTopRightRadius: 28,
             padding: 24, paddingBottom: insets.bottom + 24,
             borderTopWidth: 0.5,
@@ -553,10 +553,10 @@ export default function AttendanceScreen() {
                 <Lock size={22} strokeWidth={1.8} color={C.orange} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#FFFFFF' : '#111111', letterSpacing: -0.3 }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.3 }}>
                   Anda Terlambat
                 </Text>
-                <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280', marginTop: 2 }}>
+                <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 2 }}>
                   {(() => {
                     const { lateMin } = computeIsLate();
                     return `${lateMin} menit melewati batas toleransi`;
@@ -597,12 +597,12 @@ export default function AttendanceScreen() {
                   ? (isDark ? 'rgba(0,122,255,0.45)' : 'rgba(0,122,255,0.35)')
                   : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)'),
                 padding: 12, fontSize: 15,
-                color: isDark ? '#FFFFFF' : '#111111',
+                color: lPrimary(isDark),
                 minHeight: 90,
                 marginBottom: 6,
               }}
             />
-            <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.30)' : '#9CA3AF', textAlign: 'right', marginBottom: 20 }}>
+            <Text style={{ fontSize: 11, color: lTertiary(isDark), textAlign: 'right', marginBottom: 20 }}>
               {lateNote.length}/300
             </Text>
 
@@ -626,7 +626,7 @@ export default function AttendanceScreen() {
               ) : (
                 <Text style={{
                   fontSize: 17, fontWeight: '700',
-                  color: lateNote.trim().length >= 5 ? '#FFFFFF' : (isDark ? 'rgba(255,255,255,0.25)' : '#9CA3AF'),
+                  color: lateNote.trim().length >= 5 ? '#FFFFFF' : lTertiary(isDark),
                 }}>
                   Kirim Absensi
                 </Text>

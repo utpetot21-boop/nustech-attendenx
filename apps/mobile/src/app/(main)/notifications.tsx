@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { C, R, B, T, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
+import { C, R, B, T, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NotifCardSkeleton } from '@/components/ui/SkeletonLoader';
 import {
@@ -264,15 +264,15 @@ export default function NotificationsScreen() {
                   flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
                   flexDirection: 'row', justifyContent: 'center', gap: 6,
                   backgroundColor: activeTab === tab.key
-                    ? isDark ? '#1E293B' : '#FFFFFF'
+                    ? cardBg(isDark)
                     : 'transparent',
                   shadowColor: activeTab === tab.key ? '#000' : 'transparent',
                   shadowOpacity: activeTab === tab.key ? 0.1 : 0,
                   shadowRadius: 6, elevation: activeTab === tab.key ? 3 : 0,
                 }}
               >
-                <tab.Icon size={15} strokeWidth={1.8} color={activeTab === tab.key ? C.blue : (isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF')} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === tab.key ? (isDark ? '#FFF' : '#0F172A') : (isDark ? 'rgba(255,255,255,0.5)' : '#6B7280') }}>
+                <tab.Icon size={15} strokeWidth={1.8} color={activeTab === tab.key ? C.blue : lTertiary(isDark)} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === tab.key ? lPrimary(isDark) : lSecondary(isDark) }}>
                   {tab.label}
                 </Text>
                 {tab.badge > 0 && (
@@ -350,17 +350,17 @@ export default function NotificationsScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                        <Text style={{ fontSize: 15, fontWeight: notif.is_read ? '500' : '700', color: isDark ? '#FFF' : '#0F172A', flex: 1, marginRight: 8 }} numberOfLines={1}>
+                        <Text style={{ fontSize: 15, fontWeight: notif.is_read ? '500' : '700', color: lPrimary(isDark), flex: 1, marginRight: 8 }} numberOfLines={1}>
                           {notif.title}
                         </Text>
                         {!notif.is_read && (
                           <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: C.blue, marginTop: 3 }} />
                         )}
                       </View>
-                      <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.6)' : '#64748B', marginTop: 3, lineHeight: 20 }} numberOfLines={2}>
+                      <Text style={{ fontSize: 14, color: lSecondary(isDark), marginTop: 3, lineHeight: 20 }} numberOfLines={2}>
                         {notif.body}
                       </Text>
-                      <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8', marginTop: 5 }}>
+                      <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 5 }}>
                         {new Date(notif.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} WITA
                       </Text>
                     </View>
@@ -448,14 +448,14 @@ export default function NotificationsScreen() {
                         <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: accentColor, marginTop: 2 }} />
                       )}
                     </View>
-                    <Text style={{ fontSize: 16, fontWeight: ann.is_read ? '600' : '700', color: isDark ? '#FFF' : '#0F172A', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 16, fontWeight: ann.is_read ? '600' : '700', color: lPrimary(isDark), marginBottom: 6 }}>
                       {ann.title}
                     </Text>
-                    <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.6)' : '#64748B', lineHeight: 20 }} numberOfLines={3}>
+                    <Text style={{ fontSize: 14, color: lSecondary(isDark), lineHeight: 20 }} numberOfLines={3}>
                       {ann.body}
                     </Text>
                     {ann.sent_at && (
-                      <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8', marginTop: 8 }}>
+                      <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 8 }}>
                         {new Date(ann.sent_at).toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'long', year: 'numeric' })}
                       </Text>
                     )}
@@ -521,7 +521,7 @@ export default function NotificationsScreen() {
                     alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  <X size={16} strokeWidth={2.2} color={isDark ? '#FFF' : '#0F172A'} />
+                  <X size={16} strokeWidth={2.2} color={lPrimary(isDark)} />
                 </TouchableOpacity>
               </View>
 
@@ -535,11 +535,11 @@ export default function NotificationsScreen() {
                   borderLeftWidth: 4, borderLeftColor: accentColor,
                   paddingLeft: 14, marginBottom: 20,
                 }}>
-                  <Text style={{ fontSize: 20, fontWeight: '800', color: isDark ? '#FFF' : '#0F172A', lineHeight: 28 }}>
+                  <Text style={{ fontSize: 20, fontWeight: '800', color: lPrimary(isDark), lineHeight: 28 }}>
                     {selectedAnn.title}
                   </Text>
                   {selectedAnn.sent_at && (
-                    <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.40)' : '#94A3B8', marginTop: 6 }}>
+                    <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 6 }}>
                       {new Date(selectedAnn.sent_at).toLocaleDateString('id-ID', {
                         timeZone: 'Asia/Makassar',
                         weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',

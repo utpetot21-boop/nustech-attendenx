@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, R, B, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
+import { C, R, B, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { ScheduleWeekSkeleton } from '@/components/ui/SkeletonLoader';
 import { useQuery } from '@tanstack/react-query';
@@ -66,7 +66,7 @@ function scheduleToEvent(s: UserSchedule) {
     subtitle: `Toleransi ${s.tolerance_minutes} menit`,
     time_start: s.start_time,
     time_end: s.end_time,
-    color: s.shift_type?.color_hex ?? '#007AFF',
+    color: s.shift_type?.color_hex ?? C.blue,
   };
 }
 
@@ -195,7 +195,7 @@ export default function ScheduleScreen() {
           subtitle={viewMode === 'month'
             ? `${MONTHS_ID[m - 1]} ${y}`
             : `${weekDates[0].slice(5).replace('-', '/')} – ${weekDates[6].slice(5).replace('-', '/')}`}
-          accentColor="#AF52DE"
+          accentColor={C.purple}
         />
 
         {/* Toolbar nav + segmented */}
@@ -218,7 +218,7 @@ export default function ScheduleScreen() {
                 borderRadius: 11,
                 alignItems: 'center',
                 backgroundColor: viewMode === mode
-                  ? isDark ? '#1E293B' : '#FFFFFF'
+                  ? cardBg(isDark)
                   : 'transparent',
                 ...(viewMode === mode ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 6, elevation: 3 } : {}),
               }}
@@ -227,8 +227,8 @@ export default function ScheduleScreen() {
                 fontSize: 14,
                 fontWeight: viewMode === mode ? '700' : '500',
                 color: viewMode === mode
-                  ? isDark ? '#FFFFFF' : '#0F172A'
-                  : isDark ? 'rgba(255,255,255,0.50)' : '#64748B',
+                  ? lPrimary(isDark)
+                  : lSecondary(isDark),
               }}>
                 {VIEW_LABELS[mode]}
               </Text>
@@ -286,7 +286,7 @@ export default function ScheduleScreen() {
                     <Text key={d} style={{
                       flex: 1, textAlign: 'center',
                       fontSize: 11, fontWeight: '600',
-                      color: isDark ? 'rgba(255,255,255,0.40)' : '#9CA3AF',
+                      color: lTertiary(isDark),
                       textTransform: 'uppercase',
                     }}>{d}</Text>
                   ))}
@@ -324,15 +324,15 @@ export default function ScheduleScreen() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           backgroundColor: isSelected
-                            ? '#007AFF'
+                            ? C.blue
                             : isToday
-                            ? isDark ? 'rgba(0,122,255,0.25)' : 'rgba(0,122,255,0.10)'
+                            ? isDark ? C.blue + '40' : C.blue + '1A'
                             : 'transparent',
                         }}>
                           <Text style={{
                             fontSize: 14,
                             fontWeight: isToday || isSelected ? '700' : '400',
-                            color: isSelected ? '#FFFFFF' : isToday ? '#007AFF' : isDark ? '#FFFFFF' : '#111111',
+                            color: isSelected ? '#FFFFFF' : isToday ? C.blue : lPrimary(isDark),
                           }}>
                             {dayNum}
                           </Text>
@@ -375,7 +375,7 @@ export default function ScheduleScreen() {
               ].map((item) => (
                 <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
-                  <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280' }}>
+                  <Text style={{ fontSize: 11, color: lSecondary(isDark) }}>
                     {item.label}
                   </Text>
                 </View>
