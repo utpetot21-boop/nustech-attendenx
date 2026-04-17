@@ -53,7 +53,6 @@ function getWeekString(offset = 0): string {
 
 const DAY_LABELS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 const DAYS_MAP   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const TABS = ['Konfigurasi', 'Assign Jadwal', 'Hari Libur'];
 const ALL_DAYS_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const ALL_DAYS_LABEL: Record<string, string> = { Mon: 'Sen', Tue: 'Sel', Wed: 'Rab', Thu: 'Kam', Fri: 'Jum', Sat: 'Sab', Sun: 'Min' };
 const _now  = new Date();
@@ -223,7 +222,6 @@ function GenerateShiftModal({
 
 // ── Page ───────────────────────────────────────────────────────
 export default function SchedulePage() {
-  const [activeTab, setActiveTab]     = useState(0);
   const [weekOffset, setWeekOffset]   = useState(0);
   const [showForm, setShowForm]       = useState(false);
   const [editShift, setEditShift]     = useState<ShiftType | null>(null);
@@ -268,7 +266,6 @@ export default function SchedulePage() {
   const { data: teamSchedule = [] } = useQuery({
     queryKey: ['team-schedule', weekStr],
     queryFn: () => apiClient.get(`/schedules/team?week=${weekStr}`).then(r => r.data),
-    enabled: activeTab === 1,
   });
 
   const { data: allUsers = [] } = useQuery<any[]>({
@@ -280,23 +277,21 @@ export default function SchedulePage() {
     }),
   });
 
-  // Holidays untuk tab Assign Jadwal
+  // Holidays untuk grid assign (mengikuti minggu yang aktif)
   const { data: weekHolidays1 = [] } = useQuery<any[]>({
     queryKey: ['holidays', weekYear1],
     queryFn: () => apiClient.get(`/schedules/holidays?year=${weekYear1}`).then(r => r.data),
-    enabled: activeTab === 1,
   });
   const { data: weekHolidays2 = [] } = useQuery<any[]>({
     queryKey: ['holidays', weekYear2],
     queryFn: () => apiClient.get(`/schedules/holidays?year=${weekYear2}`).then(r => r.data),
-    enabled: activeTab === 1 && weekSpansYears,
+    enabled: weekSpansYears,
   });
 
-  // Holidays untuk tab Hari Libur
+  // Holidays untuk section Hari Libur (mengikuti tahun dipilih)
   const { data: holidays = [] } = useQuery<any[]>({
     queryKey: ['holidays', year],
     queryFn: () => apiClient.get(`/schedules/holidays?year=${year}`).then(r => r.data),
-    enabled: activeTab === 2,
   });
 
   // ── Mutations ─────────────────────────────────────────────────
@@ -493,501 +488,516 @@ export default function SchedulePage() {
         <StatCard icon={RotateCcw}    label="Karyawan Shift"   value={shiftUsers.length} color="text-[#FF9500]"  bg="bg-[#FF9500]/10" />
       </div>
 
-      {/* Tabs */}
-      <div className="px-4 sm:px-6 mb-4">
-        <div className="flex gap-1 bg-black/[0.06] dark:bg-white/[0.08] rounded-[12px] p-1 w-fit">
-          {TABS.map((tab, i) => (
-            <button key={tab} onClick={() => setActiveTab(i)}
-              className={`px-4 py-1.5 rounded-[10px] text-sm font-medium transition-all ${
-                activeTab === i
-                  ? 'bg-white dark:bg-white/[0.15] text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-white/50 hover:text-gray-700 dark:hover:text-white/70'
-              }`}>
-              {tab}
+      {/* Week Navigator (global — berlaku untuk grid Office Hours & Shift) */}
+      <div className="px-4 sm:px-6 mb-5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mr-1">Minggu Aktif</span>
+          <button onClick={() => setWeekOffset(w => w - 1)}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/[0.10] transition">
+            <ChevronLeft size={16} />
+          </button>
+          <div className="bg-white dark:bg-white/[0.06] rounded-xl border border-black/[0.05] dark:border-white/[0.08] px-4 py-2 text-sm font-medium text-gray-700 dark:text-white/80 min-w-[200px] text-center">
+            {formatWeekLabel()}
+          </div>
+          <button onClick={() => setWeekOffset(w => w + 1)}
+            className="w-9 h-9 flex items-center justify-center rounded-xl border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/[0.10] transition">
+            <ChevronRight size={16} />
+          </button>
+          {weekOffset !== 0 && (
+            <button onClick={() => setWeekOffset(0)}
+              className="text-xs text-[#007AFF] hover:underline px-1 font-medium">
+              Minggu ini
             </button>
-          ))}
+          )}
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 pb-8">
+      <div className="px-4 sm:px-6 pb-8 space-y-8">
 
-        {/* ── TAB 0: Konfigurasi ─────────────────────────────────── */}
-        {activeTab === 0 && (
-          <div className="space-y-6">
+        {/* ═════════════════════════════════════════════════════════
+            SECTION 1 — OFFICE HOURS
+           ═════════════════════════════════════════════════════════ */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[10px] bg-[#AF52DE]/10 flex items-center justify-center">
+              <Building2 size={16} strokeWidth={2} className="text-[#AF52DE]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">Office Hours</h2>
+              <p className="text-[11px] text-gray-400 dark:text-white/40">Jam kerja kantor untuk karyawan tetap</p>
+            </div>
+          </div>
 
-            {/* Office Hours Config */}
-            <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.05] dark:border-white/[0.06]">
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Konfigurasi Office Hours</h2>
-                  <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Jam kerja berlaku untuk semua karyawan bertipe Office Hours</p>
-                </div>
-                {!ohEditing && (
-                  <button
-                    onClick={() => {
-                      setOhForm({
-                        start_time: ohConfig?.start_time ?? '08:00',
-                        end_time: ohConfig?.end_time ?? '16:00',
-                        work_days: ohConfig?.work_days ?? ['Mon','Tue','Wed','Thu','Fri','Sat'],
-                        tolerance_minutes: ohConfig?.tolerance_minutes ?? 15,
-                      });
-                      setOhFormError('');
-                      setOhEditing(true);
-                    }}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold text-[#007AFF] bg-[#007AFF]/10 hover:bg-[#007AFF]/20 transition">
-                    <Pencil size={12} /> Edit
-                  </button>
-                )}
+          {/* Konfigurasi Office Hours */}
+          <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.05] dark:border-white/[0.06]">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Konfigurasi Jam Kerja</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Berlaku untuk semua karyawan bertipe Office Hours</p>
               </div>
+              {!ohEditing && (
+                <button
+                  onClick={() => {
+                    setOhForm({
+                      start_time: ohConfig?.start_time ?? '08:00',
+                      end_time: ohConfig?.end_time ?? '16:00',
+                      work_days: ohConfig?.work_days ?? ['Mon','Tue','Wed','Thu','Fri','Sat'],
+                      tolerance_minutes: ohConfig?.tolerance_minutes ?? 15,
+                    });
+                    setOhFormError('');
+                    setOhEditing(true);
+                  }}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold text-[#007AFF] bg-[#007AFF]/10 hover:bg-[#007AFF]/20 transition">
+                  <Pencil size={12} /> Edit
+                </button>
+              )}
+            </div>
 
-              {!ohEditing ? (
-                !ohConfig ? (
-                  <div className="px-5 py-8 text-center">
-                    <p className="text-sm text-gray-400 dark:text-white/40 mb-3">Belum ada konfigurasi Office Hours</p>
-                    <button onClick={() => { setOhFormError(''); setOhEditing(true); }}
-                      className="h-9 px-4 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] transition">
-                      Atur Sekarang
-                    </button>
-                  </div>
-                ) : (
-                  <div className="px-5 py-4 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 dark:text-white/50">Jam Kerja</span>
-                      <span className="font-medium text-gray-800 dark:text-white">
-                        {ohConfig.start_time.slice(0,5)} – {ohConfig.end_time.slice(0,5)} · Toleransi {ohConfig.tolerance_minutes} menit
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-500 dark:text-white/50">Hari Kerja</span>
-                      <div className="flex gap-1">
-                        {ALL_DAYS_ORDER.map(d => (
-                          <span key={d} className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                            ohConfig.work_days.includes(d)
-                              ? 'bg-[#EFF6FF] dark:bg-[#007AFF]/15 text-[#007AFF]'
-                              : 'bg-gray-100 dark:bg-white/[0.06] text-gray-400 dark:text-white/30'
-                          }`}>
-                            {ALL_DAYS_LABEL[d]}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )
+            {!ohEditing ? (
+              !ohConfig ? (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-sm text-gray-400 dark:text-white/40 mb-3">Belum ada konfigurasi Office Hours</p>
+                  <button onClick={() => { setOhFormError(''); setOhEditing(true); }}
+                    className="h-9 px-4 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] transition">
+                    Atur Sekarang
+                  </button>
+                </div>
               ) : (
-                <div className="px-5 py-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">Jam Masuk</label>
-                      <input type="time" value={ohForm.start_time}
-                        onChange={e => setOhForm(f => ({ ...f, start_time: e.target.value }))}
-                        className="w-full h-10 px-3 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF]" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">Jam Pulang</label>
-                      <input type="time" value={ohForm.end_time}
-                        onChange={e => setOhForm(f => ({ ...f, end_time: e.target.value }))}
-                        className="w-full h-10 px-3 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF]" />
-                    </div>
+                <div className="px-5 py-4 space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-white/50">Jam Kerja</span>
+                    <span className="font-medium text-gray-800 dark:text-white">
+                      {ohConfig.start_time.slice(0,5)} – {ohConfig.end_time.slice(0,5)} · Toleransi {ohConfig.tolerance_minutes} menit
+                    </span>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-2">Hari Kerja</label>
-                    <div className="flex gap-2 flex-wrap">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500 dark:text-white/50">Hari Kerja</span>
+                    <div className="flex gap-1">
                       {ALL_DAYS_ORDER.map(d => (
-                        <button key={d} type="button"
-                          onClick={() => setOhForm(f => ({
-                            ...f,
-                            work_days: f.work_days.includes(d) ? f.work_days.filter(x => x !== d) : [...f.work_days, d],
-                          }))}
-                          className={`w-10 h-9 rounded-xl text-xs font-semibold border transition-colors ${
-                            ohForm.work_days.includes(d)
-                              ? 'bg-[#007AFF] text-white border-[#007AFF]'
-                              : 'bg-white dark:bg-white/[0.06] text-gray-500 dark:text-white/50 border-black/10 dark:border-white/[0.12] hover:border-[#007AFF]'
-                          }`}>
+                        <span key={d} className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                          ohConfig.work_days.includes(d)
+                            ? 'bg-[#EFF6FF] dark:bg-[#007AFF]/15 text-[#007AFF]'
+                            : 'bg-gray-100 dark:bg-white/[0.06] text-gray-400 dark:text-white/30'
+                        }`}>
                           {ALL_DAYS_LABEL[d]}
-                        </button>
+                        </span>
                       ))}
                     </div>
                   </div>
-                  <div className="w-44">
-                    <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">Toleransi (menit)</label>
-                    <input type="number" min={0} max={120} value={ohForm.tolerance_minutes}
-                      onChange={e => setOhForm(f => ({ ...f, tolerance_minutes: Number(e.target.value) }))}
+                </div>
+              )
+            ) : (
+              <div className="px-5 py-4 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">Jam Masuk</label>
+                    <input type="time" value={ohForm.start_time}
+                      onChange={e => setOhForm(f => ({ ...f, start_time: e.target.value }))}
                       className="w-full h-10 px-3 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF]" />
                   </div>
-                  <p className="text-xs text-gray-400 dark:text-white/40">Durasi harus tepat 8 jam. Contoh: 08:00 – 16:00</p>
-                  {ohFormError && <p className="text-xs text-[#FF3B30]">{ohFormError}</p>}
-                  <div className="flex gap-3">
-                    <button onClick={() => setOhEditing(false)}
-                      className="h-10 px-5 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] text-gray-700 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition">
-                      Batal
-                    </button>
-                    <button
-                      onClick={() => saveOhConfig.mutate({ ...ohForm, effective_date: new Date().toISOString().split('T')[0] })}
-                      disabled={saveOhConfig.isPending}
-                      className="h-10 px-5 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-50 transition">
-                      {saveOhConfig.isPending ? 'Menyimpan...' : 'Simpan'}
-                    </button>
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">Jam Pulang</label>
+                    <input type="time" value={ohForm.end_time}
+                      onChange={e => setOhForm(f => ({ ...f, end_time: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF]" />
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Tipe Shift */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Tipe Shift</h2>
-                  <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Shift kerja yang dapat di-assign ke karyawan</p>
-                </div>
-                {!showForm && !editShift && (
-                  <button onClick={() => setShowForm(true)}
-                    className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] transition">
-                    <Plus size={15} /> Tambah Shift
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {shifts.map(shift => (
-                  <div key={shift.id} className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: shift.color_hex }} />
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{shift.name}</span>
-                      </div>
-                      {deleteShiftId === shift.id ? (
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => deleteShift.mutate(shift.id)}
-                            disabled={deleteShift.isPending}
-                            className="text-xs px-2 py-1 rounded-xl text-white bg-[#FF3B30] hover:bg-[#D63529] disabled:opacity-50 transition">
-                            Hapus
-                          </button>
-                          <button onClick={() => setDeleteShiftId(null)}
-                            className="text-xs px-2 py-1 rounded-xl text-gray-500 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition">
-                            Batal
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-1">
-                          <button onClick={() => setEditShift(shift)}
-                            className="w-7 h-7 flex items-center justify-center rounded-xl text-[#007AFF] hover:bg-[#007AFF]/10 transition">
-                            <Pencil size={13} />
-                          </button>
-                          <button onClick={() => setDeleteShiftId(shift.id)}
-                            className="w-7 h-7 flex items-center justify-center rounded-xl text-[#FF3B30] hover:bg-[#FF3B30]/10 transition">
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500 dark:text-white/50">Jam</span>
-                        <span className="font-medium text-gray-800 dark:text-white">
-                          {shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500 dark:text-white/50">Durasi</span>
-                        <span className="flex items-center gap-1 text-[#34C759] font-medium">
-                          <CheckCircle2 size={12} /> 8 jam
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500 dark:text-white/50">Toleransi</span>
-                        <span className="text-gray-800 dark:text-white">{shift.tolerance_minutes} menit</span>
-                      </div>
-                    </div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-2">Hari Kerja</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {ALL_DAYS_ORDER.map(d => (
+                      <button key={d} type="button"
+                        onClick={() => setOhForm(f => ({
+                          ...f,
+                          work_days: f.work_days.includes(d) ? f.work_days.filter(x => x !== d) : [...f.work_days, d],
+                        }))}
+                        className={`w-10 h-9 rounded-xl text-xs font-semibold border transition-colors ${
+                          ohForm.work_days.includes(d)
+                            ? 'bg-[#007AFF] text-white border-[#007AFF]'
+                            : 'bg-white dark:bg-white/[0.06] text-gray-500 dark:text-white/50 border-black/10 dark:border-white/[0.12] hover:border-[#007AFF]'
+                        }`}>
+                        {ALL_DAYS_LABEL[d]}
+                      </button>
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div className="w-44">
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/40 mb-1.5">Toleransi (menit)</label>
+                  <input type="number" min={0} max={120} value={ohForm.tolerance_minutes}
+                    onChange={e => setOhForm(f => ({ ...f, tolerance_minutes: Number(e.target.value) }))}
+                    className="w-full h-10 px-3 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF]" />
+                </div>
+                <p className="text-xs text-gray-400 dark:text-white/40">Durasi harus tepat 8 jam. Contoh: 08:00 – 16:00</p>
+                {ohFormError && <p className="text-xs text-[#FF3B30]">{ohFormError}</p>}
+                <div className="flex gap-3">
+                  <button onClick={() => setOhEditing(false)}
+                    className="h-10 px-5 rounded-xl text-sm border border-black/10 dark:border-white/[0.12] text-gray-700 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition">
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => saveOhConfig.mutate({ ...ohForm, effective_date: new Date().toISOString().split('T')[0] })}
+                    disabled={saveOhConfig.isPending}
+                    className="h-10 px-5 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-50 transition">
+                    {saveOhConfig.isPending ? 'Menyimpan...' : 'Simpan'}
+                  </button>
+                </div>
               </div>
-
-              {showForm && (
-                <div className="mt-4">
-                  <ShiftConfigurator
-                    onSubmit={data => createShift.mutate(data)}
-                    onCancel={() => setShowForm(false)}
-                    loading={createShift.isPending}
-                  />
-                </div>
-              )}
-              {editShift && (
-                <div className="mt-4">
-                  <ShiftConfigurator
-                    initial={editShift}
-                    onSubmit={data => updateShift.mutate({ id: editShift.id, data })}
-                    onCancel={() => setEditShift(null)}
-                    loading={updateShift.isPending}
-                  />
-                </div>
-              )}
-            </div>
+            )}
           </div>
-        )}
 
-        {/* ── TAB 1: Assign Jadwal ───────────────────────────────── */}
-        {activeTab === 1 && (
-          <div className="space-y-6">
-
-            {/* Week navigation */}
-            <div className="flex items-center gap-2">
-              <button onClick={() => setWeekOffset(w => w - 1)}
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/[0.10] transition">
-                <ChevronLeft size={16} />
-              </button>
-              <div className="bg-white dark:bg-white/[0.06] rounded-xl border border-black/[0.05] dark:border-white/[0.08] px-4 py-2 text-sm font-medium text-gray-700 dark:text-white/80 min-w-[200px] text-center">
-                {formatWeekLabel()}
+          {/* Assign Jadwal Office Hours */}
+          <div>
+            <div className="flex items-start justify-between mb-3 gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Assign Jadwal</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">
+                  {ohUsers.length} karyawan · Hari kerja: {workDays.map(d => ALL_DAYS_LABEL[d] ?? d).join(', ')} · Libur pada hari libur nasional
+                </p>
               </div>
-              <button onClick={() => setWeekOffset(w => w + 1)}
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/[0.10] transition">
-                <ChevronRight size={16} />
-              </button>
-              {weekOffset !== 0 && (
-                <button onClick={() => setWeekOffset(0)}
-                  className="text-xs text-[#007AFF] hover:underline px-1 font-medium">
-                  Minggu ini
+              <div className="flex gap-2 flex-shrink-0">
+                <button
+                  onClick={() => generateOHWeek.mutate()}
+                  disabled={generateOHWeek.isPending || generateOHMonth.isPending}
+                  className="h-9 px-3 rounded-xl text-xs font-semibold text-[#007AFF] bg-[#007AFF]/10 hover:bg-[#007AFF]/20 disabled:opacity-50 transition">
+                  {generateOHWeek.isPending ? 'Generating...' : 'Generate Minggu Ini'}
                 </button>
-              )}
-            </div>
-
-            {/* Office Hours Section */}
-            <div>
-              <div className="flex items-start justify-between mb-3 gap-4">
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Office Hours</h2>
-                  <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">
-                    {ohUsers.length} karyawan · Hari kerja: {workDays.map(d => ALL_DAYS_LABEL[d] ?? d).join(', ')} · Libur pada hari libur nasional
-                  </p>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => generateOHWeek.mutate()}
-                    disabled={generateOHWeek.isPending || generateOHMonth.isPending}
-                    className="h-9 px-3 rounded-xl text-xs font-semibold text-[#007AFF] bg-[#007AFF]/10 hover:bg-[#007AFF]/20 disabled:opacity-50 transition">
-                    {generateOHWeek.isPending ? 'Generating...' : 'Generate Minggu Ini'}
-                  </button>
-                  <button
-                    onClick={() => generateOHMonth.mutate()}
-                    disabled={generateOHWeek.isPending || generateOHMonth.isPending}
-                    className="h-9 px-3 rounded-xl text-xs font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-50 transition">
-                    {generateOHMonth.isPending ? 'Generating...' : `Generate Bulan Ini`}
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden overflow-x-auto">
-                <GridHeader />
-                {ohUsers.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-gray-400 dark:text-white/40">
-                    Tidak ada karyawan bertipe Office Hours
-                  </div>
-                ) : (
-                  ohUsers.map((user, ui) => (
-                    <div key={user.id}
-                      className={`grid ${ui < ohUsers.length - 1 ? 'border-b border-black/[0.04] dark:border-white/[0.06]' : ''}`}
-                      style={{ gridTemplateColumns: '180px repeat(7, 1fr)' }}>
-                      <div className="px-4 py-2.5 flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-[#F0FDF4] dark:bg-[#34C759]/15 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[11px] font-bold text-[#15803D] dark:text-[#86EFAC]">
-                            {user.full_name?.charAt(0)}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-gray-800 dark:text-white truncate">{user.full_name}</p>
-                          <p className="text-[10px] text-gray-400 dark:text-white/40">{user.employee_id}</p>
-                        </div>
-                      </div>
-                      {weekDates.map(date => {
-                        const entry = scheduleByUser.get(user.id)?.[date];
-                        const isHoliday = holidayDates.has(date);
-                        const notGenerated = !entry;
-                        const isDayOff  = entry ? entry.is_day_off : !workDays.includes(DAYS_MAP[parseLocalDate(date).getDay()]);
-                        const cellType  = isHoliday ? 'national_holiday' : isDayOff ? 'day_off' : notGenerated ? 'not_generated' : 'work';
-                        const isToday   = date === TODAY;
-                        return (
-                          <div key={date}
-                            onClick={() => setOhActiveCell({ userId: user.id, date, userName: user.full_name, cellType: cellType as 'work' | 'day_off' | 'national_holiday' })}
-                            title="Klik untuk override jadwal"
-                            className={`flex items-center justify-center py-2.5 transition-colors cursor-pointer ${
-                              isToday ? 'bg-[#EFF6FF]/40 dark:bg-[#007AFF]/[0.06]' : ''
-                            } hover:bg-gray-100/60 dark:hover:bg-white/[0.04]`}>
-                            {cellType === 'national_holiday' ? (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FEF2F2] dark:bg-[#FF3B30]/15 text-[#DC2626] dark:text-[#FCA5A5] border border-[#FECACA] dark:border-[#FF3B30]/30">
-                                Libur
-                              </span>
-                            ) : cellType === 'day_off' ? (
-                              <span className="text-[11px] text-gray-300 dark:text-white/20">—</span>
-                            ) : cellType === 'not_generated' ? (
-                              <span className="text-[11px] text-gray-200 dark:text-white/15">·</span>
-                            ) : (
-                              <span className="text-[10px] font-medium text-[#15803D] dark:text-[#86EFAC]">Kerja</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Legend */}
-              <div className="flex flex-wrap items-center gap-4 mt-2 px-1">
-                {[
-                  { label: 'Kerja', sub: '= hari kerja · klik → tandai libur', cls: 'text-[10px] font-medium text-[#15803D]' },
-                  { label: '—', sub: '= libur mingguan · klik → paksa masuk', cls: 'text-[10px] text-gray-300' },
-                ].map(({ label, sub, cls }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <span className={cls}>{label}</span>
-                    <span className="text-[10px] text-gray-400">{sub}</span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]">Libur</span>
-                  <span className="text-[10px] text-gray-400">= libur nasional · klik untuk force override</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Shift Section */}
-            <div>
-              <div className="flex items-start justify-between mb-3 gap-4">
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Shift</h2>
-                  <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">
-                    {shiftUsers.length} karyawan · Klik sel untuk assign atau ganti shift · Tidak dipengaruhi hari libur nasional
-                  </p>
-                </div>
-                {shifts.length > 0 && shiftUsers.length > 0 && (
-                  <button
-                    onClick={() => setShowGenerateShift(true)}
-                    className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold text-white bg-[#FF9500] hover:bg-[#E08600] flex-shrink-0 transition">
-                    <Zap size={13} /> Generate Shift
-                  </button>
-                )}
-              </div>
-
-              <AssignmentGrid
-                weekDates={weekDates}
-                rows={shiftRows}
-                shiftTypes={shifts}
-                onAssign={(userId, date, shiftTypeId) =>
-                  assignShift.mutate({ user_id: userId, shift_type_id: shiftTypeId, date })
-                }
-                onRemove={(userId, date) => unassignShift.mutate({ user_id: userId, date })}
-                onMarkDayOff={(userId, date) => markShiftDayOff.mutate({ user_id: userId, date })}
-                loading={assignShift.isPending || unassignShift.isPending || markShiftDayOff.isPending}
-              />
-
-              {/* Legend */}
-              <div className="flex flex-wrap items-center gap-4 mt-2 px-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-gray-200 text-sm font-light">+</span>
-                  <span className="text-[10px] text-gray-400">= belum ada jadwal, klik untuk assign</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex flex-col items-center px-2 py-0.5 rounded-lg" style={{ backgroundColor: '#007AFF22', borderLeft: '3px solid #007AFF' }}>
-                    <span className="text-[10px] font-semibold text-[#007AFF] leading-tight">Pagi</span>
-                    <span className="text-[9px] text-gray-500 tabular-nums leading-tight">08:00</span>
-                  </div>
-                  <span className="text-[10px] text-gray-400">= klik untuk ganti atau hapus</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex flex-col items-center px-2 py-0.5 rounded-lg" style={{ backgroundColor: '#FF3B3022', borderLeft: '3px solid #FF3B30' }}>
-                    <span className="text-[10px] font-semibold text-[#FF3B30] leading-tight">Libur</span>
-                  </div>
-                  <span className="text-[10px] text-gray-400">= hari libur shift, klik untuk assign</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── TAB 2: Hari Libur ──────────────────────────────────── */}
-        {activeTab === 2 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <button onClick={() => setHolidayYear(y => y - 1)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/[0.10] transition">
-                  <ChevronLeft size={15} />
+                <button
+                  onClick={() => generateOHMonth.mutate()}
+                  disabled={generateOHWeek.isPending || generateOHMonth.isPending}
+                  className="h-9 px-3 rounded-xl text-xs font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-50 transition">
+                  {generateOHMonth.isPending ? 'Generating...' : `Generate Bulan Ini`}
                 </button>
-                <span className="text-base font-bold text-gray-900 dark:text-white w-14 text-center">{year}</span>
-                <button onClick={() => setHolidayYear(y => y + 1)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/[0.10] transition">
-                  <ChevronRight size={15} />
-                </button>
-                <span className="text-xs text-gray-400 dark:text-white/40 ml-1">
-                  · {(holidays as any[]).filter(h => h.is_active).length} hari libur
-                </span>
               </div>
-              <button onClick={() => setShowAddHoliday(true)}
-                className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] transition">
-                <Plus size={15} /> Tambah Hari Libur
-              </button>
             </div>
 
-            <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden">
-              {holidays.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center mx-auto mb-4">
-                    <CalendarDays size={28} className="text-gray-300 dark:text-white/20" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-white/40">Belum ada hari libur nasional</p>
-                  <p className="text-xs text-gray-400 dark:text-white/25 mt-1">Klik "+ Tambah Hari Libur" untuk menambahkan</p>
+            <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden overflow-x-auto">
+              <GridHeader />
+              {ohUsers.length === 0 ? (
+                <div className="py-8 text-center text-sm text-gray-400 dark:text-white/40">
+                  Tidak ada karyawan bertipe Office Hours
                 </div>
               ) : (
-                (holidays as any[]).map((h, i) => (
-                  <div key={h.id}
-                    className={`flex items-center justify-between px-5 py-3.5 ${i !== holidays.length - 1 ? 'border-b border-black/[0.04] dark:border-white/[0.06]' : ''}`}>
-                    <div className="flex items-center gap-4">
-                      <div className="text-center min-w-[44px]">
-                        <p className="text-[11px] font-semibold uppercase text-gray-400 dark:text-white/40">
-                          {parseLocalDate(h.date).toLocaleDateString('id-ID', { month: 'short' })}
-                        </p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
-                          {parseLocalDate(h.date).getDate()}
-                        </p>
+                ohUsers.map((user, ui) => (
+                  <div key={user.id}
+                    className={`grid ${ui < ohUsers.length - 1 ? 'border-b border-black/[0.04] dark:border-white/[0.06]' : ''}`}
+                    style={{ gridTemplateColumns: '180px repeat(7, 1fr)' }}>
+                    <div className="px-4 py-2.5 flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-[#F0FDF4] dark:bg-[#34C759]/15 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[11px] font-bold text-[#15803D] dark:text-[#86EFAC]">
+                          {user.full_name?.charAt(0)}
+                        </span>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{h.name}</p>
-                        <p className="text-xs text-gray-400 dark:text-white/40">
-                          {parseLocalDate(h.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                        </p>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-800 dark:text-white truncate">{user.full_name}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-white/40">{user.employee_id}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${
-                        h.is_active
-                          ? 'bg-[#F0FDF4] dark:bg-[#34C759]/12 text-[#15803D] dark:text-[#86EFAC] border-[#BBF7D0] dark:border-[#34C759]/30'
-                          : 'bg-gray-100 dark:bg-white/[0.06] text-gray-500 dark:text-white/40 border-transparent'
-                      }`}>
-                        {h.is_active ? 'Aktif' : 'Nonaktif'}
-                      </span>
-                      {deleteHolidayId === h.id ? (
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => deleteHoliday.mutate(h.id)}
-                            disabled={deleteHoliday.isPending}
-                            className="text-xs px-2 py-1 rounded-xl text-white bg-[#FF3B30] hover:bg-[#D63529] disabled:opacity-50 transition">
-                            Hapus
-                          </button>
-                          <button onClick={() => setDeleteHolidayId(null)}
-                            className="text-xs px-2 py-1 rounded-xl text-gray-500 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition">
-                            Batal
-                          </button>
+                    {weekDates.map(date => {
+                      const entry = scheduleByUser.get(user.id)?.[date];
+                      const isHoliday = holidayDates.has(date);
+                      const notGenerated = !entry;
+                      const isDayOff  = entry ? entry.is_day_off : !workDays.includes(DAYS_MAP[parseLocalDate(date).getDay()]);
+                      const cellType  = isHoliday ? 'national_holiday' : isDayOff ? 'day_off' : notGenerated ? 'not_generated' : 'work';
+                      const isToday   = date === TODAY;
+                      return (
+                        <div key={date}
+                          onClick={() => setOhActiveCell({ userId: user.id, date, userName: user.full_name, cellType: cellType as 'work' | 'day_off' | 'national_holiday' })}
+                          title="Klik untuk override jadwal"
+                          className={`flex items-center justify-center py-2.5 transition-colors cursor-pointer ${
+                            isToday ? 'bg-[#EFF6FF]/40 dark:bg-[#007AFF]/[0.06]' : ''
+                          } hover:bg-gray-100/60 dark:hover:bg-white/[0.04]`}>
+                          {cellType === 'national_holiday' ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FEF2F2] dark:bg-[#FF3B30]/15 text-[#DC2626] dark:text-[#FCA5A5] border border-[#FECACA] dark:border-[#FF3B30]/30">
+                              Libur
+                            </span>
+                          ) : cellType === 'day_off' ? (
+                            <span className="text-[11px] text-gray-300 dark:text-white/20">—</span>
+                          ) : cellType === 'not_generated' ? (
+                            <span className="text-[11px] text-gray-200 dark:text-white/15">·</span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-[#15803D] dark:text-[#86EFAC]">Kerja</span>
+                          )}
                         </div>
-                      ) : (
-                        <button onClick={() => setDeleteHolidayId(h.id)}
-                          className="w-8 h-8 flex items-center justify-center rounded-xl text-[#FF3B30] hover:bg-[#FF3B30]/10 transition">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
                 ))
               )}
             </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-4 mt-2 px-1">
+              {[
+                { label: 'Kerja', sub: '= hari kerja · klik → tandai libur', cls: 'text-[10px] font-medium text-[#15803D]' },
+                { label: '—', sub: '= libur mingguan · klik → paksa masuk', cls: 'text-[10px] text-gray-300' },
+              ].map(({ label, sub, cls }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <span className={cls}>{label}</span>
+                  <span className="text-[10px] text-gray-400">{sub}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]">Libur</span>
+                <span className="text-[10px] text-gray-400">= libur nasional · klik untuk force override</span>
+              </div>
+            </div>
           </div>
-        )}
+        </section>
+
+        {/* ═════════════════════════════════════════════════════════
+            SECTION 2 — SHIFT
+           ═════════════════════════════════════════════════════════ */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[10px] bg-[#FF9500]/10 flex items-center justify-center">
+              <RotateCcw size={16} strokeWidth={2} className="text-[#FF9500]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">Shift</h2>
+              <p className="text-[11px] text-gray-400 dark:text-white/40">Jadwal shift bergilir untuk karyawan lapangan</p>
+            </div>
+          </div>
+
+          {/* Tipe Shift */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Tipe Shift</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Shift kerja yang dapat di-assign ke karyawan</p>
+              </div>
+              {!showForm && !editShift && (
+                <button onClick={() => setShowForm(true)}
+                  className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] transition">
+                  <Plus size={15} /> Tambah Shift
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {shifts.map(shift => (
+                <div key={shift.id} className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: shift.color_hex }} />
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{shift.name}</span>
+                    </div>
+                    {deleteShiftId === shift.id ? (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => deleteShift.mutate(shift.id)}
+                          disabled={deleteShift.isPending}
+                          className="text-xs px-2 py-1 rounded-xl text-white bg-[#FF3B30] hover:bg-[#D63529] disabled:opacity-50 transition">
+                          Hapus
+                        </button>
+                        <button onClick={() => setDeleteShiftId(null)}
+                          className="text-xs px-2 py-1 rounded-xl text-gray-500 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition">
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1">
+                        <button onClick={() => setEditShift(shift)}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl text-[#007AFF] hover:bg-[#007AFF]/10 transition">
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => setDeleteShiftId(shift.id)}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl text-[#FF3B30] hover:bg-[#FF3B30]/10 transition">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-white/50">Jam</span>
+                      <span className="font-medium text-gray-800 dark:text-white">
+                        {shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-white/50">Durasi</span>
+                      <span className="flex items-center gap-1 text-[#34C759] font-medium">
+                        <CheckCircle2 size={12} /> 8 jam
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-white/50">Toleransi</span>
+                      <span className="text-gray-800 dark:text-white">{shift.tolerance_minutes} menit</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {showForm && (
+              <div className="mt-4">
+                <ShiftConfigurator
+                  onSubmit={data => createShift.mutate(data)}
+                  onCancel={() => setShowForm(false)}
+                  loading={createShift.isPending}
+                />
+              </div>
+            )}
+            {editShift && (
+              <div className="mt-4">
+                <ShiftConfigurator
+                  initial={editShift}
+                  onSubmit={data => updateShift.mutate({ id: editShift.id, data })}
+                  onCancel={() => setEditShift(null)}
+                  loading={updateShift.isPending}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Assign Jadwal Shift */}
+          <div>
+            <div className="flex items-start justify-between mb-3 gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Assign Jadwal</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">
+                  {shiftUsers.length} karyawan · Klik sel untuk assign atau ganti shift · Tidak dipengaruhi hari libur nasional
+                </p>
+              </div>
+              {shifts.length > 0 && shiftUsers.length > 0 && (
+                <button
+                  onClick={() => setShowGenerateShift(true)}
+                  className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold text-white bg-[#FF9500] hover:bg-[#E08600] flex-shrink-0 transition">
+                  <Zap size={13} /> Generate Shift
+                </button>
+              )}
+            </div>
+
+            <AssignmentGrid
+              weekDates={weekDates}
+              rows={shiftRows}
+              shiftTypes={shifts}
+              onAssign={(userId, date, shiftTypeId) =>
+                assignShift.mutate({ user_id: userId, shift_type_id: shiftTypeId, date })
+              }
+              onRemove={(userId, date) => unassignShift.mutate({ user_id: userId, date })}
+              onMarkDayOff={(userId, date) => markShiftDayOff.mutate({ user_id: userId, date })}
+              loading={assignShift.isPending || unassignShift.isPending || markShiftDayOff.isPending}
+            />
+
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-4 mt-2 px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-gray-200 text-sm font-light">+</span>
+                <span className="text-[10px] text-gray-400">= belum ada jadwal, klik untuk assign</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="flex flex-col items-center px-2 py-0.5 rounded-lg" style={{ backgroundColor: '#007AFF22', borderLeft: '3px solid #007AFF' }}>
+                  <span className="text-[10px] font-semibold text-[#007AFF] leading-tight">Pagi</span>
+                  <span className="text-[9px] text-gray-500 tabular-nums leading-tight">08:00</span>
+                </div>
+                <span className="text-[10px] text-gray-400">= klik untuk ganti atau hapus</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="flex flex-col items-center px-2 py-0.5 rounded-lg" style={{ backgroundColor: '#FF3B3022', borderLeft: '3px solid #FF3B30' }}>
+                  <span className="text-[10px] font-semibold text-[#FF3B30] leading-tight">Libur</span>
+                </div>
+                <span className="text-[10px] text-gray-400">= hari libur shift, klik untuk assign</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═════════════════════════════════════════════════════════
+            SECTION 3 — HARI LIBUR NASIONAL
+           ═════════════════════════════════════════════════════════ */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[10px] bg-[#FF3B30]/10 flex items-center justify-center">
+              <CalendarDays size={16} strokeWidth={2} className="text-[#FF3B30]" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">Hari Libur Nasional</h2>
+              <p className="text-[11px] text-gray-400 dark:text-white/40">Tanggal libur yang otomatis meliburkan Office Hours</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setHolidayYear(y => y - 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/[0.10] transition">
+                <ChevronLeft size={15} />
+              </button>
+              <span className="text-base font-bold text-gray-900 dark:text-white w-14 text-center">{year}</span>
+              <button onClick={() => setHolidayYear(y => y + 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl border border-black/10 dark:border-white/[0.12] bg-white dark:bg-white/[0.06] text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/[0.10] transition">
+                <ChevronRight size={15} />
+              </button>
+              <span className="text-xs text-gray-400 dark:text-white/40 ml-1">
+                · {(holidays as any[]).filter(h => h.is_active).length} hari libur
+              </span>
+            </div>
+            <button onClick={() => setShowAddHoliday(true)}
+              className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-semibold text-white bg-[#007AFF] hover:bg-[#0063CC] transition">
+              <Plus size={15} /> Tambah Hari Libur
+            </button>
+          </div>
+
+          <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden">
+            {holidays.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center mx-auto mb-4">
+                  <CalendarDays size={28} className="text-gray-300 dark:text-white/20" />
+                </div>
+                <p className="text-sm font-medium text-gray-500 dark:text-white/40">Belum ada hari libur nasional</p>
+                <p className="text-xs text-gray-400 dark:text-white/25 mt-1">Klik &quot;+ Tambah Hari Libur&quot; untuk menambahkan</p>
+              </div>
+            ) : (
+              (holidays as any[]).map((h, i) => (
+                <div key={h.id}
+                  className={`flex items-center justify-between px-5 py-3.5 ${i !== holidays.length - 1 ? 'border-b border-black/[0.04] dark:border-white/[0.06]' : ''}`}>
+                  <div className="flex items-center gap-4">
+                    <div className="text-center min-w-[44px]">
+                      <p className="text-[11px] font-semibold uppercase text-gray-400 dark:text-white/40">
+                        {parseLocalDate(h.date).toLocaleDateString('id-ID', { month: 'short' })}
+                      </p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
+                        {parseLocalDate(h.date).getDate()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{h.name}</p>
+                      <p className="text-xs text-gray-400 dark:text-white/40">
+                        {parseLocalDate(h.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${
+                      h.is_active
+                        ? 'bg-[#F0FDF4] dark:bg-[#34C759]/12 text-[#15803D] dark:text-[#86EFAC] border-[#BBF7D0] dark:border-[#34C759]/30'
+                        : 'bg-gray-100 dark:bg-white/[0.06] text-gray-500 dark:text-white/40 border-transparent'
+                    }`}>
+                      {h.is_active ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                    {deleteHolidayId === h.id ? (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => deleteHoliday.mutate(h.id)}
+                          disabled={deleteHoliday.isPending}
+                          className="text-xs px-2 py-1 rounded-xl text-white bg-[#FF3B30] hover:bg-[#D63529] disabled:opacity-50 transition">
+                          Hapus
+                        </button>
+                        <button onClick={() => setDeleteHolidayId(null)}
+                          className="text-xs px-2 py-1 rounded-xl text-gray-500 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition">
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setDeleteHolidayId(h.id)}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl text-[#FF3B30] hover:bg-[#FF3B30]/10 transition">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
       </div>
 
       {showAddHoliday && (
