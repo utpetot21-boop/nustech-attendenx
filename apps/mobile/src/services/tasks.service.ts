@@ -103,4 +103,20 @@ export const tasksService = {
     });
     return res.data as TaskSummary;
   },
+
+  async createTask(payload: {
+    title: string;
+    type?: string;
+    priority: 'low' | 'normal' | 'high' | 'urgent';
+    client_id?: string;
+    dispatch_type: 'direct' | 'broadcast';
+    assigned_to?: string;
+    broadcast_dept_id?: string;
+    scheduled_at?: string;
+    is_emergency?: boolean;
+    notes?: string;
+  }) {
+    const res = await api.post('/tasks', payload);
+    return res.data as TaskSummary;
+  },
 };
