@@ -733,7 +733,7 @@ function CreateModal({
 
   const { data: users = [] } = useQuery<{ id: string; full_name: string; department?: { name: string } }[]>({
     queryKey: ['users-colleagues'],
-    queryFn: () => apiClient.get('/users/colleagues').then((r) => r.data),
+    queryFn: () => apiClient.get('/users/colleagues').then((r) => r.data?.items ?? r.data ?? []),
     staleTime: 5 * 60_000,
     enabled: form.target_type === 'individual',
   });
