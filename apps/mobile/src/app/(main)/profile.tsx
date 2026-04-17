@@ -35,6 +35,7 @@ import {
   ShieldAlert,
   Pencil,
   Camera,
+  Megaphone,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -396,11 +397,13 @@ export default function ProfileScreen() {
             overflow: 'hidden',
           }}>
             {[
-              { label: 'Klaim Biaya', Icon: Receipt,   color: C.orange,  route: '/(main)/expense-claims' },
-              { label: 'Berita Acara',Icon: FileText,   color: C.teal,    route: '/(main)/service-reports' },
-              { label: 'Surat Tugas', Icon: Briefcase,  color: C.indigo,  route: '/(main)/business-trips' },
-              { label: 'SOS Darurat', Icon: ShieldAlert, color: C.red,   route: '/(main)/sos' },
-            ].map((item, idx, arr) => (
+              { label: 'Klaim Biaya',  Icon: Receipt,    color: C.orange, route: '/(main)/expense-claims', roles: null },
+              { label: 'Berita Acara', Icon: FileText,   color: C.teal,   route: '/(main)/service-reports', roles: null },
+              { label: 'Surat Tugas',  Icon: Briefcase,  color: C.indigo, route: '/(main)/business-trips', roles: null },
+              { label: 'Pengumuman',   Icon: Megaphone,  color: C.blue,   route: '/(main)/announcements',  roles: ['admin', 'manager', 'super_admin'] },
+              { label: 'SOS Darurat',  Icon: ShieldAlert, color: C.red,   route: '/(main)/sos', roles: null },
+            ].filter((item) => !item.roles || item.roles.includes(user?.role?.name ?? ''))
+            .map((item, idx, arr) => (
               <TouchableOpacity
                 key={item.label}
                 onPress={() => router.push(item.route as never)}
