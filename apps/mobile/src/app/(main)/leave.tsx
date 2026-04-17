@@ -221,6 +221,7 @@ export default function LeaveScreen() {
           {balance && (
             <View style={{
               marginTop: 16,
+              marginHorizontal: 20,
               backgroundColor: cardBg(isDark),
               borderRadius: R.lg, borderWidth: B.default,
               borderColor: isDark ? C.separator.dark : C.separator.light,
@@ -257,7 +258,7 @@ export default function LeaveScreen() {
           )}
 
         {/* ── Filter Tabs + New Button ── */}
-        <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+        <View style={{ paddingHorizontal: 20, marginTop: 14, marginBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', gap: 8 }}>
