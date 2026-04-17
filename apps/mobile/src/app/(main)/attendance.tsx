@@ -266,7 +266,7 @@ export default function AttendanceScreen() {
         style={{
           marginHorizontal: 16, marginTop: 4, marginBottom: 10,
           borderRadius: 18, overflow: 'hidden',
-          borderWidth: 0.5,
+          borderWidth: B.glass,
           borderColor: isDark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.95)',
         }}
       >
@@ -345,8 +345,8 @@ export default function AttendanceScreen() {
             tint={isDark ? 'dark' : 'light'}
             style={{
               marginBottom: 12,
-              borderRadius: 20, overflow: 'hidden',
-              borderWidth: 0.5,
+              borderRadius: R.lg, overflow: 'hidden',
+              borderWidth: B.glass,
               borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.07)',
             }}
           >
@@ -359,7 +359,7 @@ export default function AttendanceScreen() {
               <View style={{
                 width: 72, height: 72, borderRadius: 36,
                 backgroundColor: isDark ? 'rgba(0,122,255,0.20)' : '#EFF6FF',
-                borderWidth: 0.5,
+                borderWidth: B.glass,
                 borderColor: isDark ? 'rgba(0,122,255,0.40)' : '#BFDBFE',
                 alignItems: 'center', justifyContent: 'center',
                 marginBottom: 18,
@@ -381,7 +381,7 @@ export default function AttendanceScreen() {
                 style={{
                   width: '100%', height: 56, borderRadius: 16,
                   backgroundColor: 'rgba(0,122,255,0.90)',
-                  borderWidth: 0.5, borderColor: 'rgba(0,122,255,0.60)',
+                  borderWidth: B.glass, borderColor: 'rgba(0,122,255,0.60)',
                   alignItems: 'center', justifyContent: 'center',
                   shadowColor: '#007AFF', shadowOffset: { width: 0, height: 6 },
                   shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
@@ -462,7 +462,7 @@ export default function AttendanceScreen() {
                 backgroundColor: timer.canCheckout
                   ? 'rgba(0,122,255,0.90)'
                   : isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
-                borderWidth: 0.5,
+                borderWidth: B.glass,
                 borderColor: timer.canCheckout ? 'rgba(0,122,255,0.60)' : 'rgba(0,0,0,0.10)',
                 alignItems: 'center', justifyContent: 'center',
               }}

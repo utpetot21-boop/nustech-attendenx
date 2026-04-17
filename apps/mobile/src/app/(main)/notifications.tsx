@@ -199,17 +199,17 @@ export default function NotificationsScreen() {
 
   // M4: NOTIF_ICON_MAP bergantung pada isDark — useMemo agar tidak dibuat ulang setiap render
   const NOTIF_ICON_MAP = useMemo((): Record<string, { Icon: LucideIconComponent; color: string; bg: string }> => ({
-    task_assigned:      { Icon: ClipboardList,  color: '#007AFF', bg: isDark ? 'rgba(0,122,255,0.18)'    : '#EFF6FF' },
-    task_accepted:      { Icon: CheckCircle2,   color: '#34C759', bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
-    task_rejected:      { Icon: XCircle,        color: '#FF3B30', bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
-    alfa_detected:      { Icon: AlertTriangle,  color: '#FF9500', bg: isDark ? 'rgba(255,149,0,0.18)'   : '#FFFBEB' },
-    leave_approved:     { Icon: Sun,            color: '#34C759', bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
-    leave_rejected:     { Icon: Ban,            color: '#FF3B30', bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
-    objection_pending:  { Icon: Hand,           color: '#AF52DE', bg: isDark ? 'rgba(175,82,222,0.18)'  : '#F5F3FF' },
-    delegation_request: { Icon: Repeat2,        color: '#FF9500', bg: isDark ? 'rgba(255,149,0,0.18)'   : '#FFF7ED' },
-    ba_generated:       { Icon: FileText,       color: '#007AFF', bg: isDark ? 'rgba(0,122,255,0.18)'   : '#ECFEFF' },
-    sos:                { Icon: AlertCircle,    color: '#FF3B30', bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
-    default:            { Icon: Bell,           color: '#007AFF', bg: isDark ? 'rgba(0,122,255,0.18)'   : '#EFF6FF' },
+    task_assigned:      { Icon: ClipboardList,  color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'    : '#EFF6FF' },
+    task_accepted:      { Icon: CheckCircle2,   color: C.green, bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
+    task_rejected:      { Icon: XCircle,        color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
+    alfa_detected:      { Icon: AlertTriangle,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'   : '#FFFBEB' },
+    leave_approved:     { Icon: Sun,            color: C.green, bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
+    leave_rejected:     { Icon: Ban,            color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
+    objection_pending:  { Icon: Hand,           color: C.purple, bg: isDark ? 'rgba(175,82,222,0.18)'  : '#F5F3FF' },
+    delegation_request: { Icon: Repeat2,        color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'   : '#FFF7ED' },
+    ba_generated:       { Icon: FileText,       color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'   : '#ECFEFF' },
+    sos:                { Icon: AlertCircle,    color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
+    default:            { Icon: Bell,           color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'   : '#EFF6FF' },
   }), [isDark]);
 
   return (
@@ -221,7 +221,7 @@ export default function NotificationsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh}
-            tintColor={isDark ? '#FFF' : '#007AFF'} />
+            tintColor={isDark ? '#FFF' : C.blue} />
         }
       >
         {/* Header */}
@@ -238,7 +238,7 @@ export default function NotificationsScreen() {
               activeTab === 'notif' && unread > 0 ? (
                 <TouchableOpacity onPress={() => markAllMut.mutate()} disabled={markAllMut.isPending}
                   style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: R.sm, backgroundColor: isDark ? 'rgba(0,122,255,0.2)' : '#EFF6FF' }}>
-                  <Text style={{ fontSize: 13, color: '#007AFF', fontWeight: '600' }}>Baca semua</Text>
+                  <Text style={{ fontSize: 13, color: C.blue, fontWeight: '600' }}>Baca semua</Text>
                 </TouchableOpacity>
               ) : undefined
             }
@@ -270,7 +270,7 @@ export default function NotificationsScreen() {
                   shadowRadius: 6, elevation: activeTab === tab.key ? 3 : 0,
                 }}
               >
-                <tab.Icon size={15} strokeWidth={1.8} color={activeTab === tab.key ? '#007AFF' : (isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF')} />
+                <tab.Icon size={15} strokeWidth={1.8} color={activeTab === tab.key ? C.blue : (isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF')} />
                 <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === tab.key ? (isDark ? '#FFF' : '#0F172A') : (isDark ? 'rgba(255,255,255,0.5)' : '#6B7280') }}>
                   {tab.label}
                 </Text>
@@ -304,7 +304,7 @@ export default function NotificationsScreen() {
                       <TouchableOpacity
                         onPress={() => deleteNotifMut.mutate(notif.id)}
                         style={{
-                          backgroundColor: '#FF3B30',
+                          backgroundColor: C.red,
                           borderRadius: R.lg,
                           marginLeft: 8,
                           width: 72,
@@ -353,7 +353,7 @@ export default function NotificationsScreen() {
                           {notif.title}
                         </Text>
                         {!notif.is_read && (
-                          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#007AFF', marginTop: 3 }} />
+                          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: C.blue, marginTop: 3 }} />
                         )}
                       </View>
                       <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.6)' : '#64748B', marginTop: 3, lineHeight: 20 }} numberOfLines={2}>
@@ -392,7 +392,7 @@ export default function NotificationsScreen() {
                       <TouchableOpacity
                         onPress={() => deleteAnnMut.mutate(ann.id)}
                         style={{
-                          backgroundColor: '#FF3B30',
+                          backgroundColor: C.red,
                           borderRadius: R.lg,
                           marginLeft: 8,
                           width: 72,
@@ -430,8 +430,8 @@ export default function NotificationsScreen() {
                         <View style={{ flex: 1 }}>
                           {ann.is_pinned && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-                              <Pin size={11} strokeWidth={2} color="#FF9500" />
-                              <Text style={{ color: '#FF9500', fontSize: 10, fontWeight: '700' }}>DISEMATKAN</Text>
+                              <Pin size={11} strokeWidth={2} color={C.orange} />
+                              <Text style={{ color: C.orange, fontSize: 10, fontWeight: '700' }}>DISEMATKAN</Text>
                             </View>
                           )}
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -505,8 +505,8 @@ export default function NotificationsScreen() {
                     </View>
                     {selectedAnn.is_pinned && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                        <Pin size={10} strokeWidth={2} color="#FF9500" />
-                        <Text style={{ color: '#FF9500', fontSize: 10, fontWeight: '700' }}>DISEMATKAN</Text>
+                        <Pin size={10} strokeWidth={2} color={C.orange} />
+                        <Text style={{ color: C.orange, fontSize: 10, fontWeight: '700' }}>DISEMATKAN</Text>
                       </View>
                     )}
                   </View>

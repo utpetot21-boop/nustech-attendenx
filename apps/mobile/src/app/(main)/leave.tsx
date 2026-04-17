@@ -33,9 +33,9 @@ import { fmtDateShort as fmtDate, toISODate } from '@/utils/dateFormatter';
 // ── Status meta ───────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  pending:  { label: 'Menunggu', color: '#FF9500' },
-  approved: { label: 'Disetujui', color: '#34C759' },
-  rejected: { label: 'Ditolak',   color: '#FF3B30' },
+  pending:  { label: 'Menunggu', color: C.orange },
+  approved: { label: 'Disetujui', color: C.green },
+  rejected: { label: 'Ditolak',   color: C.red },
 };
 
 // ── Leave Request Card ────────────────────────────────────────────────────────
@@ -75,8 +75,8 @@ function LeaveCard({ item, isDark }: { item: LeaveRequest; isDark: boolean }) {
       ) : null}
 
       {item.reject_reason ? (
-        <View style={{ marginTop: 8, backgroundColor: '#FF3B3012', borderRadius: R.sm - 2, padding: 10, borderWidth: B.default, borderColor: '#FF3B3025' }}>
-          <Text style={{ fontSize: 12, color: '#FF3B30' }}>Ditolak: {item.reject_reason}</Text>
+        <View style={{ marginTop: 8, backgroundColor: C.red + '12', borderRadius: R.sm - 2, padding: 10, borderWidth: B.default, borderColor: C.red + '25' }}>
+          <Text style={{ fontSize: 12, color: C.red }}>Ditolak: {item.reject_reason}</Text>
         </View>
       ) : null}
     </View>
@@ -255,7 +255,7 @@ export default function LeaveScreen() {
                     key={key}
                     onPress={() => setFilterTab(key)}
                     style={{
-                      paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+                      paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill,
                       backgroundColor: filterTab === key ? C.blue : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
                       borderWidth: B.default,
                       borderColor: filterTab === key ? C.blue : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),

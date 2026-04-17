@@ -258,7 +258,7 @@ export default function TasksScreen() {
                     paddingBottom: 10,
                   }}
                 >
-                  <Zap size={14} strokeWidth={2.2} color="#FF3B30" />
+                  <Zap size={14} strokeWidth={2.2} color={C.red} />
                   <Text style={{ ...T.sectionLabel, color: C.red }}>
                     MENDADAK
                   </Text>
@@ -328,7 +328,7 @@ export default function TasksScreen() {
             {otherTasks.length === 0 && urgentTasks.length === 0 ? (
               <View style={{ paddingTop: 60, alignItems: 'center', paddingHorizontal: 32 }}>
                 <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: isDark ? 'rgba(52,199,89,0.15)' : '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                  <CheckCircle2 size={36} strokeWidth={1.6} color="#34C759" />
+                  <CheckCircle2 size={36} strokeWidth={1.6} color={C.green} />
                 </View>
                 <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.7)' : '#374151', textAlign: 'center' }}>
                   Tidak ada tugas
@@ -360,7 +360,7 @@ export default function TasksScreen() {
                         onPress={() => handleRejectOpen(task)}
                         style={{ flex: 1, backgroundColor: isDark ? 'rgba(255,59,48,0.15)' : '#FEF2F2', borderRadius: 14, paddingVertical: 13, alignItems: 'center', borderWidth: B.default, borderColor: 'rgba(255,59,48,0.4)', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                       >
-                        <XCircle size={16} strokeWidth={2} color="#FF3B30" />
+                        <XCircle size={16} strokeWidth={2} color={C.red} />
                         <Text style={{ color: C.red, fontWeight: '600', fontSize: 14 }}>Tolak</Text>
                       </TouchableOpacity>
                     </View>
@@ -554,7 +554,7 @@ export default function TasksScreen() {
                   padding: 14,
                   borderRadius: 12,
                   backgroundColor:
-                    delegateToUserId.trim() && delegateReason.trim() ? '#AF52DE' : isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
+                    delegateToUserId.trim() && delegateReason.trim() ? C.purple : isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
                   alignItems: 'center',
                 }}
               >
@@ -617,8 +617,8 @@ export default function TasksScreen() {
                       height: 20,
                       borderRadius: 10,
                       borderWidth: 2,
-                      borderColor: holdReasonType === r.value ? '#FF9500' : isDark ? 'rgba(255,255,255,0.3)' : '#D1D5DB',
-                      backgroundColor: holdReasonType === r.value ? '#FF9500' : 'transparent',
+                      borderColor: holdReasonType === r.value ? C.orange : isDark ? 'rgba(255,255,255,0.3)' : '#D1D5DB',
+                      backgroundColor: holdReasonType === r.value ? C.orange : 'transparent',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -689,7 +689,7 @@ export default function TasksScreen() {
                     padding: 14,
                     borderRadius: 12,
                     backgroundColor:
-                      holdNotes.trim() ? '#FF9500' : isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
+                      holdNotes.trim() ? C.orange : isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
                     alignItems: 'center',
                   }}
                 >

@@ -13,7 +13,7 @@ import {
   createServiceReport,
   ServiceReport,
 } from '@/services/service-reports.service';
-import { pageBg, cardBg, lPrimary, lSecondary, C } from '@/constants/tokens';
+import { pageBg, cardBg, lPrimary, lSecondary, C, R, B } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { fmtDateShortWIT as fmtDate, currentMonth } from '@/utils/dateFormatter';
 
@@ -91,7 +91,7 @@ export default function ServiceReportsListScreen() {
             style={[styles.card, {
               backgroundColor: cardBg(isDark),
               borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              borderWidth: 1,
+              borderWidth: B.default,
             }]}
             onPress={() => router.push(`/service-reports/${r.id}`)}
             activeOpacity={0.7}
@@ -172,6 +172,6 @@ const styles = StyleSheet.create({
   sigLabel: { fontSize: 10, color: '#6b7280' },
   sigLine: { flex: 1, height: 2, backgroundColor: '#e5e7eb', marginBottom: 12 },
   sigLineDone: { backgroundColor: '#10b981' },
-  chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
+  chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: R.pill },
   chipText: { fontSize: 11, fontWeight: '700' },
 });

@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { Animated, View, useColorScheme } from 'react-native';
-import { R } from '@/constants/tokens';
+import { R, B } from '@/constants/tokens';
 
 type BoneProps = {
   width?: number | `${number}%`;
@@ -51,7 +51,7 @@ export function TaskCardSkeleton({ isDark }: { isDark: boolean }) {
   return (
     <View style={{
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-      borderRadius: 20, borderWidth: 1,
+      borderRadius: R.lg, borderWidth: B.default,
       borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
       padding: 18, marginHorizontal: 20, marginBottom: 12, gap: 12,
     }}>
@@ -77,7 +77,7 @@ export function VisitCardSkeleton({ isDark }: { isDark: boolean }) {
   return (
     <View style={{
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-      borderRadius: 16, borderWidth: 1,
+      borderRadius: R.md, borderWidth: B.default,
       borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
       padding: 16, marginHorizontal: 16, marginBottom: 10, gap: 10,
     }}>
@@ -99,7 +99,7 @@ export function VisitCardSkeleton({ isDark }: { isDark: boolean }) {
 export function HomeHeroSkeleton({ isDark }: { isDark: boolean }) {
   return (
     <View style={{
-      marginHorizontal: 20, borderRadius: 24, borderWidth: 1,
+      marginHorizontal: 20, borderRadius: R.xl, borderWidth: B.default,
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
       borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
       padding: 20, gap: 14,
@@ -126,7 +126,7 @@ export function LeaveCardSkeleton({ isDark }: { isDark: boolean }) {
   return (
     <View style={{
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-      borderRadius: 16, borderWidth: 1,
+      borderRadius: R.md, borderWidth: B.default,
       borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
       padding: 16, marginBottom: 10, gap: 10,
     }}>
@@ -149,7 +149,7 @@ export function NotifCardSkeleton({ isDark }: { isDark: boolean }) {
   return (
     <View style={{
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-      borderRadius: 16, borderWidth: 1,
+      borderRadius: R.md, borderWidth: B.default,
       borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
       padding: 16, flexDirection: 'row', gap: 14, marginBottom: 10,
     }}>
@@ -169,7 +169,7 @@ export function TripCardSkeleton({ isDark }: { isDark: boolean }) {
   return (
     <View style={{
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-      borderRadius: 16, borderWidth: 1,
+      borderRadius: R.md, borderWidth: B.default,
       borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
       padding: 16, marginBottom: 10, gap: 10,
     }}>
@@ -192,7 +192,7 @@ export function ClaimCardSkeleton({ isDark }: { isDark: boolean }) {
   return (
     <View style={{
       backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-      borderRadius: 16, borderWidth: 1,
+      borderRadius: R.md, borderWidth: B.default,
       borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
       padding: 16, marginBottom: 10, gap: 10,
     }}>
@@ -224,7 +224,7 @@ export function ScheduleWeekSkeleton({ isDark }: { isDark: boolean }) {
       {[0, 1, 2].map((i) => (
         <View key={i} style={{
           backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-          borderRadius: 14, borderWidth: 1,
+          borderRadius: 14, borderWidth: B.default,
           borderColor: isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0',
           padding: 14, gap: 8,
         }}>
