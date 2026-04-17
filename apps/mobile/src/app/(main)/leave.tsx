@@ -255,7 +255,6 @@ export default function LeaveScreen() {
               </View>
             </View>
           )}
-        </View>
 
         {/* ── Filter Tabs + New Button ── */}
         <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
