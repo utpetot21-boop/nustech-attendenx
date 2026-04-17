@@ -10,12 +10,13 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { tasksService } from '@/services/tasks.service';
 import { api } from '@/services/api';
+import { C } from '@/constants/tokens';
 
 // ── Warna aksen per tab ──────────────────────────────────────────────────────
 const TAB_COLORS = {
-  index:      '#007AFF',
-  pekerjaan:  '#FF9500',
-  profile:    '#AF52DE',
+  index:      C.blue,
+  pekerjaan:  C.orange,
+  profile:    C.purple,
 };
 
 // ── Icon wrapper dengan active pill indicator ────────────────────────────────
@@ -100,7 +101,7 @@ export default function MainLayout() {
             style={StyleSheet.absoluteFill}
           />
         ),
-        tabBarActiveTintColor: '#007AFF',
+        tabBarActiveTintColor: C.blue,
         tabBarInactiveTintColor: inactiveColor,
         tabBarLabelStyle: {
           fontSize: 11,
@@ -119,7 +120,7 @@ export default function MainLayout() {
         options={{
           title: 'Beranda',
           tabBarBadge: notifBadge,
-          tabBarBadgeStyle: { backgroundColor: '#FF3B30', fontSize: 10, minWidth: 16, height: 16 },
+          tabBarBadgeStyle: { backgroundColor: C.red, fontSize: 10, minWidth: 16, height: 16 },
           tabBarIcon: ({ focused, color }) => (
             <TabIcon icon={Home} focused={focused} color={color} activeColor={TAB_COLORS.index} />
           ),
@@ -130,7 +131,7 @@ export default function MainLayout() {
         options={{
           title: 'Pekerjaan',
           tabBarBadge: taskBadge,
-          tabBarBadgeStyle: { backgroundColor: '#FF9500', fontSize: 10, minWidth: 16, height: 16 },
+          tabBarBadgeStyle: { backgroundColor: C.orange, fontSize: 10, minWidth: 16, height: 16 },
           tabBarIcon: ({ focused, color }) => (
             <TabIcon icon={Wrench} focused={focused} color={color} activeColor={TAB_COLORS.pekerjaan} />
           ),

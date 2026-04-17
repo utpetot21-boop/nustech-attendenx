@@ -224,10 +224,10 @@ function SwapCard({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
           <View style={{
             width: 38, height: 38, borderRadius: R.sm,
-            backgroundColor: '#FF9500' + '18',
+            backgroundColor: C.orange + '18',
             alignItems: 'center', justifyContent: 'center',
           }}>
-            <ArrowLeftRight size={18} strokeWidth={2} color="#FF9500" />
+            <ArrowLeftRight size={18} strokeWidth={2} color={C.orange} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: lPrimary(isDark) }}>
@@ -248,10 +248,10 @@ function SwapCard({
       {/* Jadwal Detail */}
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
         <View style={{
-          flex: 1, backgroundColor: '#007AFF12', borderRadius: R.sm - 2,
-          padding: 10, borderWidth: B.default, borderColor: '#007AFF25',
+          flex: 1, backgroundColor: C.blue + '12', borderRadius: R.sm - 2,
+          padding: 10, borderWidth: B.default, borderColor: C.blue + '25',
         }}>
-          <Text style={{ fontSize: 10, fontWeight: '700', color: '#007AFF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: C.blue, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
             {item.requester?.full_name ?? 'Pemohon'}
           </Text>
           <Text style={{ fontSize: 12, fontWeight: '600', color: lPrimary(isDark) }}>
@@ -267,8 +267,8 @@ function SwapCard({
           <ArrowLeftRight size={16} strokeWidth={2} color={lTertiary(isDark)} />
         </View>
         <View style={{
-          flex: 1, backgroundColor: '#34C75912', borderRadius: R.sm - 2,
-          padding: 10, borderWidth: B.default, borderColor: '#34C75925',
+          flex: 1, backgroundColor: C.green + '12', borderRadius: R.sm - 2,
+          padding: 10, borderWidth: B.default, borderColor: C.green + '25',
         }}>
           <Text style={{ fontSize: 10, fontWeight: '700', color: '#15803D', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
             {item.type === 'with_person' ? (item.target_user?.full_name ?? 'Target') : 'Libur Sendiri'}
@@ -292,10 +292,10 @@ function SwapCard({
 
       {item.reject_reason ? (
         <View style={{
-          backgroundColor: '#FF3B3012', borderRadius: R.sm - 2,
-          padding: 10, borderWidth: B.default, borderColor: '#FF3B3025', marginBottom: 8,
+          backgroundColor: C.red + '12', borderRadius: R.sm - 2,
+          padding: 10, borderWidth: B.default, borderColor: C.red + '25', marginBottom: 8,
         }}>
-          <Text style={{ fontSize: 12, color: '#FF3B30' }}>Ditolak: {item.reject_reason}</Text>
+          <Text style={{ fontSize: 12, color: C.red }}>Ditolak: {item.reject_reason}</Text>
         </View>
       ) : null}
 
@@ -309,21 +309,21 @@ function SwapCard({
             onPress={() => onRespond(item.id, false)}
             style={{
               flex: 1, height: 42, borderRadius: R.md,
-              backgroundColor: '#FF3B3014', borderWidth: B.default, borderColor: '#FF3B3030',
+              backgroundColor: C.red + '14', borderWidth: B.default, borderColor: C.red + '30',
               alignItems: 'center', justifyContent: 'center',
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#FF3B30' }}>Tolak</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: C.red }}>Tolak</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onRespond(item.id, true)}
             style={{
               flex: 1, height: 42, borderRadius: R.md,
-              backgroundColor: '#34C75914', borderWidth: B.default, borderColor: '#34C75930',
+              backgroundColor: C.green + '14', borderWidth: B.default, borderColor: C.green + '30',
               alignItems: 'center', justifyContent: 'center',
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#34C759' }}>Setujui</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: C.green }}>Setujui</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -557,7 +557,7 @@ export default function ScheduleSwapScreen() {
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: 6,
                 paddingHorizontal: 14, paddingVertical: 9,
-                backgroundColor: '#FF9500', borderRadius: R.md,
+                backgroundColor: C.orange, borderRadius: R.md,
               }}
             >
               <Plus size={18} strokeWidth={2.5} color="#FFFFFF" />
@@ -569,7 +569,7 @@ export default function ScheduleSwapScreen() {
         {/* ── List ── */}
         <View style={{ paddingHorizontal: 20 }}>
           {isLoading ? (
-            <ActivityIndicator color="#FF9500" style={{ marginTop: 40 }} />
+            <ActivityIndicator color={C.orange} style={{ marginTop: 40 }} />
           ) : swaps.length === 0 ? (
             <EmptyState
               icon={ArrowLeftRight}
@@ -639,9 +639,9 @@ export default function ScheduleSwapScreen() {
                     onPress={() => { setSwapType(key); setSelectedUser(null); }}
                     style={{
                       flex: 1, padding: 14, borderRadius: R.md,
-                      backgroundColor: active ? '#FF9500' : (isDark ? 'rgba(255,255,255,0.07)' : '#FFFFFF'),
+                      backgroundColor: active ? C.orange : (isDark ? 'rgba(255,255,255,0.07)' : '#FFFFFF'),
                       borderWidth: B.default,
-                      borderColor: active ? '#FF9500' : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
+                      borderColor: active ? C.orange : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
                       alignItems: 'center', gap: 8,
                     }}
                   >
@@ -675,23 +675,23 @@ export default function ScheduleSwapScreen() {
               }}>
                 {myShiftData.is_day_off ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
-                    backgroundColor: '#FF3B3015', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <XCircle size={13} strokeWidth={2} color="#FF3B30" />
-                    <Text style={{ fontSize: 12, color: '#FF3B30', fontWeight: '600' }}>Hari libur — tidak bisa dipindah</Text>
+                    backgroundColor: C.red + '15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <XCircle size={13} strokeWidth={2} color={C.red} />
+                    <Text style={{ fontSize: 12, color: C.red, fontWeight: '600' }}>Hari libur — tidak bisa dipindah</Text>
                   </View>
                 ) : myShiftData.shift_type ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
-                    backgroundColor: '#007AFF15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Clock size={13} strokeWidth={2} color="#007AFF" />
-                    <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '600' }}>
+                    backgroundColor: C.blue + '15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Clock size={13} strokeWidth={2} color={C.blue} />
+                    <Text style={{ fontSize: 12, color: C.blue, fontWeight: '600' }}>
                       {myShiftData.shift_type.name} · {myShiftData.start_time?.slice(0,5)}–{myShiftData.end_time?.slice(0,5)}
                     </Text>
                   </View>
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
-                    backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Briefcase size={13} strokeWidth={2} color="#34C759" />
-                    <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>Hari kerja (office hours)</Text>
+                    backgroundColor: C.green + '15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Briefcase size={13} strokeWidth={2} color={C.green} />
+                    <Text style={{ fontSize: 12, color: C.green, fontWeight: '600' }}>Hari kerja (office hours)</Text>
                   </View>
                 )}
               </View>
@@ -714,23 +714,23 @@ export default function ScheduleSwapScreen() {
               }}>
                 {targetShiftData.is_day_off ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
-                    backgroundColor: '#FF950015', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Sun size={13} strokeWidth={2} color="#FF9500" />
-                    <Text style={{ fontSize: 12, color: '#FF9500', fontWeight: '600' }}>Libur — {selectedUser.full_name?.split(' ')[0]}</Text>
+                    backgroundColor: C.orange + '15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Sun size={13} strokeWidth={2} color={C.orange} />
+                    <Text style={{ fontSize: 12, color: C.orange, fontWeight: '600' }}>Libur — {selectedUser.full_name?.split(' ')[0]}</Text>
                   </View>
                 ) : targetShiftData.shift_type ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
-                    backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Clock size={13} strokeWidth={2} color="#34C759" />
-                    <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>
+                    backgroundColor: C.green + '15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Clock size={13} strokeWidth={2} color={C.green} />
+                    <Text style={{ fontSize: 12, color: C.green, fontWeight: '600' }}>
                       {targetShiftData.shift_type.name} · {targetShiftData.start_time?.slice(0,5)}–{targetShiftData.end_time?.slice(0,5)}
                     </Text>
                   </View>
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
-                    backgroundColor: '#34C75915', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
-                    <Briefcase size={13} strokeWidth={2} color="#34C759" />
-                    <Text style={{ fontSize: 12, color: '#34C759', fontWeight: '600' }}>Hari kerja (office hours)</Text>
+                    backgroundColor: C.green + '15', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Briefcase size={13} strokeWidth={2} color={C.green} />
+                    <Text style={{ fontSize: 12, color: C.green, fontWeight: '600' }}>Hari kerja (office hours)</Text>
                   </View>
                 )}
               </View>
@@ -764,7 +764,7 @@ export default function ScheduleSwapScreen() {
                     backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
                     borderRadius: R.md, borderWidth: B.default,
                     borderColor: selectedUser
-                      ? '#FF9500'
+                      ? C.orange
                       : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'),
                     paddingHorizontal: 14, paddingVertical: 12,
                     marginBottom: 4, gap: 12,
@@ -774,10 +774,10 @@ export default function ScheduleSwapScreen() {
                     <>
                       <View style={{
                         width: 38, height: 38, borderRadius: 19,
-                        backgroundColor: '#FF950020',
+                        backgroundColor: C.orange + '20',
                         alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#FF9500' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: C.orange }}>
                           {initials(selectedUser.full_name ?? '')}
                         </Text>
                       </View>
@@ -841,7 +841,7 @@ export default function ScheduleSwapScreen() {
               disabled={!canSubmit || createMutation.isPending}
               style={{
                 height: 52, borderRadius: R.md,
-                backgroundColor: canSubmit ? '#FF9500' : (isDark ? 'rgba(255,255,255,0.08)' : '#E0E0E8'),
+                backgroundColor: canSubmit ? C.orange : (isDark ? 'rgba(255,255,255,0.08)' : '#E0E0E8'),
                 alignItems: 'center', justifyContent: 'center',
               }}
             >

@@ -46,19 +46,19 @@ import { attendanceRequestsService, type AttendanceRequest } from '@/services/at
 import { api } from '@/services/api';
 import { useMutation } from '@tanstack/react-query';
 import { currentMonth } from '@/utils/dateFormatter';
+import { useCheckoutTimer } from '@/hooks/useCheckoutTimer';
+import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 
 const MONTH_NOW = currentMonth();
 
 const STATUS_SUMMARY = [
-  { key: 'hadir',     label: 'Hadir',     color: '#34C759' },
-  { key: 'terlambat', label: 'Terlambat', color: '#FF9500' },
-  { key: 'alfa',      label: 'Alfa',      color: '#FF3B30' },
-  { key: 'izin',      label: 'Izin',      color: '#007AFF' },
-  { key: 'sakit',     label: 'Sakit',     color: '#AF52DE' },
-  { key: 'dinas',     label: 'Dinas',     color: '#5AC8FA' },
+  { key: 'hadir',     label: 'Hadir',     color: C.green },
+  { key: 'terlambat', label: 'Terlambat', color: C.orange },
+  { key: 'alfa',      label: 'Alfa',      color: C.red },
+  { key: 'izin',      label: 'Izin',      color: C.blue },
+  { key: 'sakit',     label: 'Sakit',     color: C.purple },
+  { key: 'dinas',     label: 'Dinas',     color: C.cyan },
 ] as const;
-import { useCheckoutTimer } from '@/hooks/useCheckoutTimer';
-import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { HomeHeroSkeleton } from '@/components/ui/SkeletonLoader';
 
 // ── Status theme ─────────────────────────────────────────────────────────────
