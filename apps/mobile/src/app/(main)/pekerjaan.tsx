@@ -15,6 +15,11 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,22 +31,41 @@ import {
   Zap,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   Clock,
   MapPin,
   PauseCircle,
-  ArrowUpRight,
   Play,
   AlertCircle,
   ClipboardList,
   Navigation,
+  Plus,
+  User,
+  Search,
+  X,
+  Briefcase,
   type LucideIcon,
 } from 'lucide-react-native';
 
 import * as Haptics from 'expo-haptics';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { visitsService, type VisitSummary } from '@/services/visits.service';
+import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, separator, gradients } from '@/constants/tokens';
 import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
+
+type Priority = 'low' | 'normal' | 'high' | 'urgent';
+type PickerMode = 'employee' | 'client' | null;
+interface EmployeeItem { id: string; full_name: string; employee_id?: string }
+interface ClientItem   { id: string; name: string; address?: string }
+
+const PRIORITY_OPTIONS = [
+  { value: 'low',    label: 'Rendah',   color: C.green  },
+  { value: 'normal', label: 'Normal',   color: C.blue   },
+  { value: 'high',   label: 'Tinggi',   color: C.orange },
+  { value: 'urgent', label: 'Mendesak', color: C.red    },
+] as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -333,7 +357,10 @@ export default function PekerjaanScreen() {
   const router    = useRouter();
   const qc        = useQueryClient();
   const insets    = useSafeAreaInsets();
+  const user      = useAuthStore((s) => s.user);
+  const isManager = ['manager', 'admin', 'super_admin'].includes(user?.role?.name ?? '');
 
+  const [showCreate, setShowCreate] = useState(false);
   const [userLat, setUserLat] = useState<number | undefined>();
   const [userLng, setUserLng] = useState<number | undefined>();
 
@@ -434,13 +461,23 @@ export default function PekerjaanScreen() {
                   : `${totalActive} item perlu perhatian`}
               </Text>
             </View>
-            <View style={{
-              width: 48, height: 48, borderRadius: R.md,
-              backgroundColor: isDark ? 'rgba(255,149,0,0.15)' : '#FFF7ED',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Wrench size={24} strokeWidth={1.8} color={C.orange} />
-            </View>
+            <TouchableOpacity
+              onPress={() => isManager ? setShowCreate(true) : router.push('/(main)/visits' as never)}
+              activeOpacity={0.8}
+              style={{
+                width: 48, height: 48, borderRadius: R.md,
+                backgroundColor: isDark ? 'rgba(255,149,0,0.15)' : '#FFF7ED',
+                alignItems: 'center', justifyContent: 'center',
+                shadowColor: C.orange, shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.25, shadowRadius: 6, elevation: 4,
+              }}
+              accessibilityLabel={isManager ? 'Buat tugas baru' : 'Riwayat kunjungan'}
+            >
+              {isManager
+                ? <Plus size={24} strokeWidth={2.5} color={C.orange} />
+                : <Wrench size={24} strokeWidth={1.8} color={C.orange} />
+              }
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -600,6 +637,228 @@ export default function PekerjaanScreen() {
 
         <View style={{ height: insets.bottom + 96 }} />
       </ScrollView>
+
+      {/* ── Create Task Sheet (manager only) ── */}
+      <CreateTaskSheet
+        visible={showCreate}
+        onClose={() => setShowCreate(false)}
+        onSuccess={() => {
+          setShowCreate(false);
+          qc.invalidateQueries({ queryKey: ['tasks-all'] });
+        }}
+      />
     </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CreateTaskSheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+function CreateTaskSheet({
+  visible, onClose, onSuccess,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const isDark  = useColorScheme() === 'dark';
+  const insets  = useSafeAreaInsets();
+
+  const [pickerMode, setPickerMode] = useState<PickerMode>(null);
+  const [search, setSearch]         = useState('');
+  const [employee, setEmployee]     = useState<EmployeeItem | null>(null);
+  const [client, setClient]         = useState<ClientItem | null>(null);
+  const [priority, setPriority]     = useState<Priority>('normal');
+  const [notes, setNotes]           = useState('');
+
+  const bg      = isDark ? '#1C1C1E' : '#F2F2F7';
+  const cardCol = isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF';
+  const border  = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+  const prim    = lPrimary(isDark);
+  const ter     = lTertiary(isDark);
+
+  const { data: employees = [], isFetching: loadingEmp } = useQuery({
+    queryKey: ['colleagues-picker', search],
+    queryFn: () => api.get('/users/colleagues', { params: { search } }).then((r) => r.data.items as EmployeeItem[]),
+    enabled: visible && pickerMode === 'employee',
+    staleTime: 30_000,
+  });
+
+  const { data: clients = [], isFetching: loadingCli } = useQuery({
+    queryKey: ['clients-picker', search],
+    queryFn: () => api.get('/clients', { params: { search } }).then((r) => r.data as ClientItem[]),
+    enabled: visible && pickerMode === 'client',
+    staleTime: 30_000,
+  });
+
+  const createMut = useMutation({
+    mutationFn: () => tasksService.createVisitTask({
+      title: client ? `Kunjungan ke ${client.name}` : 'Tugas Kunjungan',
+      assigned_to: employee!.id,
+      client_id: client?.id,
+      priority,
+      notes: notes.trim() || undefined,
+    }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      resetForm();
+      onSuccess();
+      Alert.alert('Berhasil', 'Tugas dikirim ke karyawan.');
+    },
+    onError: (err: any) => {
+      Alert.alert('Gagal', err?.response?.data?.message ?? 'Terjadi kesalahan.');
+    },
+  });
+
+  const resetForm = () => {
+    setPickerMode(null); setSearch('');
+    setEmployee(null); setClient(null);
+    setPriority('normal'); setNotes('');
+  };
+
+  const handleClose = () => { resetForm(); onClose(); };
+  const openPicker = (mode: PickerMode) => { setSearch(''); setPickerMode(mode); };
+
+  const renderPicker = () => {
+    const isEmp  = pickerMode === 'employee';
+    const items  = isEmp ? employees : clients;
+    const loading = isEmp ? loadingEmp : loadingCli;
+
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: border }}>
+          <TouchableOpacity onPress={() => { setPickerMode(null); setSearch(''); }} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <ChevronLeft size={22} strokeWidth={2} color={C.blue} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: prim, flex: 1 }}>
+            {isEmp ? 'Pilih Karyawan' : 'Pilih Client'}
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 12, marginBottom: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#E8EDF5', borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 10 }}>
+          <Search size={15} strokeWidth={2} color={ter} />
+          <TextInput value={search} onChangeText={setSearch} placeholder={isEmp ? 'Cari nama karyawan...' : 'Cari client...'} placeholderTextColor={ter} style={{ flex: 1, fontSize: 15, color: prim }} autoFocus />
+          {search.length > 0 && <TouchableOpacity onPress={() => setSearch('')}><X size={15} strokeWidth={2} color={ter} /></TouchableOpacity>}
+        </View>
+        {loading ? <ActivityIndicator color={C.blue} style={{ marginTop: 32 }} /> : (
+          <FlatList
+            data={items as (EmployeeItem | ClientItem)[]}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+            ListEmptyComponent={<Text style={{ textAlign: 'center', color: ter, marginTop: 32, fontSize: 14 }}>{search ? 'Tidak ada hasil' : 'Belum ada data'}</Text>}
+            renderItem={({ item }) => {
+              const name = isEmp ? (item as EmployeeItem).full_name : (item as ClientItem).name;
+              const sub  = isEmp ? (item as EmployeeItem).employee_id : (item as ClientItem).address;
+              return (
+                <TouchableOpacity
+                  onPress={() => isEmp ? (setEmployee(item as EmployeeItem), setPickerMode(null), setSearch('')) : (setClient(item as ClientItem), setPickerMode(null), setSearch(''))}
+                  activeOpacity={0.75}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: cardCol, borderRadius: R.md, borderWidth: B.default, borderColor: border, marginBottom: 8 }}
+                >
+                  <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: isDark ? 'rgba(0,122,255,0.18)' : '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
+                    {isEmp ? <User size={18} strokeWidth={1.8} color={C.blue} /> : <Briefcase size={18} strokeWidth={1.8} color={C.blue} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: prim }} numberOfLines={1}>{name}</Text>
+                    {sub && <Text style={{ fontSize: 12, color: ter, marginTop: 2 }} numberOfLines={1}>{sub}</Text>}
+                  </View>
+                  <ChevronRight size={14} strokeWidth={2} color={ter} />
+                </TouchableOpacity>
+              );
+            }}
+          />
+        )}
+      </View>
+    );
+  };
+
+  const renderForm = () => (
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
+      {/* Karyawan */}
+      <Text style={{ fontSize: 12, fontWeight: '700', color: ter, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Karyawan *</Text>
+      <TouchableOpacity onPress={() => openPicker('employee')} activeOpacity={0.78}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cardCol, borderRadius: R.md, borderWidth: B.default, borderColor: employee ? C.blue + '60' : border, paddingHorizontal: 14, paddingVertical: 14, marginBottom: 20 }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: employee ? (isDark ? 'rgba(0,122,255,0.20)' : '#EFF6FF') : (isDark ? 'rgba(255,255,255,0.08)' : '#F2F2F7'), alignItems: 'center', justifyContent: 'center' }}>
+          <User size={18} strokeWidth={1.8} color={employee ? C.blue : ter} />
+        </View>
+        <Text style={{ flex: 1, fontSize: 15, color: employee ? prim : ter, fontWeight: employee ? '600' : '400' }}>{employee?.full_name ?? 'Pilih karyawan...'}</Text>
+        <ChevronRight size={16} strokeWidth={2} color={ter} />
+      </TouchableOpacity>
+
+      {/* Client */}
+      <Text style={{ fontSize: 12, fontWeight: '700', color: ter, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Lokasi / Client *</Text>
+      <TouchableOpacity onPress={() => openPicker('client')} activeOpacity={0.78}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cardCol, borderRadius: R.md, borderWidth: B.default, borderColor: client ? C.blue + '60' : border, paddingHorizontal: 14, paddingVertical: 14, marginBottom: 20 }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: client ? (isDark ? 'rgba(0,122,255,0.20)' : '#EFF6FF') : (isDark ? 'rgba(255,255,255,0.08)' : '#F2F2F7'), alignItems: 'center', justifyContent: 'center' }}>
+          <Briefcase size={18} strokeWidth={1.8} color={client ? C.blue : ter} />
+        </View>
+        <Text style={{ flex: 1, fontSize: 15, color: client ? prim : ter, fontWeight: client ? '600' : '400' }}>{client?.name ?? 'Pilih client / lokasi...'}</Text>
+        <ChevronRight size={16} strokeWidth={2} color={ter} />
+      </TouchableOpacity>
+
+      {/* Prioritas */}
+      <Text style={{ fontSize: 12, fontWeight: '700', color: ter, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Prioritas</Text>
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+        {PRIORITY_OPTIONS.map((opt) => {
+          const active = priority === opt.value;
+          return (
+            <TouchableOpacity key={opt.value} onPress={() => setPriority(opt.value as Priority)} activeOpacity={0.78}
+              style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: R.sm, backgroundColor: active ? opt.color + '20' : cardCol, borderWidth: active ? 1.5 : B.default, borderColor: active ? opt.color : border }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: active ? opt.color : ter }}>{opt.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Catatan */}
+      <Text style={{ fontSize: 12, fontWeight: '700', color: ter, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Catatan</Text>
+      <TextInput value={notes} onChangeText={setNotes} placeholder="Instruksi atau catatan tambahan..." placeholderTextColor={ter} multiline numberOfLines={3} textAlignVertical="top"
+        style={{ backgroundColor: cardCol, borderRadius: R.md, borderWidth: B.default, borderColor: border, padding: 14, fontSize: 15, color: prim, minHeight: 90, marginBottom: 24 }} />
+
+      {/* Submit */}
+      <TouchableOpacity
+        onPress={() => createMut.mutate()}
+        disabled={!employee || !client || createMut.isPending}
+        activeOpacity={0.85}
+        style={{ paddingVertical: 16, borderRadius: R.md, backgroundColor: employee && client ? C.orange : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+      >
+        {createMut.isPending
+          ? <ActivityIndicator color="#FFF" size="small" />
+          : <Briefcase size={18} strokeWidth={2} color={employee && client ? '#FFF' : ter} />
+        }
+        <Text style={{ fontSize: 16, fontWeight: '700', color: employee && client ? '#FFF' : ter }}>
+          {createMut.isPending ? 'Membuat Tugas…' : 'Buat & Kirim Tugas'}
+        </Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: bg }}>
+        {/* Handle */}
+        <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
+          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)' }} />
+        </View>
+
+        {/* Header */}
+        {!pickerMode && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: border }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: C.orange + '20', alignItems: 'center', justifyContent: 'center' }}>
+                <Briefcase size={18} strokeWidth={1.8} color={C.orange} />
+              </View>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: prim }}>Buat Tugas Kunjungan</Text>
+            </View>
+            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+              <X size={16} strokeWidth={2.2} color={prim} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {pickerMode ? renderPicker() : renderForm()}
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
