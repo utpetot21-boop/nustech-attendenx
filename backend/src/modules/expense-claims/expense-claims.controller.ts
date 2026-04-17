@@ -11,8 +11,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ExpenseClaimsService } from './expense-claims.service';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { ReviewClaimDto } from './dto/review-claim.dto';
-
-interface JwtPayload { sub: string; role: string }
+import { UserEntity } from '../users/entities/user.entity';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('expense-claims')
@@ -46,14 +45,14 @@ export class ExpenseClaimsController {
   // POST /expense-claims
   @Post()
   @RequirePermission('task:own', 'task:assign')
-  create(@CurrentUser() user: JwtPayload, @Body() dto: CreateClaimDto) {
-    return this.svc.create(user.sub, dto);
+  create(@CurrentUser() user: UserEntity, @Body() dto: CreateClaimDto) {
+    return this.svc.create(user.id, dto);
   }
 
   // GET /expense-claims/me
   @Get('me')
-  findMine(@CurrentUser() user: JwtPayload, @Query('status') status?: string) {
-    return this.svc.findMine(user.sub, status);
+  findMine(@CurrentUser() user: UserEntity, @Query('status') status?: string) {
+    return this.svc.findMine(user.id, status);
   }
 
   // GET /expense-claims  (admin/manager)
@@ -92,10 +91,10 @@ export class ExpenseClaimsController {
   @Post(':id/review')
   @RequirePermission('task:assign')
   review(
-    @CurrentUser() user: JwtPayload,
+    @CurrentUser() user: UserEntity,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReviewClaimDto,
   ) {
-    return this.svc.review(id, user.sub, dto);
+    return this.svc.review(id, user.id, dto);
   }
 }
