@@ -24,13 +24,14 @@ import {
   getMyClaims, getConfig, createClaim, uploadReceipt,
   ExpenseClaim, ExpenseConfig, CATEGORY_LABELS, formatRupiah,
 } from '@/services/expense-claims.service';
+import { C, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
 
 const STATUS_META = {
-  pending:  { bg: 'rgba(245,158,11,0.15)', bgLight: '#FFFBEB', text: '#F59E0B', label: 'Menunggu', Icon: Clock },
-  approved: { bg: 'rgba(22,163,74,0.15)',  bgLight: '#DCFCE7', text: '#16A34A', label: 'Disetujui', Icon: CheckCircle2 },
-  rejected: { bg: 'rgba(239,68,68,0.15)',  bgLight: '#FEF2F2', text: '#EF4444', label: 'Ditolak',   Icon: XCircle },
-  paid:     { bg: 'rgba(124,58,237,0.15)', bgLight: '#F5F3FF', text: '#7C3AED', label: 'Dibayar',   Icon: CreditCard },
+  pending:  { bg: C.orange + '26', bgLight: C.orange + '12', text: C.orange, label: 'Menunggu',  Icon: Clock },
+  approved: { bg: C.green + '26',  bgLight: C.green + '12',  text: C.green,  label: 'Disetujui', Icon: CheckCircle2 },
+  rejected: { bg: C.red + '26',    bgLight: C.red + '12',    text: C.red,    label: 'Ditolak',   Icon: XCircle },
+  paid:     { bg: C.purple + '26', bgLight: C.purple + '12', text: C.purple, label: 'Dibayar',   Icon: CreditCard },
 };
 
 type FilterStatus = 'all' | 'pending' | 'approved' | 'paid' | 'rejected';
@@ -42,9 +43,9 @@ export default function ExpenseClaimsScreen() {
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [showForm, setShowForm] = useState(false);
 
-  const bg = isDark ? '#0A0A0F' : '#F0F4FF';
-  const textPrimary = isDark ? '#FFFFFF' : '#0F172A';
-  const textSecondary = isDark ? 'rgba(255,255,255,0.5)' : '#64748B';
+  const bg = pageBg(isDark);
+  const textPrimary = lPrimary(isDark);
+  const textSecondary = lSecondary(isDark);
 
   const { data: claims = [], isLoading, refetch } = useQuery({
     queryKey: ['my-claims', filter],
@@ -74,11 +75,11 @@ export default function ExpenseClaimsScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={isDark ? '#FFF' : '#7C3AED'} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={isDark ? '#FFF' : C.purple} />}
       >
         {/* Header */}
         <View>
-          <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor="#7C3AED" onBack={() => router.navigate('/(main)/profile')} />
+          <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor={C.purple} onBack={() => router.navigate('/(main)/profile')} />
 
           {/* Buat Klaim button */}
           <TouchableOpacity
@@ -87,14 +88,14 @@ export default function ExpenseClaimsScreen() {
               marginHorizontal: 20,
               marginTop: 4,
               marginBottom: 16,
-              backgroundColor: '#7C3AED',
+              backgroundColor: C.purple,
               borderRadius: 18,
               paddingVertical: 14,
               alignItems: 'center',
               flexDirection: 'row',
               justifyContent: 'center',
               gap: 8,
-              shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6,
+              shadowColor: C.purple, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6,
             }}
           >
             <Plus size={20} color="#FFF" />
@@ -116,9 +117,9 @@ export default function ExpenseClaimsScreen() {
                 style={{
                   paddingHorizontal: 18, paddingVertical: 9,
                   borderRadius: 22,
-                  backgroundColor: active ? '#7C3AED' : isDark ? 'rgba(255,255,255,0.09)' : '#FFFFFF',
+                  backgroundColor: active ? C.purple : isDark ? 'rgba(255,255,255,0.09)' : '#FFFFFF',
                   borderWidth: 1.5,
-                  borderColor: active ? '#7C3AED' : isDark ? 'rgba(255,255,255,0.14)' : '#E2E8F0',
+                  borderColor: active ? C.purple : isDark ? 'rgba(255,255,255,0.14)' : '#E2E8F0',
                 }}
               >
                 <Text style={{ fontSize: 14, fontWeight: active ? '700' : '500', color: active ? '#FFF' : isDark ? 'rgba(255,255,255,0.75)' : '#475569' }}>
@@ -133,8 +134,8 @@ export default function ExpenseClaimsScreen() {
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
           {claims.length === 0 && !isLoading && (
             <View style={{ paddingTop: 48, alignItems: 'center' }}>
-              <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: isDark ? 'rgba(124,58,237,0.15)' : '#F5F3FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Receipt size={34} color="#7C3AED" />
+              <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: isDark ? C.purple + '26' : C.purple + '12', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Receipt size={34} color={C.purple} />
               </View>
               <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.7)' : '#374151' }}>
                 Belum ada klaim biaya
@@ -179,7 +180,7 @@ function ClaimCard({ claim, isDark }: { claim: ExpenseClaim; isDark: boolean }) 
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#7C3AED', fontFamily: 'monospace', letterSpacing: 0.5, marginBottom: 3 }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: C.purple, fontFamily: 'monospace', letterSpacing: 0.5, marginBottom: 3 }}>
             {claim.claim_number ?? '—'}
           </Text>
           <Text style={{ fontSize: 16, fontWeight: '700', color: textPrimary }}>
@@ -203,9 +204,9 @@ function ClaimCard({ claim, isDark }: { claim: ExpenseClaim; isDark: boolean }) 
       )}
 
       {claim.review_note && claim.status === 'rejected' && (
-        <View style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', borderRadius: 10, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
-          <Info size={14} color="#EF4444" style={{ marginTop: 1 }} />
-          <Text style={{ fontSize: 13, color: '#EF4444', flex: 1 }}>Alasan: {claim.review_note}</Text>
+        <View style={{ backgroundColor: isDark ? C.red + '1F' : C.red + '12', borderRadius: 10, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+          <Info size={14} color={C.red} style={{ marginTop: 1 }} />
+          <Text style={{ fontSize: 13, color: C.red, flex: 1 }}>Alasan: {claim.review_note}</Text>
         </View>
       )}
 
@@ -333,9 +334,9 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
                   onPress={() => setCategory(c.category)}
                   style={{
                     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14,
-                    backgroundColor: category === c.category ? '#7C3AED' : isDark ? 'rgba(255,255,255,0.09)' : '#FFFFFF',
+                    backgroundColor: category === c.category ? C.purple : isDark ? 'rgba(255,255,255,0.09)' : '#FFFFFF',
                     borderWidth: 1.5,
-                    borderColor: category === c.category ? '#7C3AED' : isDark ? 'rgba(255,255,255,0.14)' : '#E2E8F0',
+                    borderColor: category === c.category ? C.purple : isDark ? 'rgba(255,255,255,0.14)' : '#E2E8F0',
                   }}
                 >
                   <Text style={{ fontSize: 14, fontWeight: '600', color: category === c.category ? '#FFF' : (isDark ? 'rgba(255,255,255,0.75)' : '#475569') }}>
@@ -366,7 +367,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
             style={{ borderWidth: 1.5, borderColor: inputBorder, borderRadius: 16, padding: 16, fontSize: 24, fontWeight: '700', color: textPrimary, backgroundColor: inputBg }}
           />
           {amount && (
-            <Text style={{ fontSize: 13, color: '#7C3AED', marginTop: 6, fontWeight: '600' }}>
+            <Text style={{ fontSize: 13, color: C.purple, marginTop: 6, fontWeight: '600' }}>
               = {formatRupiah(parseInt(amount.replace(/\D/g, '') || '0'))}
             </Text>
           )}
@@ -399,7 +400,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
               <View key={i} style={{ position: 'relative' }}>
                 <Image source={{ uri }} style={{ width: 80, height: 80, borderRadius: 14 }} />
                 <TouchableOpacity
-                  style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' }}
                   onPress={() => setReceiptUris((prev) => prev.filter((_, j) => j !== i))}
                 >
                   <X size={12} color="#FFF" />
@@ -422,9 +423,9 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
           onPress={() => createMut.mutate()}
           disabled={!canSubmit || createMut.isPending || uploading}
           style={{
-            backgroundColor: canSubmit ? '#7C3AED' : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
+            backgroundColor: canSubmit ? C.purple : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
             borderRadius: 18, paddingVertical: 17, alignItems: 'center',
-            ...(canSubmit ? { shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 } : {}),
+            ...(canSubmit ? { shadowColor: C.purple, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 } : {}),
           }}
         >
           {(createMut.isPending || uploading) ? (

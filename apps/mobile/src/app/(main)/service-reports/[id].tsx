@@ -17,6 +17,7 @@ import {
   getPdfUrl,
 } from '@/services/service-reports.service';
 import { api as apiClient } from '@/services/api';
+import { C, R } from '@/constants/tokens';
 import { SignaturePad } from '@/components/service-reports/SignaturePad';
 
 type SignStep = 'none' | 'tech' | 'client_name' | 'client_sign';
@@ -89,7 +90,7 @@ export default function ServiceReportDetailScreen() {
   if (isLoading || !report) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={C.blue} />
       </View>
     );
   }
@@ -307,11 +308,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   backBtn: { marginBottom: 8 },
-  backText: { fontSize: 14, color: '#2563eb' },
+  backText: { fontSize: 14, color: C.blue },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
   lockedBadge: {
     marginTop: 8, alignSelf: 'flex-start',
-    backgroundColor: '#d1fae5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+    backgroundColor: C.green + '26', paddingHorizontal: 10, paddingVertical: 4, borderRadius: R.pill,
   },
   lockedText: { fontSize: 12, fontWeight: '700', color: '#065f46' },
   card: {
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   sectionTitle: {
-    fontSize: 13, fontWeight: '700', color: '#1d4ed8',
+    fontSize: 13, fontWeight: '700', color: C.blue,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
   },
   infoRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
@@ -344,10 +345,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8,
     backgroundColor: '#eff6ff', borderRadius: 10, borderWidth: 1.5, borderColor: '#bfdbfe',
   },
-  signBtnText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
+  signBtnText: { fontSize: 13, fontWeight: '700', color: C.blue },
   sigPending: { fontSize: 12, color: '#d1d5db' },
   pdfBtn: {
-    backgroundColor: '#059669', borderRadius: 16, padding: 16, alignItems: 'center',
+    backgroundColor: C.green, borderRadius: 16, padding: 16, alignItems: 'center',
     marginTop: 8,
   },
   pdfBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
@@ -369,7 +370,7 @@ const styles = StyleSheet.create({
   nameCancelText: { fontSize: 15, fontWeight: '600', color: '#4b5563' },
   nameOkBtn: {
     flex: 2, paddingVertical: 14, borderRadius: 12,
-    backgroundColor: '#2563eb', alignItems: 'center',
+    backgroundColor: C.blue, alignItems: 'center',
   },
   nameOkText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });

@@ -6,6 +6,7 @@ import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   useColorScheme, StatusBar, Alert, ActivityIndicator, Modal,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
+import { C, pageBg, cardBg as tokenCardBg, lPrimary, lSecondary } from '@/constants/tokens';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { ConfirmCountdown } from '@/components/tasks/ConfirmCountdown';
 import NavigationButton from '@/components/tasks/NavigationButton';
@@ -25,19 +27,19 @@ import NavigationButton from '@/components/tasks/NavigationButton';
 type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string; bgDark: string; Icon: LucideIcon }> = {
-  low:    { label: 'Rendah',    color: '#6B7280', bg: '#F9FAFB', bgDark: 'rgba(107,114,128,0.15)', Icon: ArrowDownCircle },
-  normal: { label: 'Normal',   color: '#2563EB', bg: '#EFF6FF', bgDark: 'rgba(37,99,235,0.15)',   Icon: MinusCircle     },
-  high:   { label: 'Penting',  color: '#EA580C', bg: '#FFF7ED', bgDark: 'rgba(234,88,12,0.15)',   Icon: ArrowUpCircle   },
-  urgent: { label: 'Mendadak', color: '#EF4444', bg: '#FEF2F2', bgDark: 'rgba(239,68,68,0.15)',   Icon: Zap             },
+  low:    { label: 'Rendah',    color: '#8E8E93', bg: '#8E8E93' + '15', bgDark: '#8E8E93' + '26', Icon: ArrowDownCircle },
+  normal: { label: 'Normal',   color: C.blue,   bg: C.blue + '15',   bgDark: C.blue + '26',   Icon: MinusCircle     },
+  high:   { label: 'Penting',  color: C.orange, bg: C.orange + '15', bgDark: C.orange + '26', Icon: ArrowUpCircle   },
+  urgent: { label: 'Mendadak', color: C.red,    bg: C.red + '15',    bgDark: C.red + '26',    Icon: Zap             },
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; bgDark: string }> = {
-  pending_confirmation: { label: 'Menunggu Konfirmasi', color: '#F59E0B', bg: '#FFFBEB', bgDark: 'rgba(245,158,11,0.15)' },
-  assigned:   { label: 'Ditugaskan',    color: '#2563EB', bg: '#EFF6FF', bgDark: 'rgba(37,99,235,0.15)' },
-  on_hold:    { label: 'Ditunda',       color: '#EA580C', bg: '#FFF7ED', bgDark: 'rgba(234,88,12,0.15)' },
-  rescheduled:{ label: 'Dijadwal Ulang',color: '#7C3AED', bg: '#F5F3FF', bgDark: 'rgba(124,58,237,0.15)' },
-  completed:  { label: 'Selesai',       color: '#16A34A', bg: '#DCFCE7', bgDark: 'rgba(22,163,74,0.15)' },
-  unassigned: { label: 'Belum Ditugaskan', color: '#6B7280', bg: '#F9FAFB', bgDark: 'rgba(107,114,128,0.15)' },
+  pending_confirmation: { label: 'Menunggu Konfirmasi', color: C.orange, bg: C.orange + '15', bgDark: C.orange + '26' },
+  assigned:   { label: 'Ditugaskan',    color: C.blue,   bg: C.blue + '15',   bgDark: C.blue + '26' },
+  on_hold:    { label: 'Ditunda',       color: C.orange, bg: C.orange + '15', bgDark: C.orange + '26' },
+  rescheduled:{ label: 'Dijadwal Ulang',color: C.purple, bg: C.purple + '15', bgDark: C.purple + '26' },
+  completed:  { label: 'Selesai',       color: C.green,  bg: C.green + '15',  bgDark: C.green + '26' },
+  unassigned: { label: 'Belum Ditugaskan', color: '#8E8E93', bg: '#8E8E93' + '15', bgDark: '#8E8E93' + '26' },
 };
 
 const HOLD_REASON_LABELS: Record<string, string> = {
@@ -70,13 +72,13 @@ export default function TaskDetailScreen() {
   const [delegateToUserId, setDelegateToUserId] = useState('');
   const [delegateReason, setDelegateReason] = useState('');
 
-  const bg = isDark ? '#0A0A0F' : '#F0F4FF';
-  const cardBg = isDark ? 'rgba(255,255,255,0.07)' : '#FFFFFF';
-  const cardBorder = isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0';
-  const textPrimary = isDark ? '#FFFFFF' : '#0F172A';
-  const textSecondary = isDark ? 'rgba(255,255,255,0.5)' : '#64748B';
+  const bg = pageBg(isDark);
+  const cardBg = tokenCardBg(isDark);
+  const cardBorder = isDark ? C.separator.dark : C.separator.light;
+  const textPrimary = lPrimary(isDark);
+  const textSecondary = lSecondary(isDark);
   const inputBg = isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF';
-  const inputBorder = isDark ? 'rgba(255,255,255,0.14)' : '#E2E8F0';
+  const inputBorder = isDark ? C.separator.dark : C.separator.light;
 
   const { data: task, isLoading, refetch } = useQuery({
     queryKey: ['task-detail', id],
@@ -166,7 +168,7 @@ export default function TaskDetailScreen() {
         {isDark && (
           <LinearGradient colors={['#0D1428', '#0A1F0A', '#0A0A0F']} style={{ position: 'absolute', inset: 0 }} />
         )}
-        <ActivityIndicator size="large" color="#16A34A" />
+        <ActivityIndicator size="large" color={C.green} />
       </View>
     );
   }
@@ -198,8 +200,8 @@ export default function TaskDetailScreen() {
             onPress={() => router.back()}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingVertical: 4 }}
           >
-            <ChevronLeft size={18} strokeWidth={2.5} color="#16A34A" />
-            <Text style={{ fontSize: 15, fontWeight: '600', color: '#16A34A' }}>Tugas</Text>
+            <ChevronLeft size={18} strokeWidth={2.5} color={C.green} />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: C.green }}>Tugas</Text>
           </TouchableOpacity>
         </View>
 
@@ -208,9 +210,9 @@ export default function TaskDetailScreen() {
           <View style={{ backgroundColor: cardBg, borderRadius: 24, borderWidth: 1.5, borderColor: cardBorder, padding: 20 }}>
             {/* Emergency banner */}
             {task.is_emergency && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2', borderRadius: 12, padding: 10, marginBottom: 14 }}>
-                <AlertTriangle size={16} strokeWidth={2} color="#EF4444" />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#EF4444', flex: 1 }}>Tugas Darurat — Segera Ditangani</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: isDark ? C.red + '26' : C.red + '12', borderRadius: 12, padding: 10, marginBottom: 14 }}>
+                <AlertTriangle size={16} strokeWidth={2} color={C.red} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: C.red, flex: 1 }}>Tugas Darurat — Segera Ditangani</Text>
               </View>
             )}
 
@@ -278,8 +280,8 @@ export default function TaskDetailScreen() {
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
             <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
-                  <FileText size={16} strokeWidth={1.8} color="#2563EB" />
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? C.blue + '33' : C.blue + '14', alignItems: 'center', justifyContent: 'center' }}>
+                  <FileText size={16} strokeWidth={1.8} color={C.blue} />
                 </View>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Deskripsi</Text>
               </View>
@@ -293,8 +295,8 @@ export default function TaskDetailScreen() {
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
             <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? 'rgba(234,88,12,0.2)' : '#FFEDD5', alignItems: 'center', justifyContent: 'center' }}>
-                  <Building2 size={16} strokeWidth={1.8} color="#EA580C" />
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? C.orange + '33' : C.orange + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                  <Building2 size={16} strokeWidth={1.8} color={C.orange} />
                 </View>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Klien</Text>
               </View>
@@ -326,9 +328,9 @@ export default function TaskDetailScreen() {
         {/* ── Escalation info ───────────────────────── */}
         {task.escalated_from && (
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-            <View style={{ backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.3)', padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <ArrowUpCircle size={18} strokeWidth={1.8} color="#F59E0B" />
-              <Text style={{ fontSize: 14, color: '#F59E0B', fontWeight: '600', flex: 1 }}>
+            <View style={{ backgroundColor: isDark ? C.orange + '1A' : C.orange + '0D', borderRadius: 16, borderWidth: 1.5, borderColor: C.orange + '4D', padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <ArrowUpCircle size={18} strokeWidth={1.8} color={C.orange} />
+              <Text style={{ fontSize: 14, color: C.orange, fontWeight: '600', flex: 1 }}>
                 Dieskalasi dari {task.escalated_from}
                 {task.escalated_at && ` · ${new Date(task.escalated_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}`}
               </Text>
@@ -341,13 +343,13 @@ export default function TaskDetailScreen() {
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
             <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : '#FFFBEB', alignItems: 'center', justifyContent: 'center' }}>
-                  <PauseCircle size={16} strokeWidth={1.8} color="#F59E0B" />
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? C.orange + '33' : C.orange + '0D', alignItems: 'center', justifyContent: 'center' }}>
+                  <PauseCircle size={16} strokeWidth={1.8} color={C.orange} />
                 </View>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Riwayat Penundaan</Text>
               </View>
               {holds.map((h, i) => {
-                const statusColor = h.review_status === 'approved' ? '#16A34A' : h.review_status === 'rejected' ? '#EF4444' : '#F59E0B';
+                const statusColor = h.review_status === 'approved' ? C.green : h.review_status === 'rejected' ? C.red : C.orange;
                 return (
                   <View key={h.id} style={{ borderTopWidth: i > 0 ? 1 : 0, borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', paddingTop: i > 0 ? 12 : 0, marginTop: i > 0 ? 12 : 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -384,7 +386,7 @@ export default function TaskDetailScreen() {
                 ]);
               }}
               disabled={acceptMut.isPending}
-              style={{ backgroundColor: '#16A34A', borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, shadowColor: '#16A34A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 }}
+              style={{ backgroundColor: C.green, borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, shadowColor: C.green, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 }}
             >
               {acceptMut.isPending ? <ActivityIndicator color="#FFF" /> : (
                 <>
@@ -395,10 +397,10 @@ export default function TaskDetailScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowRejectModal(true); }}
-              style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FEF2F2', borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(239,68,68,0.35)' }}
+              style={{ backgroundColor: isDark ? C.red + '1F' : C.red + '12', borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.red + '59' }}
             >
-              <XCircle size={20} strokeWidth={2} color="#EF4444" />
-              <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 16 }}>Tolak Tugas</Text>
+              <XCircle size={20} strokeWidth={2} color={C.red} />
+              <Text style={{ color: C.red, fontWeight: '700', fontSize: 16 }}>Tolak Tugas</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -407,26 +409,26 @@ export default function TaskDetailScreen() {
           <View style={{ paddingHorizontal: 20, gap: 12, marginBottom: 14 }}>
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowHoldModal(true); }}
-              style={{ backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#FFFBEB', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.35)' }}
+              style={{ backgroundColor: isDark ? C.orange + '1F' : C.orange + '0D', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.orange + '59' }}
             >
-              <PauseCircle size={20} strokeWidth={2} color="#F59E0B" />
-              <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 16 }}>Tunda Pekerjaan</Text>
+              <PauseCircle size={20} strokeWidth={2} color={C.orange} />
+              <Text style={{ color: C.orange, fontWeight: '700', fontSize: 16 }}>Tunda Pekerjaan</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowDelegateModal(true)}
-              style={{ backgroundColor: isDark ? 'rgba(124,58,237,0.12)' : '#F5F3FF', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(124,58,237,0.35)' }}
+              style={{ backgroundColor: isDark ? C.purple + '1F' : C.purple + '12', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.purple + '59' }}
             >
-              <CornerUpRight size={20} strokeWidth={2} color="#7C3AED" />
-              <Text style={{ color: '#7C3AED', fontWeight: '700', fontSize: 16 }}>Limpahkan Tugas</Text>
+              <CornerUpRight size={20} strokeWidth={2} color={C.purple} />
+              <Text style={{ color: C.purple, fontWeight: '700', fontSize: 16 }}>Limpahkan Tugas</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {isCompleted && (
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-            <View style={{ backgroundColor: isDark ? 'rgba(22,163,74,0.1)' : '#DCFCE7', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: 'rgba(22,163,74,0.3)' }}>
-              <CheckCircle2 size={22} strokeWidth={2} color="#16A34A" />
-              <Text style={{ color: '#16A34A', fontWeight: '700', fontSize: 16 }}>Tugas Selesai</Text>
+            <View style={{ backgroundColor: isDark ? C.green + '1A' : C.green + '14', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.green + '4D' }}>
+              <CheckCircle2 size={22} strokeWidth={2} color={C.green} />
+              <Text style={{ color: C.green, fontWeight: '700', fontSize: 16 }}>Tugas Selesai</Text>
             </View>
           </View>
         )}
@@ -434,7 +436,7 @@ export default function TaskDetailScreen() {
 
       {/* ── Reject Modal ──────────────────────────────────────────────────── */}
       <Modal visible={showRejectModal} transparent animationType="slide">
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
           <View style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, paddingBottom: insets.bottom + 24 }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 18 }} />
             <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, marginBottom: 6 }}>Tolak Tugas</Text>
@@ -454,7 +456,7 @@ export default function TaskDetailScreen() {
               <TouchableOpacity
                 onPress={() => rejectMut.mutate()}
                 disabled={rejectMut.isPending}
-                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center' }}
+                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: C.red, alignItems: 'center' }}
               >
                 {rejectMut.isPending ? <ActivityIndicator color="#FFF" /> : (
                   <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Tolak Tugas</Text>
@@ -462,12 +464,12 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Hold Modal ────────────────────────────────────────────────────── */}
       <Modal visible={showHoldModal} transparent animationType="slide">
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
           <View style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, paddingBottom: insets.bottom + 24, maxHeight: '82%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 18 }} />
             <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, marginBottom: 4 }}>Tunda Pekerjaan</Text>
@@ -479,7 +481,7 @@ export default function TaskDetailScreen() {
                   onPress={() => setHoldReasonType(r.value)}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.07)' : '#F1F5F9' }}
                 >
-                  <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: holdReasonType === r.value ? '#F59E0B' : isDark ? 'rgba(255,255,255,0.3)' : '#D1D5DB', backgroundColor: holdReasonType === r.value ? '#F59E0B' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: holdReasonType === r.value ? C.orange : isDark ? 'rgba(255,255,255,0.3)' : '#D1D5DB', backgroundColor: holdReasonType === r.value ? C.orange : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                     {holdReasonType === r.value && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFF' }} />}
                   </View>
                   <Text style={{ fontSize: 15, color: textPrimary, flex: 1 }}>{r.label}</Text>
@@ -505,7 +507,7 @@ export default function TaskDetailScreen() {
                     holdMut.mutate();
                   }}
                   disabled={holdMut.isPending || !holdNotes.trim()}
-                  style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: holdNotes.trim() ? '#F59E0B' : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
+                  style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: holdNotes.trim() ? C.orange : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
                 >
                   {holdMut.isPending ? <ActivityIndicator color="#FFF" /> : (
                     <Text style={{ color: holdNotes.trim() ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'), fontWeight: '700', fontSize: 15 }}>Ajukan Tunda</Text>
@@ -514,12 +516,12 @@ export default function TaskDetailScreen() {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Delegate Modal ────────────────────────────────────────────────── */}
       <Modal visible={showDelegateModal} transparent animationType="slide">
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
           <View style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: insets.bottom + 24 }}>
             <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, marginBottom: 4 }}>Limpahkan Tugas</Text>
             <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 18 }}>Manajer akan menyetujui permintaan ini.</Text>
@@ -556,7 +558,7 @@ export default function TaskDetailScreen() {
                   delegateMut.mutate();
                 }}
                 disabled={delegateMut.isPending || !delegateToUserId.trim() || !delegateReason.trim()}
-                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: (delegateToUserId.trim() && delegateReason.trim()) ? '#7C3AED' : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
+                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: (delegateToUserId.trim() && delegateReason.trim()) ? C.purple : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
               >
                 {delegateMut.isPending ? <ActivityIndicator color="#FFF" /> : (
                   <Text style={{ color: (delegateToUserId.trim() && delegateReason.trim()) ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'), fontWeight: '700', fontSize: 15 }}>Limpahkan</Text>
@@ -564,7 +566,7 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
