@@ -9,7 +9,7 @@ import {
   Modal, Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { C, R, B, T, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NotifCardSkeleton } from '@/components/ui/SkeletonLoader';
@@ -325,7 +325,7 @@ export default function NotificationsScreen() {
                       if (route === '__ann__') {
                         setActiveTab('ann');
                       } else if (route) {
-                        router.push(route as any);
+                        router.push(route as Href);
                       }
                     }}
                     activeOpacity={0.78}

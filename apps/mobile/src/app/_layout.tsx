@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -59,7 +59,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const inAuth          = segments[0] === '(auth)';
     const onChangePw      = segments[1] === 'change-password';
-    const mustChangePw    = !!(user as any)?.must_change_password;
+    const mustChangePw    = !!user?.must_change_password;
 
     if (!user && !inAuth) {
       // Belum login → ke halaman login
@@ -112,7 +112,7 @@ export default function RootLayout() {
 
       // Jika backend sudah kirim route langsung, pakai itu
       if (data.route) {
-        router.push(data.route as any);
+        router.push(data.route as Href);
         return;
       }
 
@@ -126,7 +126,7 @@ export default function RootLayout() {
             lng:      data.lng      ?? '',
             userName: data.userName ?? 'Rekan Anda',
           },
-        } as any);
+        });
         return;
       }
 
@@ -162,12 +162,12 @@ export default function RootLayout() {
 
       // Pengumuman — buka tab Pengumuman di halaman notifikasi
       if (data.type === 'announcement_approved' || data.type === 'announcement_rejected' || data.type === 'announcement_pending') {
-        router.push({ pathname: '/(main)/notifications', params: { tab: 'ann' } } as any);
+        router.push({ pathname: '/(main)/notifications', params: { tab: 'ann' } });
         return;
       }
 
       const route = ROUTE_MAP[data.type];
-      if (route) router.push(route as any);
+      if (route) router.push(route as Href);
     });
 
     // Cold-start: app dibuka dari notif saat killed
@@ -185,9 +185,9 @@ export default function RootLayout() {
               lng:      data.lng      ?? '',
               userName: data.userName ?? 'Rekan Anda',
             },
-          } as any);
+          });
         } else if (data.type === 'announcement_approved' || data.type === 'announcement_rejected' || data.type === 'announcement_pending') {
-          router.push({ pathname: '/(main)/notifications', params: { tab: 'ann' } } as any);
+          router.push({ pathname: '/(main)/notifications', params: { tab: 'ann' } });
         }
       }, 500); // delay kecil agar router sudah siap
     }).catch(() => null);

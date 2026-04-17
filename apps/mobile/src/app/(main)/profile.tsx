@@ -689,33 +689,36 @@ export default function ProfileScreen() {
               </Text>
             )}
 
-            <TouchableOpacity
-              onPress={() => passwordMutation.mutate()}
-              disabled={
-                passwordMutation.isPending ||
+            {(() => {
+              const isPwFormInvalid =
                 !pwForm.current_password ||
                 !pwForm.new_password ||
-                pwForm.new_password !== pwForm.confirm_password
-              }
-              style={{
-                backgroundColor: (!pwForm.current_password || !pwForm.new_password || pwForm.new_password !== pwForm.confirm_password)
-                  ? isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB'
-                  : '#007AFF',
-                borderRadius: 14,
-                padding: 16,
-                alignItems: 'center',
-                marginTop: 8,
-              }}
-              activeOpacity={0.8}
-            >
-              {passwordMutation.isPending ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={{ fontSize: 16, fontWeight: '700', color: (!pwForm.current_password || !pwForm.new_password || pwForm.new_password !== pwForm.confirm_password) ? isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' : '#FFF' }}>
-                  Simpan Password
-                </Text>
-              )}
-            </TouchableOpacity>
+                pwForm.new_password !== pwForm.confirm_password;
+              const disabledBg = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB';
+              const disabledText = isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF';
+              return (
+                <TouchableOpacity
+                  onPress={() => passwordMutation.mutate()}
+                  disabled={passwordMutation.isPending || isPwFormInvalid}
+                  style={{
+                    backgroundColor: isPwFormInvalid ? disabledBg : '#007AFF',
+                    borderRadius: 14,
+                    padding: 16,
+                    alignItems: 'center',
+                    marginTop: 8,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {passwordMutation.isPending ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: isPwFormInvalid ? disabledText : '#FFF' }}>
+                      Simpan Password
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })()}
 
             <View style={{ height: 40 }} />
           </ScrollView>

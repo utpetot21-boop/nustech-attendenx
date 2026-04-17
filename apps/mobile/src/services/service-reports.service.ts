@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { api as apiClient } from './api';
 
 export interface ServiceReport {
   id: string;

@@ -551,7 +551,7 @@ export default function WeatherBanner({
   const gradient = getGradient(condition, period);
 
   const isNight    = period === 'night' || period === 'dusk';
-  const showSun    = !isNight && (condition === 'clear' || condition === 'partly_cloudy' || condition === 'dawn' as any);
+  const showSun    = !isNight && (condition === 'clear' || condition === 'partly_cloudy');
   const showClouds = condition === 'partly_cloudy' || condition === 'cloudy' || condition === 'fog' || condition === 'drizzle' || condition === 'rain' || condition === 'storm';
   const showRain   = condition === 'rain' || condition === 'drizzle' || condition === 'storm';
   const showSnow   = condition === 'snow';
@@ -636,7 +636,7 @@ export default function WeatherBanner({
           {/* Wrapper View diperlukan agar badge dapat overflow keluar lingkaran tombol */}
           <View style={{ position: 'relative' }}>
             <TouchableOpacity
-              onPress={() => router.push('/(main)/notifications' as any)}
+              onPress={() => router.push('/(main)/notifications')}
               style={{
                 width: 38, height: 38, borderRadius: 19,
                 backgroundColor: 'rgba(255,255,255,0.12)',
@@ -662,7 +662,7 @@ export default function WeatherBanner({
             )}
           </View>
           <TouchableOpacity
-            onPress={() => router.push('/(main)/profile' as any)}
+            onPress={() => router.push('/(main)/profile')}
             style={{
               width: 42, height: 42, borderRadius: 21,
               backgroundColor: 'rgba(255,255,255,0.18)',

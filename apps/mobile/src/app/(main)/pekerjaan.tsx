@@ -338,18 +338,20 @@ export default function PekerjaanScreen() {
 
   useEffect(() => {
     let mounted = true; // P3-11: cegah setState setelah unmount
-    Location.requestForegroundPermissionsAsync().then(({ status }) => {
-      if (status === 'granted' && mounted) {
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-          .then((loc) => {
-            if (mounted) {
-              setUserLat(loc.coords.latitude);
-              setUserLng(loc.coords.longitude);
-            }
-          })
-          .catch(() => {});
-      }
-    });
+    Location.requestForegroundPermissionsAsync()
+      .then(({ status }) => {
+        if (status === 'granted' && mounted) {
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+            .then((loc) => {
+              if (mounted) {
+                setUserLat(loc.coords.latitude);
+                setUserLng(loc.coords.longitude);
+              }
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
     return () => { mounted = false; };
   }, []);
 

@@ -59,7 +59,7 @@ export default function ChangePasswordScreen() {
         new_password: newPassword,
       });
       // Hapus flag must_change_password dari store agar AuthGuard tidak loop
-      await useAuthStore.getState().updateUser({ must_change_password: false } as any);
+      await useAuthStore.getState().updateUser({ must_change_password: false });
       Alert.alert('Berhasil', 'Password berhasil diperbarui.', [
         { text: 'OK', onPress: () => router.replace('/(main)') },
       ]);

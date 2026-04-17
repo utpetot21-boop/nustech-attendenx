@@ -45,11 +45,9 @@ import { scheduleService, getCurrentWeekString } from '@/services/schedule.servi
 import { attendanceRequestsService, type AttendanceRequest } from '@/services/attendance-requests.service';
 import { api } from '@/services/api';
 import { useMutation } from '@tanstack/react-query';
+import { currentMonth } from '@/utils/dateFormatter';
 
-const MONTH_NOW = (() => {
-  const n = new Date();
-  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
-})();
+const MONTH_NOW = currentMonth();
 
 const STATUS_SUMMARY = [
   { key: 'hadir',     label: 'Hadir',     color: '#34C759' },
@@ -70,13 +68,16 @@ function getStatusTheme(checkedIn: boolean, checkedOut: boolean, status?: string
     bg: (d: boolean) => d ? 'rgba(52,199,89,0.12)' : '#F0FDF4',
     border: (d: boolean) => d ? 'rgba(52,199,89,0.22)' : 'rgba(52,199,89,0.28)',
   };
-  if (checkedIn) return {
-    dot: status === 'terlambat' ? C.orange : C.blue,
-    label: status === 'terlambat' ? 'Terlambat' : 'Hadir',
-    color: status === 'terlambat' ? C.orange : C.blue,
-    bg: (d: boolean) => d ? 'rgba(0,122,255,0.12)' : '#EFF6FF',
-    border: (d: boolean) => d ? 'rgba(0,122,255,0.22)' : 'rgba(0,122,255,0.28)',
-  };
+  if (checkedIn) {
+    const isLate = status === 'terlambat';
+    return {
+      dot: isLate ? C.orange : C.blue,
+      label: isLate ? 'Terlambat' : 'Hadir',
+      color: isLate ? C.orange : C.blue,
+      bg: (d: boolean) => d ? 'rgba(0,122,255,0.12)' : '#EFF6FF',
+      border: (d: boolean) => d ? 'rgba(0,122,255,0.22)' : 'rgba(0,122,255,0.28)',
+    };
+  }
   return {
     dot: C.orange, label: 'Belum Hadir', color: C.orange,
     bg: (d: boolean) => d ? 'rgba(255,149,0,0.12)' : '#FFF7ED',
@@ -94,7 +95,7 @@ function SosButton({ isDark }: { isDark: boolean }) {
     setHolding(true);
     holdAnim.current = Animated.timing(progress, { toValue: 1, duration: 3000, useNativeDriver: false });
     holdAnim.current.start(({ finished }) => {
-      if (finished) { setHolding(false); router.push('/(main)/sos' as any); progress.setValue(0); }
+      if (finished) { setHolding(false); router.push('/(main)/sos'); progress.setValue(0); }
     });
   };
   const onPressOut = () => {
@@ -544,7 +545,7 @@ export default function BerandaScreen() {
             <HomeHeroSkeleton isDark={isDark} />
           ) : (
           <TouchableOpacity
-            onPress={() => router.push('/(main)/attendance' as any)}
+            onPress={() => router.push('/(main)/attendance')}
             activeOpacity={0.85}
             style={{
               backgroundColor: cardBg(isDark),
@@ -669,7 +670,7 @@ export default function BerandaScreen() {
           {/* ── CHECKOUT COUNTDOWN ─────────────────────────────────────────── */}
           {alreadyCheckedIn && !alreadyCheckedOut && (
             <TouchableOpacity
-              onPress={() => router.push('/(main)/attendance' as any)}
+              onPress={() => router.push('/(main)/attendance')}
               activeOpacity={0.85}
               style={{
                 backgroundColor: cardBg(isDark),
@@ -713,7 +714,7 @@ export default function BerandaScreen() {
 
           {/* ── JADWAL HARI INI ────────────────────────────────────────────── */}
           <TouchableOpacity
-            onPress={() => router.push('/(main)/schedule' as any)}
+            onPress={() => router.push('/(main)/schedule')}
             activeOpacity={0.85}
             style={{
               backgroundColor: cardBg(isDark),
@@ -796,7 +797,7 @@ export default function BerandaScreen() {
             sub="Tukar hari kerja dengan rekan atau hari libur"
             accentColor={C.orange}
             icon={ArrowLeftRight}
-            onPress={() => router.push('/(main)/schedule-swap' as any)}
+            onPress={() => router.push('/(main)/schedule-swap')}
             isDark={isDark}
           />
 
@@ -806,7 +807,7 @@ export default function BerandaScreen() {
             sub="Ajukan cuti, izin, dan lihat saldo"
             accentColor={C.blue}
             icon={Palmtree}
-            onPress={() => router.push('/(main)/leave' as any)}
+            onPress={() => router.push('/(main)/leave')}
             isDark={isDark}
           />
 
@@ -815,13 +816,13 @@ export default function BerandaScreen() {
             <StatCard
               label="Tugas"     value="—"  sub="hari ini"
               accentColor={C.green}  icon={ClipboardList}
-              onPress={() => router.push('/(main)/tasks' as any)}
+              onPress={() => router.push('/(main)/tasks')}
               isDark={isDark}
             />
             <StatCard
               label="Kunjungan" value="—"  sub="bulan ini"
               accentColor={C.orange} icon={MapPin}
-              onPress={() => router.push('/(main)/visits' as any)}
+              onPress={() => router.push('/(main)/visits')}
               isDark={isDark}
             />
           </View>
@@ -831,13 +832,13 @@ export default function BerandaScreen() {
             <StatCard
               label="Saldo Cuti"  value="—"  sub="hari tersisa"
               accentColor={C.purple} icon={TrendingUp}
-              onPress={() => router.push('/(main)/profile' as any)}
+              onPress={() => router.push('/(main)/profile')}
               isDark={isDark}
             />
             <StatCard
               label="Klaim"       value="—"  sub="menunggu"
               accentColor={C.blue}   icon={Wallet}
-              onPress={() => router.push('/(main)/expense-claims' as any)}
+              onPress={() => router.push('/(main)/expense-claims')}
               isDark={isDark}
             />
           </View>

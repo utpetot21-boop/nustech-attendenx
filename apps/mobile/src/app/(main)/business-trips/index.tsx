@@ -50,8 +50,7 @@ const FILTER_OPTIONS = [
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+import { fmtDateShort as fmtDate } from '@/utils/dateFormatter';
 
 const fmtCurrency = (n: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);

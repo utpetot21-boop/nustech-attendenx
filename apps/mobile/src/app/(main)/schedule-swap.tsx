@@ -2,7 +2,7 @@
  * SCREEN TUKAR JADWAL
  * Karyawan dapat mengajukan dan merespons permintaan tukar jadwal
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, Alert, ActivityIndicator, RefreshControl,
@@ -29,6 +29,7 @@ import api from '@/services/api';
 import { C, R, B, S, T, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { fmtDateWeekday as fmtDate, toISODate } from '@/utils/dateFormatter';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -41,19 +42,6 @@ interface UserOption {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('id-ID', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-  });
-}
-
-function toISODate(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -418,8 +406,11 @@ export default function ScheduleSwapScreen() {
     queryKey: ['user-profile-id'],
     queryFn: () => api.get('/users/me').then((r) => r.data as { id: string }),
     staleTime: Infinity,
-    onSuccess: (d: { id: string }) => setCurrentUserId(d.id),
-  } as any);
+  });
+
+  useEffect(() => {
+    if (meData?.id) setCurrentUserId(meData.id);
+  }, [meData?.id]);
 
   // Shift preview queries (hanya aktif saat form terbuka)
   const requesterDateStr = toISODate(requesterDate);
@@ -590,7 +581,7 @@ export default function ScheduleSwapScreen() {
               <SwapCard
                 key={item.id ? `s-${item.id}` : `s-idx-${i}`}
                 item={item}
-                userId={(meData as any)?.id ?? currentUserId}
+                userId={meData?.id ?? currentUserId}
                 isDark={isDark}
                 onRespond={handleRespond}
                 onCancel={handleCancel}
@@ -867,7 +858,7 @@ export default function ScheduleSwapScreen() {
           <UserPickerModal
             visible={showPicker}
             isDark={isDark}
-            excludeId={(meData as any)?.id ?? currentUserId}
+            excludeId={meData?.id ?? currentUserId}
             onClose={() => setShowPicker(false)}
             onSelect={(user) => setSelectedUser(user)}
           />

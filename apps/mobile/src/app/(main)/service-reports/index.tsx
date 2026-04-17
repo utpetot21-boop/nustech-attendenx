@@ -15,18 +15,7 @@ import {
 } from '@/services/service-reports.service';
 import { pageBg, cardBg, lPrimary, lSecondary, C } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
-
-function currentMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function fmtDate(s: string) {
-  return new Date(s).toLocaleDateString('id-ID', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    timeZone: 'Asia/Makassar',
-  });
-}
+import { fmtDateShortWIT as fmtDate, currentMonth } from '@/utils/dateFormatter';
 
 function StatusChip({ report, isDark }: { report: ServiceReport; isDark: boolean }) {
   if (report.is_locked) {

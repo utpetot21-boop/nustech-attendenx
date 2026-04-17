@@ -72,18 +72,20 @@ export default function TasksScreen() {
 
   useEffect(() => {
     let mounted = true;
-    Location.requestForegroundPermissionsAsync().then(({ status }) => {
-      if (status === 'granted' && mounted) {
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-          .then((loc) => {
-            if (mounted) {
-              setUserLat(loc.coords.latitude);
-              setUserLng(loc.coords.longitude);
-            }
-          })
-          .catch(() => {});
-      }
-    });
+    Location.requestForegroundPermissionsAsync()
+      .then(({ status }) => {
+        if (status === 'granted' && mounted) {
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+            .then((loc) => {
+              if (mounted) {
+                setUserLat(loc.coords.latitude);
+                setUserLng(loc.coords.longitude);
+              }
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
     return () => { mounted = false; };
   }, []);
   const [showRejectModal, setShowRejectModal] = useState(false);

@@ -83,7 +83,7 @@ export default function LoginScreen() {
         SecureStore.setItemAsync('refresh_token', refresh_token),
         SecureStore.setItemAsync('user', JSON.stringify(response.data.user)),
       ]);
-      setUser(response.data.user as any);
+      setUser(response.data.user);
       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
       if (require_password_change) {
         router.replace('/(auth)/change-password');
