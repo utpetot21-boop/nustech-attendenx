@@ -83,19 +83,21 @@ export default function ExpenseClaimsScreen() {
           <TouchableOpacity
             onPress={() => setShowForm(true)}
             style={{
-              marginTop: 16,
+              marginHorizontal: 20,
+              marginTop: 4,
+              marginBottom: 16,
               backgroundColor: '#7C3AED',
               borderRadius: 18,
-              paddingVertical: 16,
+              paddingVertical: 14,
               alignItems: 'center',
               flexDirection: 'row',
               justifyContent: 'center',
               gap: 8,
-              shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+              shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6,
             }}
           >
             <Plus size={20} color="#FFF" />
-            <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16 }}>Buat Klaim Baru</Text>
+            <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Buat Klaim Baru</Text>
           </TouchableOpacity>
         </View>
 
