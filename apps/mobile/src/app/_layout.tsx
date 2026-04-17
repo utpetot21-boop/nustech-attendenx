@@ -13,6 +13,7 @@ import {
   addNotificationResponseListener,
   addNotificationReceivedListener,
 } from '@/services/notifications.service';
+import { rescheduleCheckInReminders } from '@/services/check-in-reminder.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api';
 
@@ -50,6 +51,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       } catch {
         // Gagal register FCM tidak boleh block loading
       }
+      // Fire-and-forget: re-schedule pengingat check-in sesuai jadwal terbaru
+      rescheduleCheckInReminders().catch(() => null);
     }).finally(() => setReady(true));
   }, []);
 

@@ -22,6 +22,7 @@ import {
   type UserSchedule,
 } from '@/services/schedule.service';
 import { attendanceService, type AttendanceRecord } from '@/services/attendance.service';
+import { rescheduleCheckInReminders } from '@/services/check-in-reminder.service';
 
 /** Konversi tanggal arbitrary ke ISO week string (YYYY-Www) */
 function getWeekStringForDate(date: Date): string {
@@ -107,6 +108,8 @@ export default function ScheduleScreen() {
       refetchWeek();
       refetchMonth();
       refetchAttendance();
+      // Fire-and-forget: jadwal mungkin berubah sejak terakhir login
+      rescheduleCheckInReminders().catch(() => null);
     }, [refetchWeek, refetchMonth, refetchAttendance])
   );
 

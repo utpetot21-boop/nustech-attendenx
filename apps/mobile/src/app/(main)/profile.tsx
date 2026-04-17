@@ -3,7 +3,7 @@
  * Saldo cuti, riwayat mutasi, form pengajuan cuti, status objeksi
  * iOS 26 Liquid Glass design
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
@@ -36,6 +37,7 @@ import {
   Pencil,
   Camera,
   Megaphone,
+  BellRing,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -44,6 +46,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { LeaveCardSkeleton, SkeletonBone } from '@/components/ui/SkeletonLoader';
+import {
+  getReminderSettings,
+  setReminderSettings,
+  rescheduleCheckInReminders,
+  OFFSET_OPTIONS,
+  type ReminderSettings,
+} from '@/services/check-in-reminder.service';
 
 interface LeaveBalance {
   balance_days: number;
@@ -115,6 +124,19 @@ export default function ProfileScreen() {
     end_date: '',
     reason: '',
   });
+
+  // ── Pengingat Check-in ─────────────────────────────────────────────
+  const [reminder, setReminder] = useState<ReminderSettings | null>(null);
+  useEffect(() => {
+    getReminderSettings().then(setReminder);
+  }, []);
+
+  const updateReminder = useCallback(async (patch: Partial<ReminderSettings>) => {
+    const next = await setReminderSettings(patch);
+    setReminder(next);
+    // Re-schedule supaya perubahan langsung efek
+    rescheduleCheckInReminders().catch(() => null);
+  }, []);
 
   const { data: balance, refetch: refetchBalance, isRefetching, isLoading: balanceLoading } = useQuery({
     queryKey: ['leave-balance'],
@@ -426,6 +448,81 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
+
+        {/* ── Pengingat Check-in ─────────────────────────────────────── */}
+        {reminder && (
+          <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
+            <View
+              style={{
+                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+                borderRadius: R.lg,
+                borderWidth: B.default,
+                borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.10)',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Toggle row */}
+              <View style={{
+                flexDirection: 'row', alignItems: 'center',
+                paddingHorizontal: 16, paddingVertical: 13,
+                borderBottomWidth: reminder.enabled ? B.default : 0,
+                borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(60,60,67,0.10)',
+              }}>
+                <View style={{ width: 34, height: 34, borderRadius: R.xs + 2, backgroundColor: C.blue + '1F', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                  <BellRing size={18} strokeWidth={1.8} color={C.blue} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '500', color: textPrimary }}>
+                    Pengingat Check-in
+                  </Text>
+                  <Text style={{ fontSize: 12, color: textSecondary, marginTop: 2 }}>
+                    Notif lokal sebelum jadwal masuk
+                  </Text>
+                </View>
+                <Switch
+                  value={reminder.enabled}
+                  onValueChange={(v) => updateReminder({ enabled: v })}
+                  trackColor={{ false: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', true: C.blue }}
+                />
+              </View>
+
+              {/* Offset picker — hanya muncul jika enabled */}
+              {reminder.enabled && (
+                <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+                  <Text style={{ fontSize: 12, color: textSecondary, marginBottom: 8 }}>
+                    Ingatkan sebelum:
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                    {OFFSET_OPTIONS.map((min) => {
+                      const active = reminder.offset_minutes === min;
+                      return (
+                        <TouchableOpacity
+                          key={min}
+                          onPress={() => updateReminder({ offset_minutes: min })}
+                          activeOpacity={0.7}
+                          style={{
+                            paddingVertical: 8, paddingHorizontal: 14,
+                            borderRadius: R.sm,
+                            backgroundColor: active ? C.blue : isDark ? 'rgba(255,255,255,0.08)' : '#F2F2F7',
+                            borderWidth: active ? 0 : B.default,
+                            borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(60,60,67,0.12)',
+                          }}
+                        >
+                          <Text style={{
+                            fontSize: 13, fontWeight: '600',
+                            color: active ? '#FFF' : textPrimary,
+                          }}>
+                            {min < 60 ? `${min} menit` : `${min / 60} jam`}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Saldo cuti card */}
         {balanceLoading ? (
