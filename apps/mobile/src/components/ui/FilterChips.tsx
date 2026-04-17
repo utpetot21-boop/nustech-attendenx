@@ -69,7 +69,7 @@ export function FilterChips({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingVertical:   10,
+    paddingVertical:    6,
     gap:               8,
     flexDirection:     'row',
     alignItems:        'center',

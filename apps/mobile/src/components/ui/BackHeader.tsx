@@ -22,7 +22,7 @@ export function BackHeader({ title, subtitle, accentColor = C.blue, right }: Bac
     <View
       style={{
         paddingTop: insets.top + 8,
-        paddingBottom: 12,
+        paddingBottom: 6,
         paddingHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
