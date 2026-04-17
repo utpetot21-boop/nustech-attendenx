@@ -32,6 +32,7 @@ import {
 } from 'lucide-react-native';
 import { C, R, B, T, S, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { FilterChips } from '@/components/ui/FilterChips';
+import { BackHeader } from '@/components/ui/BackHeader';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksService, type TaskSummary, type HoldTaskPayload } from '@/services/tasks.service';
 import { TaskCard } from '@/components/tasks/TaskCard';
@@ -222,25 +223,11 @@ export default function TasksScreen() {
         }
       >
         {/* Header */}
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View>
-              <Text style={{ ...T.title1, color: textPrimary }}>
-                Tugas
-              </Text>
-              <Text style={{ ...T.footnote, color: textSecondary, marginTop: 3 }}>
-                {data?.total ?? 0} tugas ditugaskan
-              </Text>
-            </View>
-            <View style={{
-              width: 48, height: 48, borderRadius: 16,
-              backgroundColor: isDark ? 'rgba(52,199,89,0.15)' : '#DCFCE7',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <ClipboardList size={24} strokeWidth={1.8} color="#34C759" />
-            </View>
-          </View>
-        </View>
+        <BackHeader
+          title="Tugas"
+          subtitle={`${data?.total ?? 0} tugas ditugaskan`}
+          accentColor={C.green}
+        />
 
         {/* Filter chips */}
         <FilterChips

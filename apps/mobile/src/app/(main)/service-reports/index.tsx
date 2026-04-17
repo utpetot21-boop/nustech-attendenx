@@ -14,6 +14,7 @@ import {
   ServiceReport,
 } from '@/services/service-reports.service';
 import { pageBg, cardBg, lPrimary, lSecondary, C } from '@/constants/tokens';
+import { BackHeader } from '@/components/ui/BackHeader';
 
 function currentMonth() {
   const d = new Date();
@@ -81,10 +82,7 @@ export default function ServiceReportsListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: pageBg(isDark) }]}>
-      <LinearGradient colors={['#1e3a8a', '#1d4ed8']} style={[styles.headerGrad, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>Berita Acara</Text>
-        <Text style={styles.headerSub}>Dokumen kunjungan teknis Anda</Text>
-      </LinearGradient>
+      <BackHeader title="Berita Acara" subtitle="Dokumen kunjungan teknis Anda" accentColor={C.blue} />
 
       <ScrollView
         style={styles.scroll}

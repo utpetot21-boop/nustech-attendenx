@@ -39,6 +39,7 @@ function getWeekStringForDate(date: Date): string {
 }
 import { WeekView } from '@/components/schedule/WeekView';
 import { AgendaList } from '@/components/schedule/AgendaList';
+import { BackHeader } from '@/components/ui/BackHeader';
 
 type ViewMode = 'week' | 'month' | 'agenda';
 
@@ -188,22 +189,14 @@ export default function ScheduleScreen() {
     <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
 
       {/* Header */}
-      <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <View>
-            <Text style={{ fontSize: 30, fontWeight: '800', color: textPrimary, letterSpacing: -0.8 }}>
-              Jadwal
-            </Text>
-            <Text style={{ fontSize: 14, color: textSecondary, marginTop: 3 }}>
-              {viewMode === 'month'
-                ? `${MONTHS_ID[m - 1]} ${y}`
-                : `${weekDates[0].slice(5).replace('-', '/')} – ${weekDates[6].slice(5).replace('-', '/')}`}
-            </Text>
-          </View>
-          <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: isDark ? 'rgba(175,82,222,0.18)' : '#EDE9FE', alignItems: 'center', justifyContent: 'center' }}>
-            <Calendar size={24} strokeWidth={1.8} color="#AF52DE" />
-          </View>
-        </View>
+      <View>
+        <BackHeader
+          title="Jadwal"
+          subtitle={viewMode === 'month'
+            ? `${MONTHS_ID[m - 1]} ${y}`
+            : `${weekDates[0].slice(5).replace('-', '/')} – ${weekDates[6].slice(5).replace('-', '/')}`}
+          accentColor="#AF52DE"
+        />
 
         {/* Toolbar nav + segmented */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>

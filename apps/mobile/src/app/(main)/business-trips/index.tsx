@@ -30,6 +30,7 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { TripCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { businessTripsService, BusinessTrip, CreateBusinessTripDto } from '@/services/business-trips.service';
+import { BackHeader } from '@/components/ui/BackHeader';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   draft:            { label: 'Draft',        color: '#8E8E93'  },
@@ -163,15 +164,15 @@ export default function BusinessTripsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: pageBg(isDark) }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDark ? 'rgba(15,15,20,0.9)' : 'rgba(242,242,247,0.92)', paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={22} color="#007AFF" />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>Surat Tugas Dinas</Text>
-        <TouchableOpacity onPress={() => setShowCreate(true)}>
-          <Text style={{ color: '#007AFF', fontSize: 14, fontWeight: '600' }}>+ Buat</Text>
-        </TouchableOpacity>
-      </View>
+      <BackHeader
+        title="Surat Tugas Dinas"
+        accentColor={C.indigo}
+        right={
+          <TouchableOpacity onPress={() => setShowCreate(true)} style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: isDark ? 'rgba(88,86,214,0.2)' : '#EEF2FF' }}>
+            <Text style={{ color: C.indigo, fontSize: 14, fontWeight: '600' }}>+ Buat</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {/* Filter chips */}
       <FilterChips

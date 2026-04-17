@@ -23,6 +23,7 @@ import {
   getMyClaims, getConfig, createClaim, uploadReceipt,
   ExpenseClaim, ExpenseConfig, CATEGORY_LABELS, formatRupiah,
 } from '@/services/expense-claims.service';
+import { BackHeader } from '@/components/ui/BackHeader';
 
 const STATUS_META = {
   pending:  { bg: 'rgba(245,158,11,0.15)', bgLight: '#FFFBEB', text: '#F59E0B', label: 'Menunggu', Icon: Clock },
@@ -75,22 +76,8 @@ export default function ExpenseClaimsScreen() {
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={isDark ? '#FFF' : '#7C3AED'} />}
       >
         {/* Header */}
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View>
-              <Text style={{ fontSize: 30, fontWeight: '800', color: textPrimary, letterSpacing: -0.8 }}>
-                Klaim Biaya
-              </Text>
-              <Text style={{ fontSize: 14, color: textSecondary, marginTop: 3 }}>
-                Klaim pengeluaran lapangan
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: isDark ? 'rgba(124,58,237,0.2)' : '#F5F3FF', alignItems: 'center', justifyContent: 'center' }}>
-                <Receipt size={22} color="#7C3AED" />
-              </View>
-            </View>
-          </View>
+        <View>
+          <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor="#7C3AED" />
 
           {/* Buat Klaim button */}
           <TouchableOpacity

@@ -26,6 +26,7 @@ import * as Haptics from 'expo-haptics';
 import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { BackHeader } from '@/components/ui/BackHeader';
 import { LeaveCardSkeleton } from '@/components/ui/SkeletonLoader';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -210,30 +211,11 @@ export default function LeaveScreen() {
         }
       >
         {/* ── Header ── */}
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={{
-                  width: 40, height: 40, borderRadius: R.sm,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
-                  alignItems: 'center', justifyContent: 'center',
-                  borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-                }}
-              >
-                <ChevronLeft size={20} color={lPrimary(isDark)} />
-              </TouchableOpacity>
-              <View>
-                <Text style={{ ...T.title1, color: lPrimary(isDark) }}>
-                  Cuti & Izin
-                </Text>
-                <Text style={{ ...T.footnote, color: lSecondary(isDark), marginTop: 2 }}>
-                  Kelola pengajuan cuti dan izin Anda
-                </Text>
-              </View>
-            </View>
-          </View>
+        <BackHeader
+          title="Cuti & Izin"
+          subtitle="Kelola pengajuan cuti dan izin Anda"
+          accentColor={C.green}
+        />
 
           {/* Saldo Card */}
           {balance && (

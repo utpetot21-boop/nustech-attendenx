@@ -36,6 +36,7 @@ import { PINInput } from '@/components/attendance/PINInput';
 import { GPSValidator } from '@/components/attendance/GPSValidator';
 import api from '@/services/api';
 import { scheduleService, getCurrentWeekString } from '@/services/schedule.service';
+import { BackHeader } from '@/components/ui/BackHeader';
 
 type UIState = 'idle' | 'verifying_biometric' | 'show_pin' | 'checking_gps' | 'confirming' | 'done';
 
@@ -255,12 +256,15 @@ export default function AttendanceScreen() {
       {/* Background */}
       <View style={{ position: 'absolute', inset: 0, backgroundColor: pageBg(isDark) }} />
 
+      {/* Back navigation */}
+      <BackHeader title="Absensi" subtitle="Kantor" accentColor={C.blue} />
+
       {/* Toolbar */}
       <BlurView
         intensity={isDark ? 70 : 75}
         tint={isDark ? 'dark' : 'light'}
         style={{
-          marginHorizontal: 16, marginTop: insets.top + 12, marginBottom: 10,
+          marginHorizontal: 16, marginTop: 4, marginBottom: 10,
           borderRadius: 18, overflow: 'hidden',
           borderWidth: 0.5,
           borderColor: isDark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.95)',

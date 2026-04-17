@@ -38,6 +38,7 @@ import { api } from '@/services/api';
 import * as Haptics from 'expo-haptics';
 import { Toast } from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
+import { BackHeader } from '@/components/ui/BackHeader';
 
 interface Notif {
   id: string;
@@ -224,31 +225,24 @@ export default function NotificationsScreen() {
         }
       >
         {/* Header */}
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-            <View>
-              <Text style={{ ...T.title1, color: textPrimary }}>
-                {activeTab === 'notif' ? 'Notifikasi' : 'Pengumuman'}
-              </Text>
-              {activeTab === 'notif' && unread > 0 && (
-                <Text style={{ fontSize: 14, color: '#007AFF', marginTop: 3, fontWeight: '600' }}>{unread} belum dibaca</Text>
-              )}
-              {activeTab === 'ann' && unreadAnn > 0 && (
-                <Text style={{ fontSize: 14, color: '#007AFF', marginTop: 3, fontWeight: '600' }}>{unreadAnn} belum dibaca</Text>
-              )}
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {activeTab === 'notif' && unread > 0 && (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+          <BackHeader
+            title={activeTab === 'notif' ? 'Notifikasi' : 'Pengumuman'}
+            subtitle={
+              activeTab === 'notif' && unread > 0 ? `${unread} belum dibaca`
+              : activeTab === 'ann' && unreadAnn > 0 ? `${unreadAnn} belum dibaca`
+              : undefined
+            }
+            accentColor={C.blue}
+            right={
+              activeTab === 'notif' && unread > 0 ? (
                 <TouchableOpacity onPress={() => markAllMut.mutate()} disabled={markAllMut.isPending}
                   style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: R.sm, backgroundColor: isDark ? 'rgba(0,122,255,0.2)' : '#EFF6FF' }}>
                   <Text style={{ fontSize: 13, color: '#007AFF', fontWeight: '600' }}>Baca semua</Text>
                 </TouchableOpacity>
-              )}
-              <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: isDark ? 'rgba(0,122,255,0.18)' : '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
-                <Bell size={22} strokeWidth={1.8} color="#007AFF" />
-              </View>
-            </View>
-          </View>
+              ) : undefined
+            }
+          />
 
           {/* Tab Switcher */}
           <View style={{
