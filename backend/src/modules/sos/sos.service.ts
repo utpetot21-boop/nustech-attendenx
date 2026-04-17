@@ -61,8 +61,8 @@ export class SosService {
       userName: senderName,
     };
 
-    // Notifikasi ke admin/manager — detail lengkap
-    const adminIds = await this.getAdminManagerIds();
+    // Notifikasi ke admin/manager — detail lengkap (kecuali si trigger sendiri)
+    const adminIds = (await this.getAdminManagerIds()).filter((id) => id !== userId);
     this.notifications.sendMany(
       adminIds,
       'sos_alert',
