@@ -10,7 +10,7 @@ import {
   ShieldCheck, Briefcase, Layers, MessageCircle, HardDrive,
   Siren, Pencil, Trash2, Plus, X, Check, RefreshCw,
   Lock, ChevronDown, ChevronUp, ChevronRight, ChevronLeft,
-  Settings, type LucideIcon,
+  Settings, Users, CalendarClock, type LucideIcon,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -25,7 +25,9 @@ type RoleItem         = { id: string; name: string; can_delegate: boolean; can_a
 type DeptItem         = { id: string; name: string; code: string | null; schedule_type: string | null };
 type PositionItem     = { id: string; name: string; created_at: string };
 
-type NavKey = 'profile' | 'attendance' | 'leave' | 'claims' | 'dispatch' | 'whatsapp' | 'backup' | 'contacts' | 'roles' | 'positions' | 'departments';
+type NavKey = 'profile' | 'attendance' | 'leave' | 'leave-balance' | 'claims' | 'dispatch' | 'whatsapp' | 'backup' | 'contacts' | 'roles' | 'positions' | 'departments';
+type LeaveBalance    = { id: string; user_id: string; year: number; balance_days: number; accrued_monthly: number; accrued_holiday: number; used_days: number; expired_days: number; user: { id: string; full_name: string; employee_id?: string } };
+type LeaveBalanceLog = { id: string; user_id: string; type: string; amount: number; balance_after: number; notes: string | null; created_at: string };
 
 // ── Nav config ───────────────────────────────────────────────────────────────
 const NAV_GROUPS: { group: string; items: { key: NavKey; label: string; Icon: LucideIcon; color: string; bg: string }[] }[] = [
@@ -39,7 +41,8 @@ const NAV_GROUPS: { group: string; items: { key: NavKey; label: string; Icon: Lu
     group: 'Aturan',
     items: [
       { key: 'attendance',  label: 'Aturan Absensi',    Icon: ClipboardCheck, color: 'text-[#34C759]',  bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.15)]'    },
-      { key: 'leave',       label: 'Aturan Cuti',        Icon: UmbrellaOff,    color: 'text-[#32ADE6]',  bg: 'bg-[#EFF9FF] dark:bg-[rgba(50,173,230,0.15)]'   },
+      { key: 'leave',         label: 'Aturan Cuti',        Icon: UmbrellaOff,    color: 'text-[#32ADE6]',  bg: 'bg-[#EFF9FF] dark:bg-[rgba(50,173,230,0.15)]'   },
+      { key: 'leave-balance', label: 'Saldo Cuti Manual',  Icon: CalendarClock,  color: 'text-[#34C759]',  bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.15)]'    },
       { key: 'claims',      label: 'Batas Klaim Biaya',  Icon: Receipt,        color: 'text-[#FF3B30]',  bg: 'bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.15)]'    },
       { key: 'dispatch',    label: 'Dispatch & Tugas',   Icon: Radio,          color: 'text-[#AF52DE]',  bg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.15)]'   },
     ],
@@ -272,7 +275,8 @@ export default function SettingsPage() {
       <div className="p-4 sm:p-6 lg:p-8">
         {activePanel === 'profile'     && <ProfilePanel />}
         {activePanel === 'attendance'  && <AttendancePanel />}
-        {activePanel === 'leave'       && <LeavePanel />}
+        {activePanel === 'leave'         && <LeavePanel />}
+        {activePanel === 'leave-balance' && <LeaveBalancePanel />}
         {activePanel === 'claims'      && <ClaimsPanel />}
         {activePanel === 'dispatch'    && <DispatchPanel />}
         {activePanel === 'whatsapp'    && <WhatsappPanel />}
@@ -434,6 +438,175 @@ function AttendancePanel() {
           <ConfigRow label="Radius Check-In" value={`${config?.check_in_radius_meter ?? 100} meter`} />
           <ConfigRow label="Koordinat Kantor" value={config?.office_lat && config?.office_lng ? `${config.office_lat}, ${config.office_lng}` : 'Belum diset'} />
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Leave Balance Panel ───────────────────────────────────────────────────────
+function LeaveBalancePanel() {
+  const qc = useQueryClient();
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [selected, setSelected] = useState<LeaveBalance | null>(null);
+  const [adjForm, setAdjForm] = useState({ amount: '', notes: '' });
+
+  const { data: balances = [], isLoading } = useQuery<LeaveBalance[]>({
+    queryKey: ['leave-balances', year],
+    queryFn: () => apiClient.get(`/leave/balances?year=${year}`).then((r) => r.data),
+  });
+
+  const { data: logs = [] } = useQuery<LeaveBalanceLog[]>({
+    queryKey: ['leave-logs', selected?.user_id],
+    queryFn: () => apiClient.get(`/leave/balance/${selected!.user_id}/logs`).then((r) => r.data),
+    enabled: !!selected,
+  });
+
+  const adjustMut = useMutation({
+    mutationFn: ({ userId, amount, notes }: { userId: string; amount: number; notes: string }) =>
+      apiClient.post(`/leave/balance/${userId}/adjust`, { amount, notes, year }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leave-balances'] });
+      qc.invalidateQueries({ queryKey: ['leave-logs', selected?.user_id] });
+      setAdjForm({ amount: '', notes: '' });
+      toast.success('Penyesuaian saldo berhasil disimpan');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyesuaikan saldo')),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (logId: string) => apiClient.delete(`/leave/balance/log/${logId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leave-balances'] });
+      qc.invalidateQueries({ queryKey: ['leave-logs', selected?.user_id] });
+      toast.success('Log penyesuaian dihapus');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menghapus log')),
+  });
+
+  const handleAdjust = () => {
+    const amount = parseFloat(adjForm.amount);
+    if (isNaN(amount) || !adjForm.notes.trim() || !selected) return;
+    adjustMut.mutate({ userId: selected.user_id, amount, notes: adjForm.notes });
+  };
+
+  const manualLogs = logs.filter((l) => l.type === 'manual_adjustment');
+
+  const yearOptions = [year - 1, year, year + 1];
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <PanelHeader
+        title="Saldo Cuti Manual"
+        subtitle="Tambah, edit, atau hapus penyesuaian saldo cuti karyawan"
+      />
+
+      {/* Year selector */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-gray-500 dark:text-white/50">Tahun:</span>
+        <div className="flex gap-2">
+          {yearOptions.map((y) => (
+            <button key={y} onClick={() => setYear(y)}
+              className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition ${year === y ? 'bg-[#007AFF] text-white' : 'bg-white dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/[0.09]'}`}>
+              {y}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Balance table */}
+      {isLoading ? <Spinner /> : (
+        <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden">
+          <div className="grid grid-cols-[1fr_80px_80px_80px_auto] text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-white/30 px-5 py-3 border-b border-black/[0.05] dark:border-white/[0.07]">
+            <span>Karyawan</span><span className="text-center">Saldo</span><span className="text-center">Digunakan</span><span className="text-center">Akrual</span><span />
+          </div>
+          {balances.length === 0 && (
+            <div className="py-12 text-center text-sm text-gray-400 dark:text-white/30">Belum ada data saldo tahun {year}</div>
+          )}
+          {balances.map((b) => (
+            <div key={b.id} className="grid grid-cols-[1fr_80px_80px_80px_auto] items-center px-5 py-3.5 border-b border-black/[0.04] dark:border-white/[0.05] last:border-0 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition">
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{b.user?.full_name ?? '—'}</p>
+                {b.user?.employee_id && <p className="text-xs text-gray-400 dark:text-white/30">{b.user.employee_id}</p>}
+              </div>
+              <p className="text-center text-sm font-bold text-[#34C759]">{Number(b.balance_days).toFixed(1)}</p>
+              <p className="text-center text-sm text-gray-500 dark:text-white/50">{Number(b.used_days).toFixed(1)}</p>
+              <p className="text-center text-sm text-gray-500 dark:text-white/50">{Number(b.accrued_monthly).toFixed(1)}</p>
+              <button onClick={() => { setSelected(b); setAdjForm({ amount: '', notes: '' }); }}
+                className="ml-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] text-xs font-semibold transition">
+                <Plus size={12} />Sesuaikan
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Adjust modal */}
+      {selected && (
+        <Modal title={`Saldo Cuti — ${selected.user?.full_name}`} Icon={CalendarClock} onClose={() => setSelected(null)}
+          footer={
+            <>
+              <PrimaryBtn onClick={handleAdjust} loading={adjustMut.isPending}
+                disabled={!adjForm.amount || !adjForm.notes.trim()}>
+                <Check size={14} />Simpan
+              </PrimaryBtn>
+              <SecondaryBtn onClick={() => setSelected(null)}>Batal</SecondaryBtn>
+            </>
+          }>
+
+          {/* Current balance info */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Saldo', value: `${Number(selected.balance_days).toFixed(1)} hari`, color: 'text-[#34C759]' },
+              { label: 'Digunakan', value: `${Number(selected.used_days).toFixed(1)} hari`, color: 'text-[#FF9500]' },
+              { label: 'Kadaluarsa', value: `${Number(selected.expired_days).toFixed(1)} hari`, color: 'text-[#FF3B30]' },
+            ].map((s) => (
+              <div key={s.label} className="bg-gray-50 dark:bg-white/[0.05] rounded-xl p-3 text-center">
+                <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-[11px] text-gray-400 dark:text-white/30 mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Form tambah penyesuaian */}
+          <div className="space-y-3 pt-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-white/30">Penyesuaian Baru</p>
+            <SField label="Jumlah Hari" hint="Gunakan angka positif untuk tambah, negatif untuk kurangi">
+              <input type="number" step="0.5" placeholder="contoh: 2 atau -1.5"
+                value={adjForm.amount} onChange={(e) => setAdjForm({ ...adjForm, amount: e.target.value })}
+                className={inputCls} />
+            </SField>
+            <SField label="Keterangan">
+              <input placeholder="Alasan penyesuaian, misal: Saldo cuti 2023 belum terinput"
+                value={adjForm.notes} onChange={(e) => setAdjForm({ ...adjForm, notes: e.target.value })}
+                className={inputCls} />
+            </SField>
+          </div>
+
+          {/* Riwayat penyesuaian manual */}
+          {manualLogs.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-white/30">Riwayat Penyesuaian Manual</p>
+              {manualLogs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-white/[0.04] rounded-xl px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-bold ${log.amount >= 0 ? 'text-[#34C759]' : 'text-[#FF3B30]'}`}>
+                      {log.amount >= 0 ? '+' : ''}{log.amount} hari
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-white/40 truncate">{log.notes ?? '—'}</p>
+                    <p className="text-[11px] text-gray-400 dark:text-white/25 mt-0.5">
+                      {new Date(log.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <button onClick={() => { if (confirm('Hapus penyesuaian ini?')) deleteMut.mutate(log.id); }}
+                    disabled={deleteMut.isPending}
+                    className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 flex items-center justify-center text-red-500 transition shrink-0">
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
       )}
     </div>
   );

@@ -53,6 +53,29 @@ export class LeaveService {
     return balance;
   }
 
+  async getAllBalances(year?: number): Promise<LeaveBalanceEntity[]> {
+    const y = year ?? new Date().getFullYear();
+    return this.balanceRepo.find({ where: { year: y }, relations: ['user'], order: { updated_at: 'DESC' } });
+  }
+
+  async manualAdjust(userId: string, amount: number, notes: string, year?: number): Promise<void> {
+    const balance = await this.getBalance(userId, year);
+    const newBalance = Number(balance.balance_days) + amount;
+    await this.balanceRepo.update(balance.id, { balance_days: newBalance });
+    await this.writeLog(userId, 'manual_adjustment', amount, newBalance, undefined, notes);
+  }
+
+  async deleteLog(logId: string): Promise<void> {
+    const log = await this.logRepo.findOneOrFail({ where: { id: logId } });
+    if (log.type !== 'manual_adjustment') {
+      throw new BadRequestException('Hanya log penyesuaian manual yang dapat dihapus.');
+    }
+    const balance = await this.getBalance(log.user_id);
+    const newBalance = Number(balance.balance_days) - log.amount;
+    await this.balanceRepo.update(balance.id, { balance_days: newBalance });
+    await this.logRepo.delete(logId);
+  }
+
   async getBalanceLogs(userId: string): Promise<LeaveBalanceLogEntity[]> {
     return this.logRepo.find({
       where: { user_id: userId },

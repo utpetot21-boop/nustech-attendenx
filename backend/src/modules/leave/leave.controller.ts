@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -42,6 +43,30 @@ export class LeaveController {
   @Get('balance/me/logs')
   getMyLogs(@CurrentUser('id') userId: string) {
     return this.leave.getBalanceLogs(userId);
+  }
+
+  @Get('balances')
+  @UseGuards(RolesGuard)
+  @RequirePermission('leave:approve')
+  getAllBalances(@Query('year') year?: string) {
+    return this.leave.getAllBalances(year ? parseInt(year) : undefined);
+  }
+
+  @Post('balance/:userId/adjust')
+  @UseGuards(RolesGuard)
+  @RequirePermission('leave:approve')
+  manualAdjust(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: { amount: number; notes: string; year?: number },
+  ) {
+    return this.leave.manualAdjust(userId, dto.amount, dto.notes, dto.year);
+  }
+
+  @Delete('balance/log/:logId')
+  @UseGuards(RolesGuard)
+  @RequirePermission('leave:approve')
+  deleteLog(@Param('logId', ParseUUIDPipe) logId: string) {
+    return this.leave.deleteLog(logId);
   }
 
   @Get('balance/:userId')
