@@ -38,6 +38,9 @@ import {
   Camera,
   Megaphone,
   BellRing,
+  CheckCircle2,
+  XCircle,
+  ClipboardList,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -103,6 +106,24 @@ const LEAVE_STATUS_STYLE: Record<string, { label: string; color: string; bg: str
   rejected: { label: 'Ditolak', color: C.red, bg: 'rgba(255,59,48,0.12)' },
 };
 
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  cuti: 'Cuti', izin: 'Izin', sakit: 'Sakit', dinas: 'Dinas',
+};
+
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin'];
+
+interface PendingLeaveRequest {
+  id: string;
+  type: string;
+  start_date: string;
+  end_date: string;
+  total_days: number;
+  reason: string;
+  status: string;
+  created_at: string;
+  user?: { full_name: string };
+}
+
 export default function ProfileScreen() {
   const isDark = useColorScheme() === 'dark';
   const qc = useQueryClient();
@@ -127,6 +148,37 @@ export default function ProfileScreen() {
   });
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker]     = useState(false);
+
+  // ── Approval (admin/manager/super_admin) ──────────────────────────
+  const isApprover = APPROVER_ROLES.includes(user?.role?.name ?? '');
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [rejectId, setRejectId]     = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const { data: pendingData, isLoading: pendingLoading, refetch: refetchPending } = useQuery({
+    queryKey: ['leave-requests-pending'],
+    queryFn: () => api.get('/leave/requests?status=pending').then((r) => r.data as { items: PendingLeaveRequest[]; total: number }),
+    enabled: showApprovalModal,
+    staleTime: 0,
+  });
+
+  const approveMut = useMutation({
+    mutationFn: (id: string) => api.post(`/leave/requests/${id}/approve`),
+    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); refetchPending(); },
+    onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? 'Gagal menyetujui'),
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.post(`/leave/requests/${id}/reject`, { reason }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setRejectId(null);
+      setRejectReason('');
+      refetchPending();
+    },
+    onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? 'Gagal menolak'),
+  });
 
   // ── Pengingat Check-in ─────────────────────────────────────────────
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
@@ -427,11 +479,12 @@ export default function ProfileScreen() {
               { label: 'Surat Tugas',  Icon: Briefcase,  color: C.indigo, route: '/(main)/business-trips', roles: null },
               { label: 'Pengumuman',   Icon: Megaphone,  color: C.blue,   route: '/(main)/announcements',  roles: ['admin', 'manager', 'super_admin'] },
               { label: 'SOS Darurat',  Icon: ShieldAlert, color: C.red,   route: '/(main)/sos', roles: null },
+              { label: 'Persetujuan Cuti', Icon: ClipboardList, color: C.green, route: null, roles: ['admin', 'manager', 'super_admin'] },
             ].filter((item) => !item.roles || item.roles.includes(user?.role?.name ?? ''))
             .map((item, idx, arr) => (
               <TouchableOpacity
                 key={item.label}
-                onPress={() => router.push(item.route as never)}
+                onPress={() => item.route ? router.push(item.route as never) : setShowApprovalModal(true)}
                 activeOpacity={0.7}
                 style={{
                   flexDirection: 'row',
@@ -836,6 +889,130 @@ export default function ProfileScreen() {
             })()}
 
             <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* ── Approval Modal ──────────────────────────────────────────── */}
+      <Modal visible={showApprovalModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: insets.top + 16, paddingBottom: 16 }}>
+            <View>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.4 }}>Persetujuan Cuti</Text>
+              <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 2 }}>
+                {pendingData?.total ?? 0} permintaan menunggu
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowApprovalModal(false)}>
+              <Text style={{ fontSize: 15, color: C.blue }}>Tutup</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            {pendingLoading ? (
+              <ActivityIndicator color={C.green} style={{ marginTop: 48 }} />
+            ) : (pendingData?.items?.length ?? 0) === 0 ? (
+              <View style={{ alignItems: 'center', paddingTop: 64 }}>
+                <CheckCircle2 size={48} color={C.green} strokeWidth={1.5} />
+                <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600', color: lSecondary(isDark) }}>
+                  Tidak ada permintaan pending
+                </Text>
+              </View>
+            ) : (
+              pendingData!.items.map((req) => (
+                <View key={req.id} style={{
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFF',
+                  borderRadius: R.lg, borderWidth: B.default,
+                  borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.10)',
+                  padding: 16, marginBottom: 12,
+                }}>
+                  {/* User + type badge */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: lPrimary(isDark), flex: 1, marginRight: 8 }} numberOfLines={1}>
+                      {req.user?.full_name ?? '—'}
+                    </Text>
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: C.blue + '1F' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: C.blue }}>{LEAVE_TYPE_LABELS[req.type] ?? req.type}</Text>
+                    </View>
+                  </View>
+
+                  {/* Tanggal + jumlah hari */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <Calendar size={13} strokeWidth={1.8} color={lTertiary(isDark)} />
+                    <Text style={{ fontSize: 13, color: lSecondary(isDark) }}>
+                      {req.start_date === req.end_date
+                        ? new Date(req.start_date + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : `${new Date(req.start_date + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} — ${new Date(req.end_date + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                      }
+                      {req.total_days ? ` · ${req.total_days} hari` : ''}
+                    </Text>
+                  </View>
+
+                  {/* Alasan */}
+                  <Text style={{ fontSize: 13, color: lSecondary(isDark), marginBottom: 12 }} numberOfLines={2}>
+                    {req.reason}
+                  </Text>
+
+                  {/* Reject reason input */}
+                  {rejectId === req.id && (
+                    <TextInput
+                      value={rejectReason}
+                      onChangeText={setRejectReason}
+                      placeholder="Alasan penolakan..."
+                      placeholderTextColor={lTertiary(isDark)}
+                      multiline
+                      style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', borderRadius: 10, padding: 10, fontSize: 13, color: lPrimary(isDark), minHeight: 60, marginBottom: 10 }}
+                    />
+                  )}
+
+                  {/* Action buttons */}
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    {rejectId === req.id ? (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => { setRejectId(null); setRejectReason(''); }}
+                          style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark) }}>Batal</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => rejectMut.mutate({ id: req.id, reason: rejectReason })}
+                          disabled={!rejectReason.trim() || rejectMut.isPending}
+                          style={{ flex: 2, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: rejectReason.trim() ? C.red : isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }}
+                        >
+                          {rejectMut.isPending
+                            ? <ActivityIndicator color="#FFF" size="small" />
+                            : <Text style={{ fontSize: 13, fontWeight: '700', color: rejectReason.trim() ? '#FFF' : lTertiary(isDark) }}>Konfirmasi Tolak</Text>}
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => { setRejectId(req.id); setRejectReason(''); }}
+                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: C.red + '14', borderWidth: B.default, borderColor: C.red + '33' }}
+                        >
+                          <XCircle size={14} strokeWidth={2} color={C.red} />
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: C.red }}>Tolak</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => approveMut.mutate(req.id)}
+                          disabled={approveMut.isPending}
+                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, backgroundColor: C.green + '14', borderWidth: B.default, borderColor: C.green + '33' }}
+                        >
+                          {approveMut.isPending
+                            ? <ActivityIndicator color={C.green} size="small" />
+                            : <>
+                                <CheckCircle2 size={14} strokeWidth={2} color={C.green} />
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: C.green }}>Setujui</Text>
+                              </>}
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+                </View>
+              ))
+            )}
           </ScrollView>
         </View>
       </Modal>

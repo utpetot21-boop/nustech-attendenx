@@ -19,6 +19,9 @@ import { LeaveConfigService } from './leave-config.service';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { RejectLeaveDto } from './dto/review-leave.dto';
 import { CreateObjectionDto } from './dto/create-objection.dto';
+import { UserEntity } from '../users/entities/user.entity';
+
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin'];
 
 @UseGuards(JwtAuthGuard)
 @Controller('leave')
@@ -97,15 +100,14 @@ export class LeaveController {
 
   @Get('requests')
   getRequests(
-    @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: string,
+    @CurrentUser() user: UserEntity,
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('user_id') queryUserId?: string,
   ) {
-    const isAdmin = ['admin', 'manager'].includes(role);
+    const isApprover = APPROVER_ROLES.includes(user.role?.name ?? '');
     return this.leave.getRequests({
-      userId: isAdmin && queryUserId ? queryUserId : isAdmin ? undefined : userId,
+      userId: isApprover && queryUserId ? queryUserId : isApprover ? undefined : user.id,
       status,
       page: page ? parseInt(page) : 1,
     });
@@ -142,12 +144,9 @@ export class LeaveController {
   }
 
   @Get('objections')
-  getObjections(
-    @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: string,
-  ) {
-    const isAdmin = ['admin', 'manager'].includes(role);
-    return this.leave.getObjections(isAdmin ? undefined : userId);
+  getObjections(@CurrentUser() user: UserEntity) {
+    const isApprover = APPROVER_ROLES.includes(user.role?.name ?? '');
+    return this.leave.getObjections(isApprover ? undefined : user.id);
   }
 
   @Post('objections/:id/approve')
