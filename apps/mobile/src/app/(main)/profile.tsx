@@ -207,7 +207,7 @@ export default function ProfileScreen() {
   });
 
   const { data: requestsData } = useQuery({
-    queryKey: ['leave-requests-me'],
+    queryKey: ['leave-requests-profile'],
     queryFn: () => api.get('/leave/requests').then((r) => r.data as { items: LeaveRequest[] }),
     enabled: tab === 'requests',
     staleTime: 30_000,
@@ -224,7 +224,7 @@ export default function ProfileScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['leave-balance'] });
-      qc.invalidateQueries({ queryKey: ['leave-requests-me'] });
+      qc.invalidateQueries({ queryKey: ['leave-requests-profile'] });
       setShowRequestForm(false);
       setForm({ type: 'cuti', start_date: '', end_date: '', reason: '' });
       Alert.alert('Berhasil', 'Pengajuan cuti telah dikirim.');
@@ -238,7 +238,7 @@ export default function ProfileScreen() {
   const handleRefresh = useCallback(() => {
     refetchBalance();
     qc.invalidateQueries({ queryKey: ['leave-logs'] });
-    qc.invalidateQueries({ queryKey: ['leave-requests-me'] });
+    qc.invalidateQueries({ queryKey: ['leave-requests-profile'] });
   }, [refetchBalance, qc]);
 
   const handleLogout = () => {
