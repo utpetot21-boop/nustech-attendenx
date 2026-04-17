@@ -19,7 +19,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, R, B, S, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
+import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import {
   KeyRound,
   LogOut,
@@ -281,6 +281,8 @@ export default function ProfileScreen() {
               activeOpacity={0.8}
               disabled={uploadAvatarMutation.isPending}
               style={{ position: 'relative' }}
+              accessibilityRole="button"
+              accessibilityLabel="Ubah foto profil"
             >
               <View style={{
                 width: 72, height: 72, borderRadius: R.xl,
@@ -304,7 +306,7 @@ export default function ProfileScreen() {
               <View style={{
                 position: 'absolute', bottom: -2, right: -2,
                 width: 24, height: 24, borderRadius: 12,
-                backgroundColor: isDark ? '#1C1C1E' : '#FFF',
+                backgroundColor: cardBg(isDark),
                 alignItems: 'center', justifyContent: 'center',
                 borderWidth: 1.5,
                 borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)',
@@ -327,13 +329,16 @@ export default function ProfileScreen() {
                     setShowEditModal(true);
                   }}
                   style={{ padding: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit profil"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Pencil size={16} strokeWidth={1.8} color={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.35)'} />
+                  <Pencil size={16} strokeWidth={1.8} color={lTertiary(isDark)} />
                 </TouchableOpacity>
               </View>
               {user?.role?.name && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(0,122,255,0.2)' : '#DBEAFE' }}>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: R.xs, backgroundColor: C.blue + (isDark ? '33' : '1F') }}>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: C.blue }}>{user.role.name}</Text>
                   </View>
                 </View>
@@ -363,7 +368,7 @@ export default function ProfileScreen() {
               style={{
                 flex: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
                 paddingVertical: 13, paddingHorizontal: 18, borderRadius: R.md,
-                backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : '#FEF2F2',
+                backgroundColor: C.red + (isDark ? '1F' : '14'),
                 borderWidth: B.default, borderColor: 'rgba(255,59,48,0.3)',
               }}
             >
@@ -422,16 +427,16 @@ export default function ProfileScreen() {
           style={{
             marginHorizontal: 20,
             marginBottom: 16,
-            backgroundColor: isDark ? 'rgba(0,122,255,0.12)' : '#EFF6FF',
+            backgroundColor: C.blue + (isDark ? '1F' : '14'),
             borderRadius: R.xl,
             borderWidth: B.default,
-            borderColor: isDark ? 'rgba(0,122,255,0.3)' : '#BFDBFE',
+            borderColor: C.blue + (isDark ? '4D' : '40'),
             display: balanceLoading ? 'none' : 'flex',
             padding: 20,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#007AFF', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: C.blue, letterSpacing: 0.5, textTransform: 'uppercase' }}>
               Saldo Cuti {balance?.year ?? new Date().getFullYear()}
             </Text>
             <Sun size={20} strokeWidth={1.8} color="#007AFF" />
@@ -445,14 +450,14 @@ export default function ProfileScreen() {
 
           {/* Progress bar */}
           <View style={{ height: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : '#DBEAFE', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
-            <View style={{ height: 8, width: `${usedPct * 100}%`, backgroundColor: '#007AFF', borderRadius: 4 }} />
+            <View style={{ height: 8, width: `${usedPct * 100}%`, backgroundColor: C.blue, borderRadius: 4 }} />
           </View>
 
           <View style={{ flexDirection: 'row', gap: 20 }}>
             {[
               { label: 'Digunakan', value: usedDays, Icon: Calendar, color: C.orange },
               { label: 'Akrual', value: balance?.accrued_monthly ?? 0, Icon: PlusCircle, color: C.green },
-              { label: 'Kompensasi', value: balance?.accrued_holiday ?? 0, Icon: Gift, color: '#AF52DE' },
+              { label: 'Kompensasi', value: balance?.accrued_holiday ?? 0, Icon: Gift, color: C.purple },
             ].map((item) => (
               <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <item.Icon size={14} strokeWidth={1.8} color={item.color} />
@@ -473,14 +478,14 @@ export default function ProfileScreen() {
           style={{
             marginHorizontal: 20,
             marginBottom: 16,
-            backgroundColor: '#007AFF',
+            backgroundColor: C.blue,
             borderRadius: 18,
             paddingVertical: 16,
             alignItems: 'center',
             flexDirection: 'row',
             justifyContent: 'center',
             gap: 8,
-            shadowColor: '#007AFF', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+            shadowColor: C.blue, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
           }}
           activeOpacity={0.8}
         >
@@ -508,11 +513,11 @@ export default function ProfileScreen() {
                 paddingVertical: 10,
                 borderRadius: 12,
                 alignItems: 'center',
-                backgroundColor: tab === t ? (isDark ? '#1E293B' : '#FFF') : 'transparent',
+                backgroundColor: tab === t ? cardBg(isDark) : 'transparent',
                 ...(tab === t ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 } : {}),
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: tab === t ? '700' : '500', color: tab === t ? (isDark ? '#FFF' : '#0F172A') : textSecondary }}>
+              <Text style={{ fontSize: 14, fontWeight: tab === t ? '700' : '500', color: tab === t ? (lPrimary(isDark)) : textSecondary }}>
                 {t === 'balance' ? 'Saldo' : t === 'requests' ? 'Pengajuan' : 'Riwayat'}
               </Text>
             </TouchableOpacity>
@@ -524,7 +529,7 @@ export default function ProfileScreen() {
           <View style={{ gap: 10, paddingHorizontal: 20 }}>
             {(requestsData?.items ?? []).length === 0 ? (
               <View style={{ paddingTop: 40, alignItems: 'center' }}>
-                <Text style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF', fontSize: 14 }}>Belum ada pengajuan</Text>
+                <Text style={{ color: lTertiary(isDark), fontSize: 14 }}>Belum ada pengajuan</Text>
               </View>
             ) : (
               (requestsData?.items ?? []).map((req) => {
@@ -533,10 +538,10 @@ export default function ProfileScreen() {
                   <View key={req.id} style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#FFF', borderRadius: 14, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', padding: 14 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? '#FFF' : '#111', textTransform: 'capitalize' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: lPrimary(isDark), textTransform: 'capitalize' }}>
                           {req.type} · {req.total_days} hari kerja
                         </Text>
-                        <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280', marginTop: 2 }}>
+                        <Text style={{ fontSize: 12, color: lSecondary(isDark), marginTop: 2 }}>
                           {req.start_date} → {req.end_date}
                         </Text>
                       </View>
@@ -560,7 +565,7 @@ export default function ProfileScreen() {
           <View style={{ gap: 8, paddingHorizontal: 20 }}>
             {logs.length === 0 ? (
               <View style={{ paddingTop: 40, alignItems: 'center' }}>
-                <Text style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF', fontSize: 14 }}>Belum ada mutasi</Text>
+                <Text style={{ color: lTertiary(isDark), fontSize: 14 }}>Belum ada mutasi</Text>
               </View>
             ) : (
               logs.map((log) => {
@@ -569,8 +574,8 @@ export default function ProfileScreen() {
                   <View key={log.id} style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13, fontWeight: '600', color: meta.color }}>{meta.label}</Text>
-                      {log.notes && <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.45)' : '#9CA3AF', marginTop: 2 }}>{log.notes}</Text>}
-                      <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF', marginTop: 2 }}>
+                      {log.notes && <Text style={{ fontSize: 11, color: lTertiary(isDark), marginTop: 2 }}>{log.notes}</Text>}
+                      <Text style={{ fontSize: 11, color: lTertiary(isDark), marginTop: 2 }}>
                         {new Date(log.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </Text>
                     </View>
@@ -578,7 +583,7 @@ export default function ProfileScreen() {
                       <Text style={{ fontSize: 15, fontWeight: '700', color: log.amount >= 0 ? C.green : C.red }}>
                         {log.amount >= 0 ? '+' : ''}{log.amount}
                       </Text>
-                      <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.45)' : '#9CA3AF' }}>
+                      <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>
                         Sisa: {Number(log.balance_after).toFixed(1)}
                       </Text>
                     </View>
@@ -594,13 +599,13 @@ export default function ProfileScreen() {
 
       {/* Edit profil modal */}
       <Modal visible={showEditModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7', padding: 20 }}>
+        <View style={{ flex: 1, backgroundColor: pageBg(isDark), padding: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: isDark ? '#FFF' : '#111', letterSpacing: -0.4 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.4 }}>
               Edit Profil
             </Text>
             <TouchableOpacity onPress={() => setShowEditModal(false)}>
-              <Text style={{ fontSize: 15, color: '#007AFF' }}>Batal</Text>
+              <Text style={{ fontSize: 15, color: C.blue }}>Batal</Text>
             </TouchableOpacity>
           </View>
 
@@ -610,16 +615,16 @@ export default function ProfileScreen() {
               { key: 'phone',     label: 'No. Telepon',   placeholder: '08xxxxxxxxxx' },
             ].map(({ key, label, placeholder }) => (
               <View key={key} style={{ marginBottom: 14 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
                   {label}
                 </Text>
                 <TextInput
                   value={editForm[key as keyof typeof editForm]}
                   onChangeText={(v) => setEditForm((f) => ({ ...f, [key]: v }))}
                   placeholder={placeholder}
-                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                  placeholderTextColor={lTertiary(isDark)}
                   keyboardType={key === 'phone' ? 'phone-pad' : 'default'}
-                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: isDark ? '#FFF' : '#111' }}
+                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: lPrimary(isDark) }}
                 />
               </View>
             ))}
@@ -628,7 +633,7 @@ export default function ProfileScreen() {
               onPress={() => editProfileMutation.mutate()}
               disabled={editProfileMutation.isPending || (!editForm.full_name.trim() && !editForm.phone.trim())}
               style={{
-                backgroundColor: (editForm.full_name.trim() || editForm.phone.trim()) ? '#007AFF' : isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
+                backgroundColor: (editForm.full_name.trim() || editForm.phone.trim()) ? C.blue : isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.10)',
                 borderRadius: 14,
                 padding: 16,
                 alignItems: 'center',
@@ -639,7 +644,7 @@ export default function ProfileScreen() {
               {editProfileMutation.isPending ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={{ fontSize: 16, fontWeight: '700', color: (editForm.full_name.trim() || editForm.phone.trim()) ? '#FFF' : isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: (editForm.full_name.trim() || editForm.phone.trim()) ? '#FFF' : lTertiary(isDark) }}>
                   Simpan
                 </Text>
               )}
@@ -652,13 +657,13 @@ export default function ProfileScreen() {
 
       {/* Password change modal */}
       <Modal visible={showPasswordModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7', padding: 20 }}>
+        <View style={{ flex: 1, backgroundColor: pageBg(isDark), padding: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: isDark ? '#FFF' : '#111', letterSpacing: -0.4 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.4 }}>
               Ubah Password
             </Text>
             <TouchableOpacity onPress={() => { setShowPasswordModal(false); setPwForm({ current_password: '', new_password: '', confirm_password: '' }); }}>
-              <Text style={{ fontSize: 15, color: '#007AFF' }}>Batal</Text>
+              <Text style={{ fontSize: 15, color: C.blue }}>Batal</Text>
             </TouchableOpacity>
           </View>
 
@@ -669,7 +674,7 @@ export default function ProfileScreen() {
               { key: 'confirm_password', label: 'Konfirmasi Password Baru' },
             ].map(({ key, label }) => (
               <View key={key} style={{ marginBottom: 14 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
                   {label}
                 </Text>
                 <TextInput
@@ -677,8 +682,8 @@ export default function ProfileScreen() {
                   onChangeText={(v) => setPwForm((f) => ({ ...f, [key]: v }))}
                   secureTextEntry
                   placeholder="••••••••"
-                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
-                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: isDark ? '#FFF' : '#111' }}
+                  placeholderTextColor={lTertiary(isDark)}
+                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: lPrimary(isDark) }}
                 />
               </View>
             ))}
@@ -694,14 +699,14 @@ export default function ProfileScreen() {
                 !pwForm.current_password ||
                 !pwForm.new_password ||
                 pwForm.new_password !== pwForm.confirm_password;
-              const disabledBg = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB';
-              const disabledText = isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF';
+              const disabledBg = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.10)';
+              const disabledText = lTertiary(isDark);
               return (
                 <TouchableOpacity
                   onPress={() => passwordMutation.mutate()}
                   disabled={passwordMutation.isPending || isPwFormInvalid}
                   style={{
-                    backgroundColor: isPwFormInvalid ? disabledBg : '#007AFF',
+                    backgroundColor: isPwFormInvalid ? disabledBg : C.blue,
                     borderRadius: 14,
                     padding: 16,
                     alignItems: 'center',
@@ -727,19 +732,19 @@ export default function ProfileScreen() {
 
       {/* Leave request modal */}
       <Modal visible={showRequestForm} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7', padding: 20 }}>
+        <View style={{ flex: 1, backgroundColor: pageBg(isDark), padding: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: isDark ? '#FFF' : '#111', letterSpacing: -0.4 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.4 }}>
               Ajukan Cuti / Izin
             </Text>
             <TouchableOpacity onPress={() => setShowRequestForm(false)}>
-              <Text style={{ fontSize: 15, color: '#007AFF' }}>Batal</Text>
+              <Text style={{ fontSize: 15, color: C.blue }}>Batal</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Type selector */}
-            <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', marginBottom: 8 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 8 }}>
               Jenis
             </Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
@@ -752,7 +757,7 @@ export default function ProfileScreen() {
                     paddingVertical: 10,
                     borderRadius: 12,
                     alignItems: 'center',
-                    backgroundColor: form.type === t ? '#007AFF' : isDark ? 'rgba(255,255,255,0.08)' : '#FFF',
+                    backgroundColor: form.type === t ? C.blue : isDark ? 'rgba(255,255,255,0.08)' : '#FFF',
                     borderWidth: form.type === t ? 0 : 0.5,
                     borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
                   }}
@@ -767,32 +772,32 @@ export default function ProfileScreen() {
             {/* Dates */}
             {['start_date', 'end_date'].map((field) => (
               <View key={field} style={{ marginBottom: 14 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
                   {field === 'start_date' ? 'Tanggal Mulai' : 'Tanggal Selesai'}
                 </Text>
                 <TextInput
                   value={form[field as keyof typeof form]}
                   onChangeText={(v) => setForm((f) => ({ ...f, [field]: v }))}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
-                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: isDark ? '#FFF' : '#111' }}
+                  placeholderTextColor={lTertiary(isDark)}
+                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: lPrimary(isDark) }}
                 />
               </View>
             ))}
 
             <View style={{ marginBottom: 20 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', marginBottom: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
                 Alasan *
               </Text>
               <TextInput
                 value={form.reason}
                 onChangeText={(v) => setForm((f) => ({ ...f, reason: v }))}
                 placeholder="Jelaskan alasan pengajuan..."
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                placeholderTextColor={lTertiary(isDark)}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
-                style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: isDark ? '#FFF' : '#111', minHeight: 100 }}
+                style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 14, color: lPrimary(isDark), minHeight: 100 }}
               />
             </View>
 
@@ -800,7 +805,7 @@ export default function ProfileScreen() {
               onPress={() => requestMutation.mutate()}
               disabled={requestMutation.isPending || !form.start_date || !form.end_date || !form.reason.trim()}
               style={{
-                backgroundColor: form.start_date && form.end_date && form.reason.trim() ? '#007AFF' : isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
+                backgroundColor: form.start_date && form.end_date && form.reason.trim() ? C.blue : isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.10)',
                 borderRadius: 14,
                 padding: 16,
                 alignItems: 'center',
@@ -810,7 +815,7 @@ export default function ProfileScreen() {
               {requestMutation.isPending ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={{ fontSize: 16, fontWeight: '700', color: form.start_date && form.end_date && form.reason.trim() ? '#FFF' : isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: form.start_date && form.end_date && form.reason.trim() ? '#FFF' : lTertiary(isDark) }}>
                   Kirim Pengajuan
                 </Text>
               )}

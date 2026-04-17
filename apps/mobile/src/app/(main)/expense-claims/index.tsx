@@ -24,7 +24,7 @@ import {
   getMyClaims, getConfig, createClaim, uploadReceipt,
   ExpenseClaim, ExpenseConfig, CATEGORY_LABELS, formatRupiah,
 } from '@/services/expense-claims.service';
-import { C, pageBg, lPrimary, lSecondary } from '@/constants/tokens';
+import { C, pageBg, lPrimary, lSecondary, gradients } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
 
 const STATUS_META = {
@@ -66,7 +66,7 @@ export default function ExpenseClaimsScreen() {
 
       {isDark && (
         <LinearGradient
-          colors={['#1A0D28', '#0A0A0F', '#0D1A0A']}
+          colors={gradients.heroExpenseFull}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -307,7 +307,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
     >
       {isDark && (
         <LinearGradient
-          colors={['#1A0D28', '#0A0A0F']}
+          colors={gradients.heroExpense}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
         />
       )}

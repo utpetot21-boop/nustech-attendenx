@@ -6,6 +6,7 @@ import {
   Home,
   Wrench,
   LayoutGrid,
+  type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { tasksService } from '@/services/tasks.service';
@@ -26,7 +27,7 @@ function TabIcon({
   color,
   activeColor,
 }: {
-  icon: React.ComponentType<{ size: number; strokeWidth: number; color: string }>;
+  icon: LucideIcon;
   focused: boolean;
   color: string;
   activeColor: string;

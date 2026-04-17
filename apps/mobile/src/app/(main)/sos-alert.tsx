@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
 import { api } from '@/services/api';
+import { gradients } from '@/constants/tokens';
 
 // ── Buat HTML Leaflet — markerName null = tampilkan peta tanpa pin ────────────
 function buildLeafletHtml(lat: number, lng: number, markerName: string | null): string {
@@ -130,7 +131,7 @@ export default function SosAlertScreen() {
 
   return (
     <LinearGradient
-      colors={['#3e0d0d', '#1f0000', '#3e1a0d']}
+      colors={gradients.emergency}
       style={styles.container}
     >
       <StatusBar barStyle="light-content" />
@@ -177,7 +178,7 @@ export default function SosAlertScreen() {
             ) }}
           />
           <LinearGradient
-            colors={['transparent', '#1f0000']}
+            colors={gradients.emergencyFade}
             style={styles.mapFade}
             pointerEvents="none"
           />

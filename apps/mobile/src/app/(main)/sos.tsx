@@ -20,6 +20,7 @@ import {
   activateSos, cancelSos, emitLocation, connectSosSocket,
   disconnectSosSocket, SosAlert,
 } from '@/services/sos.service';
+import { gradients } from '@/constants/tokens';
 
 const TRACK_INTERVAL = 15_000; // 15 detik
 
@@ -146,7 +147,7 @@ export default function SosScreen() {
 
   return (
     <LinearGradient
-      colors={['#3e0d0d', '#1f0000', '#3e1a0d']}
+      colors={gradients.emergency}
       style={styles.container}
     >
       <StatusBar barStyle="light-content" />

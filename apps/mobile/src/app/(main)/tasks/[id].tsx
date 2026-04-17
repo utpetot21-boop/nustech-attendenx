@@ -15,17 +15,16 @@ import {
   ChevronLeft, AlertTriangle, Calendar, Clock, FileText,
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
+  type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { C, pageBg, cardBg as tokenCardBg, lPrimary, lSecondary } from '@/constants/tokens';
+import { C, pageBg, cardBg as tokenCardBg, lPrimary, lSecondary, gradients } from '@/constants/tokens';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { ConfirmCountdown } from '@/components/tasks/ConfirmCountdown';
 import NavigationButton from '@/components/tasks/NavigationButton';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
-
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string; bgDark: string; Icon: LucideIcon }> = {
   low:    { label: 'Rendah',    color: '#8E8E93', bg: '#8E8E93' + '15', bgDark: '#8E8E93' + '26', Icon: ArrowDownCircle },
   normal: { label: 'Normal',   color: C.blue,   bg: C.blue + '15',   bgDark: C.blue + '26',   Icon: MinusCircle     },
@@ -166,7 +165,7 @@ export default function TaskDetailScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         {isDark && (
-          <LinearGradient colors={['#0D1428', '#0A1F0A', '#0A0A0F']} style={{ position: 'absolute', inset: 0 }} />
+          <LinearGradient colors={gradients.heroTask} style={{ position: 'absolute', inset: 0 }} />
         )}
         <ActivityIndicator size="large" color={C.green} />
       </View>
@@ -186,7 +185,7 @@ export default function TaskDetailScreen() {
 
       {isDark && (
         <LinearGradient
-          colors={['#0D1428', '#0A1F0A', '#0A0A0F']}
+          colors={gradients.heroTask}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         />

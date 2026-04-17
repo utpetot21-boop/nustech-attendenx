@@ -101,6 +101,40 @@ export const S = {
   },
 } as const;
 
+// ── Gradient Presets ──────────────────────────────────────────────────────────
+// Hero backgrounds tertentu sengaja art-directed — definisikan di sini agar
+// tidak ada hex literal tersebar di halaman. Light pairs hanya untuk halaman
+// yang menampilkan gradient di mode terang (pekerjaan, business-trips).
+export const gradients = {
+  /** Pekerjaan — teal/green work hero */
+  heroWorkDark:  ['#1A2A1A', '#0F1F0F', '#1A1A0A'] as const,
+  heroWorkLight: ['#064E3B', '#065F46', '#047857'] as const,
+
+  /** Business trips — blue→teal→olive */
+  heroTripDark:  ['#0C2340', '#0A3D2E', '#1A1A0A'] as const,
+  heroTripLight: ['#1D4ED8', '#0D9488', '#065F46'] as const,
+
+  /** Leave — blue dark hero */
+  heroLeave:    ['#0D1A28', '#0A0A0F'] as const,
+
+  /** Schedule swap — orange dark hero */
+  heroSwap:     ['#1A0D0A', '#0A0A0F'] as const,
+
+  /** Visits active — deep blue hero */
+  heroVisit:    ['#0A1628', '#0D1F3C', '#000'] as const,
+
+  /** Task detail — blue+green mix */
+  heroTask:     ['#0D1428', '#0A1F0A', '#0A0A0F'] as const,
+
+  /** Expense claims — purple hero (2 variants) */
+  heroExpense:     ['#1A0D28', '#0A0A0F'] as const,
+  heroExpenseFull: ['#1A0D28', '#0A0A0F', '#0D1A0A'] as const,
+
+  /** Emergency SOS — red */
+  emergency:      ['#3e0d0d', '#1f0000', '#3e1a0d'] as const,
+  emergencyFade:  ['transparent', '#1f0000'] as const,
+} as const;
+
 // ── Convenience Helpers ───────────────────────────────────────────────────────
 
 /** Card background berdasarkan isDark */

@@ -27,6 +27,7 @@ import { visitsService } from '@/services/visits.service';
 import { socketService } from '@/services/socket.service';
 import { PhotoPhaseGrid } from '@/components/visits/PhotoPhaseGrid';
 import { WatermarkCamera } from '@/components/visits/WatermarkCamera';
+import { pageBg, gradients } from '@/constants/tokens';
 
 type Phase = 'before' | 'during' | 'after';
 
@@ -190,7 +191,7 @@ export default function VisitDetailScreen() {
       <View
         style={{
           flex: 1,
-          backgroundColor: isDark ? '#000' : '#F2F2F7',
+          backgroundColor: pageBg(isDark),
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -223,12 +224,12 @@ export default function VisitDetailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        <View style={{ flex: 1, backgroundColor: isDark ? '#000' : '#F2F2F7' }}>
+        <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
           <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
           {isDark && (
             <LinearGradient
-              colors={['#0A1628', '#0D1F3C', '#000']}
+              colors={gradients.heroVisit}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
               start={{ x: 0.3, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -640,7 +641,7 @@ export default function VisitDetailScreen() {
           <View
             style={{
               flex: 1,
-              backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7',
+              backgroundColor: pageBg(isDark),
               padding: 20,
             }}
           >

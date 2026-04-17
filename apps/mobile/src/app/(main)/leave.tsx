@@ -23,7 +23,7 @@ import {
   LEAVE_TYPE_COLORS,
 } from '@/services/leave.service';
 import * as Haptics from 'expo-haptics';
-import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, gradients } from '@/constants/tokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -186,7 +186,7 @@ export default function LeaveScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {isDark && (
         <LinearGradient
-          colors={['#0D1A28', '#0A0A0F']}
+          colors={gradients.heroLeave}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
         />
       )}
@@ -307,7 +307,7 @@ export default function LeaveScreen() {
       <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1, backgroundColor: isDark ? '#0A0A0F' : '#F2F2F7' }}
+          style={{ flex: 1, backgroundColor: pageBg(isDark) }}
         >
           <View style={{ paddingTop: 20, paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: B.default, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

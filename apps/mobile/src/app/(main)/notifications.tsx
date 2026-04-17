@@ -31,6 +31,7 @@ import {
   Repeat2,
   X,
   Trash2,
+  type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -64,7 +65,7 @@ const ANN_COLOR: Record<string, string> = {
 };
 
 // M4: ANN_ICON_MAP tidak bergantung pada isDark — cukup didefinisi sekali di luar komponen
-type LucideIconComponent = React.ComponentType<{ size: number; strokeWidth: number; color: string }>;
+type LucideIconComponent = LucideIcon;
 const ANN_ICON_MAP: Record<string, LucideIconComponent> = {
   info: Info, urgent: AlertCircle, holiday: Sun, policy: FileText,
 };
@@ -480,7 +481,7 @@ export default function NotificationsScreen() {
           const accentColor = ANN_COLOR[selectedAnn.type] ?? C.blue;
           const AnnIcon = ANN_ICON_MAP[selectedAnn.type] ?? Info;
           return (
-            <View style={{ flex: 1, backgroundColor: isDark ? '#0A0A0F' : '#F2F2F7' }}>
+            <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
               {/* Handle bar */}
               <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
                 <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }} />

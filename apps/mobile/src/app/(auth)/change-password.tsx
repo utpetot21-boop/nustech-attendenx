@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { pageBg } from '@/constants/tokens';
 
 export default function ChangePasswordScreen() {
   const isDark   = useColorScheme() === 'dark';
@@ -32,7 +33,7 @@ export default function ChangePasswordScreen() {
   const [showConfirm, setShowConfirm]         = useState(false);
   const [loading, setLoading]                 = useState(false);
 
-  const bg      = isDark ? '#0A0A0F' : '#F2F2F7';
+  const bg      = pageBg(isDark);
   const card    = isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF';
   const border  = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
   const primary = isDark ? '#FFFFFF' : '#0F172A';

@@ -13,12 +13,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Plane, MapPin, Calendar, Clock, Banknote, ChevronRight,
   Plus, CheckCircle2, XCircle, Send, Car, Ship, AlertCircle,
+  type LucideIcon,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { businessTripsService, BusinessTrip, CreateBusinessTripDto } from '@/services/business-trips.service';
-import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, gradients } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { TripCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -65,7 +66,7 @@ function OngoingHeroCard({ trip, onPress, isDark }: { trip: BusinessTrip; onPres
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.88} style={{ marginHorizontal: 16, marginBottom: 16 }}>
       <LinearGradient
-        colors={isDark ? ['#0C2340', '#0A3D2E', '#1A1A0A'] : ['#1D4ED8', '#0D9488', '#065F46']}
+        colors={isDark ? gradients.heroTripDark : gradients.heroTripLight}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={{ borderRadius: R.xl, padding: 20, overflow: 'hidden' }}
       >
@@ -390,7 +391,7 @@ export default function BusinessTripsScreen() {
         {selected && (() => {
           const meta = STATUS[selected.status] ?? { label: selected.status, color: '#8E8E93' };
           return (
-            <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }}>
+            <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
               {/* Handle */}
               <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginTop: 10, marginBottom: 4 }} />
 
@@ -492,7 +493,7 @@ export default function BusinessTripsScreen() {
       {/* ── Create Modal ──────────────────────────────────────────────────────── */}
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setShowCreate(false); resetForm(); }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }}>
+          <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
             {/* Handle */}
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginTop: 10 }} />
 
@@ -525,7 +526,7 @@ export default function BusinessTripsScreen() {
                 key: keyof typeof form;
                 label: string;
                 placeholder: string;
-                icon: React.ComponentType<{ size: number; strokeWidth: number; color: string; style?: any }> | null;
+                icon: LucideIcon | null;
                 multiline?: boolean;
                 keyboard?: 'numeric';
               }>).map((f) => (

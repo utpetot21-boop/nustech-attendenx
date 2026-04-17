@@ -37,6 +37,7 @@ import {
   LogOut,
   Hourglass,
   XCircle,
+  type LucideIcon,
 } from 'lucide-react-native';
 import WeatherBanner, { getPeriodLabel } from '@/components/home/WeatherBanner';
 
@@ -150,7 +151,7 @@ function StatCard({
 }: {
   label: string; value: string; sub: string;
   accentColor: string;
-  icon: React.ComponentType<{ size: number; strokeWidth: number; color: string }>;
+  icon: LucideIcon;
   onPress: () => void;
   isDark: boolean;
 }) {
@@ -192,7 +193,7 @@ function NavCard({
   icon: Icon, onPress, isDark,
 }: {
   label: string; sub: string; accentColor: string;
-  icon: React.ComponentType<{ size: number; strokeWidth: number; color: string }>;
+  icon: LucideIcon;
   onPress: () => void; isDark: boolean;
 }) {
   return (

@@ -27,7 +27,7 @@ import {
 } from '@/services/schedule-swap.service';
 import api from '@/services/api';
 import type { UserSchedule } from '@/services/schedule.service';
-import { C, R, B, S, T, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { C, R, B, S, T, cardBg, pageBg, lPrimary, lSecondary, lTertiary, gradients } from '@/constants/tokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { fmtDateWeekday as fmtDate, toISODate } from '@/utils/dateFormatter';
@@ -88,7 +88,7 @@ function UserPickerModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: isDark ? '#0A0A0F' : '#F2F2F7' }}>
+      <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
         {/* Header */}
         <View style={{
           paddingTop: 20, paddingHorizontal: 20, paddingBottom: 14,
@@ -514,7 +514,7 @@ export default function ScheduleSwapScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       {isDark && (
         <LinearGradient
-          colors={['#1A0D0A', '#0A0A0F']}
+          colors={gradients.heroSwap}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
         />
       )}
@@ -596,7 +596,7 @@ export default function ScheduleSwapScreen() {
       <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1, backgroundColor: isDark ? '#0A0A0F' : '#F2F2F7' }}
+          style={{ flex: 1, backgroundColor: pageBg(isDark) }}
         >
           {/* Modal Header */}
           <View style={{

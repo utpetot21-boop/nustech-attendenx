@@ -2,8 +2,8 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckCircle2, XCircle, AlertCircle, Info } from 'lucide-react-native';
-import { R } from '@/constants/tokens';
+import { CheckCircle2, XCircle, AlertCircle, Info, type LucideIcon } from 'lucide-react-native';
+import { C, R, B, lPrimary } from '@/constants/tokens';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -15,11 +15,11 @@ interface ToastProps {
   duration?: number;
 }
 
-const CONFIG: Record<ToastType, { color: string; bg: string; bgDark: string; Icon: any }> = {
-  success: { color: '#34C759', bg: '#F0FFF4', bgDark: '#0D2B1A', Icon: CheckCircle2 },
-  error:   { color: '#FF3B30', bg: '#FFF5F5', bgDark: '#2B0D0D', Icon: XCircle },
-  warning: { color: '#FF9500', bg: '#FFFBEB', bgDark: '#2B1F00', Icon: AlertCircle },
-  info:    { color: '#007AFF', bg: '#EFF6FF', bgDark: '#001F3F', Icon: Info },
+const CONFIG: Record<ToastType, { color: string; Icon: LucideIcon }> = {
+  success: { color: C.green,  Icon: CheckCircle2 },
+  error:   { color: C.red,    Icon: XCircle },
+  warning: { color: C.orange, Icon: AlertCircle },
+  info:    { color: C.blue,   Icon: Info },
 };
 
 export function Toast({ visible, message, type = 'info', onHide, duration = 3000 }: ToastProps) {
@@ -51,7 +51,7 @@ export function Toast({ visible, message, type = 'info', onHide, duration = 3000
 
   if (!visible) return null;
 
-  const { color, bg, bgDark, Icon } = CONFIG[type];
+  const { color, Icon } = CONFIG[type];
 
   return (
     <Animated.View
@@ -70,9 +70,9 @@ export function Toast({ visible, message, type = 'info', onHide, duration = 3000
           flexDirection: 'row',
           alignItems: 'center',
           gap: 10,
-          backgroundColor: isDark ? bgDark : bg,
+          backgroundColor: color + (isDark ? '26' : '14'),
           borderRadius: R.lg,
-          borderWidth: 1,
+          borderWidth: B.default,
           borderColor: color + '40',
           paddingHorizontal: 14,
           paddingVertical: 12,
@@ -89,7 +89,7 @@ export function Toast({ visible, message, type = 'info', onHide, duration = 3000
             flex: 1,
             fontSize: 14,
             fontWeight: '500',
-            color: isDark ? '#F5F5F5' : '#1A1A1A',
+            color: lPrimary(isDark),
             lineHeight: 20,
           }}
         >

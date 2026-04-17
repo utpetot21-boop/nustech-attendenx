@@ -34,12 +34,13 @@ import {
   AlertCircle,
   ClipboardList,
   Navigation,
+  type LucideIcon,
 } from 'lucide-react-native';
 
 import * as Haptics from 'expo-haptics';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { visitsService, type VisitSummary } from '@/services/visits.service';
-import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, separator } from '@/constants/tokens';
+import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, separator, gradients } from '@/constants/tokens';
 import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ function ActiveVisitCard({ visit, onPress }: { visit: VisitSummary; onPress: () 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.88} style={{ marginHorizontal: 16, marginBottom: 10 }}>
       <LinearGradient
-        colors={isDark ? ['#1A2A1A', '#0F1F0F', '#1A1A0A'] : ['#064E3B', '#065F46', '#047857']}
+        colors={isDark ? gradients.heroWorkDark : gradients.heroWorkLight}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ borderRadius: R.xl, padding: 20, overflow: 'hidden' }}
@@ -147,7 +148,7 @@ function SectionHeader({
   label, count, color, icon: Icon,
 }: {
   label: string; count: number; color: string;
-  icon: React.ComponentType<{ size: number; strokeWidth: number; color: string }>;
+  icon: LucideIcon;
 }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 20, paddingBottom: 10 }}>
