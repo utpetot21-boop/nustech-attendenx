@@ -57,7 +57,7 @@ export default function VisitDetailScreen() {
     queryKey: ['visit', visitId],
     queryFn: () => visitsService.getDetail(visitId!),
     enabled: !!visitId,
-    refetchInterval: (data) => (data?.status === 'ongoing' ? 15000 : false),
+    refetchInterval: (query) => (query.state.data?.status === 'ongoing' ? 15000 : false),
   });
 
   // GPS tracking via WebSocket — emit tiap 30 detik saat kunjungan ongoing

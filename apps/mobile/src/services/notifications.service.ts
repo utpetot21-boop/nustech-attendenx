@@ -15,9 +15,13 @@ import Constants from 'expo-constants';
 try {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
+      // SDK baru: shouldShowBanner + shouldShowList wajib
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
+      // Backward-compat: iOS lama masih baca shouldShowAlert
+      shouldShowAlert: true,
     }),
   });
 } catch {

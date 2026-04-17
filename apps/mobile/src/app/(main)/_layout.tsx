@@ -60,7 +60,7 @@ export default function MainLayout() {
     queryKey: ['tasks', 'pending_confirmation'],
     queryFn: () => tasksService.getMyTasks({ status: 'pending_confirmation' }),
     refetchInterval: 30000,
-    select: (d) => d?.length ?? 0,
+    select: (d) => d?.total ?? 0,
   });
 
   // Badge: notif belum dibaca
