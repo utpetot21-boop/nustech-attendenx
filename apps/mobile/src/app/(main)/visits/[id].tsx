@@ -25,9 +25,16 @@ import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { visitsService } from '@/services/visits.service';
 import { socketService } from '@/services/socket.service';
+import { api } from '@/services/api';
 import { PhotoPhaseGrid } from '@/components/visits/PhotoPhaseGrid';
 import { WatermarkCamera } from '@/components/visits/WatermarkCamera';
-import { pageBg, gradients } from '@/constants/tokens';
+import { pageBg, gradients, C, R, B, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+
+// ── Template form types ───────────────────────────────────────────────────────
+type FieldType = 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'date' | 'textarea';
+interface TField   { id: string; label: string; field_type: FieldType; options: string[] | null; is_required: boolean; order_index: number }
+interface TSection { id: string; title: string; order_index: number; fields: TField[] }
+interface TTemplate{ id: string; name: string; sections: TSection[] }
 
 type Phase = 'before' | 'during' | 'after';
 
@@ -52,13 +59,62 @@ export default function VisitDetailScreen() {
   const [workDescription, setWorkDescription] = useState('');
   const [findings, setFindings] = useState('');
   const [recommendations, setRecommendations] = useState('');
+  const [materials, setMaterials] = useState<{ name: string; qty: string }[]>([]);
+
+  const addMaterial    = () => setMaterials((m) => [...m, { name: '', qty: '' }]);
+  const removeMaterial = (i: number) => setMaterials((m) => m.filter((_, idx) => idx !== i));
+  const updateMaterial = (i: number, field: 'name' | 'qty', val: string) =>
+    setMaterials((m) => m.map((item, idx) => idx === i ? { ...item, [field]: val } : item));
+
+  // Form template checklist state
+  const [formAnswers, setFormAnswers] = useState<Record<string, string>>({});
 
   // Queries
   const { data: visit, isLoading } = useQuery({
     queryKey: ['visit', visitId],
-    queryFn: () => visitsService.getDetail(visitId!),
+    queryFn: () => visitsService.getDetail(visitId!) as Promise<ReturnType<typeof visitsService.getDetail> extends Promise<infer T> ? T & { template_id?: string | null } : never>,
     enabled: !!visitId,
     refetchInterval: (query) => (query.state.data?.status === 'ongoing' ? 15000 : false),
+  });
+
+  const templateId = (visit as any)?.template_id as string | null | undefined;
+
+  const { data: template } = useQuery<TTemplate>({
+    queryKey: ['template', templateId],
+    queryFn: () => api.get(`/templates/${templateId}`).then((r) => r.data),
+    enabled: !!templateId,
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: existingResponses } = useQuery({
+    queryKey: ['visit-form-responses', visitId],
+    queryFn: () =>
+      api.get(`/visits/${visitId}/form-responses`).then((r) =>
+        (r.data as { field_id: string; value: string | null }[])
+      ),
+    enabled: !!visitId && !!templateId,
+    staleTime: 30_000,
+  });
+
+  // Merge existing responses into formAnswers on load
+  useEffect(() => {
+    if (!existingResponses) return;
+    setFormAnswers((prev) => {
+      const merged = { ...prev };
+      existingResponses.forEach((resp) => {
+        if (!(resp.field_id in merged)) {
+          merged[resp.field_id] = resp.value ?? '';
+        }
+      });
+      return merged;
+    });
+  }, [existingResponses]);
+
+  const saveFormMut = useMutation({
+    mutationFn: () => {
+      const responses = Object.entries(formAnswers).map(([field_id, value]) => ({ field_id, value }));
+      return api.post(`/visits/${visitId}/form-responses`, { responses });
+    },
   });
 
   // GPS tracking via WebSocket — emit tiap 30 detik saat kunjungan ongoing
@@ -137,12 +193,15 @@ export default function VisitDetailScreen() {
 
   // Check-out mutation
   const checkOutMutation = useMutation({
-    mutationFn: () =>
-      visitsService.checkOut(visitId!, {
+    mutationFn: () => {
+      const validMaterials = materials.filter((m) => m.name.trim());
+      return visitsService.checkOut(visitId!, {
         work_description: workDescription.trim(),
         findings: findings.trim() || undefined,
         recommendations: recommendations.trim() || undefined,
-      }),
+        materials_used: validMaterials.length ? validMaterials : undefined,
+      });
+    },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['visits'] });
@@ -167,15 +226,30 @@ export default function VisitDetailScreen() {
     [cameraPhase, addPhotoMutation],
   );
 
-  const handleCheckOut = useCallback(() => {
+  const handleCheckOut = useCallback(async () => {
     if (!workDescription.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Deskripsi Wajib', 'Masukkan deskripsi pekerjaan sebelum check-out.');
       return;
     }
+    // Validasi field wajib pada template
+    if (template) {
+      for (const sec of template.sections) {
+        for (const field of sec.fields) {
+          if (field.is_required && !formAnswers[field.id]?.trim()) {
+            Alert.alert('Checklist Belum Lengkap', `Field "${field.label}" wajib diisi.`);
+            return;
+          }
+        }
+      }
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // Simpan form responses dulu jika ada template
+    if (templateId && Object.keys(formAnswers).length > 0) {
+      await saveFormMut.mutateAsync().catch(() => null);
+    }
     checkOutMutation.mutate();
-  }, [workDescription, checkOutMutation]);
+  }, [workDescription, template, formAnswers, templateId, saveFormMut, checkOutMutation]);
 
   const photosOf = (phase: Phase) =>
     (visit?.photos ?? []).filter((p) => p.phase === phase);
@@ -557,11 +631,124 @@ export default function VisitDetailScreen() {
               </View>
             )}
 
+            {/* Template checklist form */}
+            {template && template.sections.length > 0 && (
+              <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+                <Text style={{ fontSize: 17, fontWeight: '600', color: isDark ? '#FFF' : '#111', marginBottom: 12, letterSpacing: -0.3 }}>
+                  Checklist Pekerjaan
+                </Text>
+                {template.sections
+                  .slice()
+                  .sort((a, b) => a.order_index - b.order_index)
+                  .map((sec) => (
+                    <View key={sec.id} style={{
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.88)',
+                      borderRadius: 16, borderWidth: 0.5,
+                      borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                      padding: 14, marginBottom: 12,
+                    }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        {sec.title}
+                      </Text>
+                      {sec.fields
+                        .slice()
+                        .sort((a, b) => a.order_index - b.order_index)
+                        .map((field) => {
+                          const val = formAnswers[field.id] ?? '';
+                          const setVal = (v: string) => setFormAnswers((prev) => ({ ...prev, [field.id]: v }));
+                          const inputStyle = {
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF',
+                            borderRadius: 10, borderWidth: 0.5,
+                            borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+                            paddingHorizontal: 12, paddingVertical: 9,
+                            fontSize: 14, color: isDark ? '#FFF' : '#111',
+                          };
+                          return (
+                            <View key={field.id} style={{ marginBottom: 12 }}>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.75)' : '#374151', marginBottom: 6 }}>
+                                {field.label}{field.is_required ? ' *' : ''}
+                              </Text>
+
+                              {/* text / date */}
+                              {(field.field_type === 'text' || field.field_type === 'date') && (
+                                <TextInput value={val} onChangeText={setVal} editable={isOngoing}
+                                  placeholder={field.field_type === 'date' ? 'YYYY-MM-DD' : field.label}
+                                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                                  keyboardType={field.field_type === 'date' ? 'default' : 'default'}
+                                  style={inputStyle} />
+                              )}
+
+                              {/* number */}
+                              {field.field_type === 'number' && (
+                                <TextInput value={val} onChangeText={setVal} editable={isOngoing}
+                                  placeholder="0" placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                                  keyboardType="numeric" style={inputStyle} />
+                              )}
+
+                              {/* textarea */}
+                              {field.field_type === 'textarea' && (
+                                <TextInput value={val} onChangeText={setVal} editable={isOngoing}
+                                  placeholder={field.label} multiline numberOfLines={3} textAlignVertical="top"
+                                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                                  style={{ ...inputStyle, minHeight: 72 }} />
+                              )}
+
+                              {/* checkbox */}
+                              {field.field_type === 'checkbox' && (
+                                <TouchableOpacity
+                                  onPress={() => isOngoing && setVal(val === 'true' ? '' : 'true')}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
+                                >
+                                  <View style={{
+                                    width: 22, height: 22, borderRadius: 6,
+                                    borderWidth: 2, borderColor: val === 'true' ? '#007AFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#D1D5DB'),
+                                    backgroundColor: val === 'true' ? '#007AFF' : 'transparent',
+                                    alignItems: 'center', justifyContent: 'center',
+                                  }}>
+                                    {val === 'true' && <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>✓</Text>}
+                                  </View>
+                                  <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.75)' : '#374151' }}>
+                                    {val === 'true' ? 'Ya' : 'Tidak / Belum diisi'}
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+
+                              {/* radio / select */}
+                              {(field.field_type === 'radio' || field.field_type === 'select') && field.options && (
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                  {field.options.map((opt) => (
+                                    <TouchableOpacity
+                                      key={opt}
+                                      onPress={() => isOngoing && setVal(val === opt ? '' : opt)}
+                                      style={{
+                                        paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10,
+                                        borderWidth: 1.5,
+                                        borderColor: val === opt ? '#007AFF' : (isDark ? 'rgba(255,255,255,0.2)' : '#D1D5DB'),
+                                        backgroundColor: val === opt
+                                          ? isDark ? 'rgba(0,122,255,0.2)' : '#EFF6FF'
+                                          : 'transparent',
+                                      }}
+                                    >
+                                      <Text style={{ fontSize: 13, fontWeight: '600', color: val === opt ? '#007AFF' : (isDark ? 'rgba(255,255,255,0.6)' : '#6B7280') }}>
+                                        {opt}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })}
+                    </View>
+                  ))}
+              </View>
+            )}
+
             {/* Berita Acara button — after visit completed */}
             {!isOngoing && (
               <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
                 <TouchableOpacity
-                  onPress={() => router.push(`/service-reports?visit_id=${visitId}`)}
+                  onPress={() => router.push({ pathname: '/(main)/service-reports/index', params: { visit_id: visitId } } as never)}
                   style={{
                     backgroundColor: '#1D4ED8',
                     borderRadius: 16,
@@ -724,6 +911,60 @@ export default function VisitDetailScreen() {
                   />
                 </View>
               ))}
+
+              {/* Material digunakan */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', marginBottom: 10 }}>
+                  Material Digunakan (opsional)
+                </Text>
+                {materials.map((mat, i) => (
+                  <View key={i} style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                    <TextInput
+                      value={mat.name}
+                      onChangeText={(v) => updateMaterial(i, 'name', v)}
+                      placeholder="Nama material"
+                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                      style={{
+                        flex: 2,
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF',
+                        borderRadius: 12, borderWidth: 0.5,
+                        borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+                        paddingHorizontal: 12, paddingVertical: 10,
+                        fontSize: 14, color: isDark ? '#FFF' : '#111',
+                      }}
+                    />
+                    <TextInput
+                      value={mat.qty}
+                      onChangeText={(v) => updateMaterial(i, 'qty', v)}
+                      placeholder="Qty"
+                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                      style={{
+                        flex: 1,
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF',
+                        borderRadius: 12, borderWidth: 0.5,
+                        borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+                        paddingHorizontal: 12, paddingVertical: 10,
+                        fontSize: 14, color: isDark ? '#FFF' : '#111',
+                      }}
+                    />
+                    <TouchableOpacity onPress={() => removeMaterial(i)}
+                      style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,69,58,0.2)' : '#FEE2E2', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#FF453A', fontSize: 18, lineHeight: 20 }}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  onPress={addMaterial}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    paddingVertical: 10, borderRadius: 12,
+                    borderWidth: 1, borderStyle: 'dashed',
+                    borderColor: isDark ? 'rgba(0,122,255,0.4)' : 'rgba(0,122,255,0.3)',
+                  }}
+                >
+                  <Text style={{ color: '#007AFF', fontSize: 14, fontWeight: '600' }}>+ Tambah Material</Text>
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity
                 onPress={handleCheckOut}

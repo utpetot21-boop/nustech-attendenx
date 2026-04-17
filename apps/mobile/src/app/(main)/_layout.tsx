@@ -72,8 +72,16 @@ export default function MainLayout() {
     refetchInterval: 30000,
   });
 
-  const taskBadge = (pendingTasks ?? 0) > 0 ? pendingTasks : undefined;
-  const notifBadge = (unreadCount ?? 0) > 0 ? unreadCount : undefined;
+  // Badge: pengumuman belum dibaca
+  const { data: unreadAnn } = useQuery({
+    queryKey: ['announcements', 'unread-count'],
+    queryFn: () => api.get('/announcements/me/unread-count').then((r) => r.data?.count ?? 0),
+    refetchInterval: 60000,
+  });
+
+  const taskBadge  = (pendingTasks ?? 0) > 0 ? pendingTasks : undefined;
+  const totalUnread = (unreadCount ?? 0) + (unreadAnn ?? 0);
+  const notifBadge = totalUnread > 0 ? totalUnread : undefined;
 
   return (
     <Tabs
@@ -163,7 +171,7 @@ export default function MainLayout() {
       <Tabs.Screen name="notifications"         options={{ href: null, title: 'Notifikasi' }} />
       <Tabs.Screen name="leave"                 options={{ href: null, title: 'Cuti & Izin' }} />
       <Tabs.Screen name="schedule-swap"         options={{ href: null, title: 'Tukar Jadwal' }} />
-      <Tabs.Screen name="sos-alert"             options={{ href: null, title: 'SOS Alert' }} />
+      <Tabs.Screen name="sos-alert"             options={{ href: null, title: 'SOS Alert', tabBarStyle: { display: 'none' } }} />
     </Tabs>
   );
 }

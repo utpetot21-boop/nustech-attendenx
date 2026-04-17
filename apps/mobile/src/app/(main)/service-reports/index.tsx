@@ -55,7 +55,7 @@ export default function ServiceReportsListScreen() {
     mutationFn: () => createServiceReport(visit_id!),
     onSuccess: (report) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace(`/service-reports/${report.id}`);
+      router.replace(`/(main)/service-reports/${report.id}` as never);
     },
     onError: (err: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -93,7 +93,7 @@ export default function ServiceReportsListScreen() {
               borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
               borderWidth: B.default,
             }]}
-            onPress={() => router.push(`/service-reports/${r.id}`)}
+            onPress={() => router.push(`/(main)/service-reports/${r.id}` as never)}
             activeOpacity={0.7}
           >
             <View style={styles.cardHeader}>

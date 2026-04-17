@@ -640,7 +640,7 @@ function PermohonanSection() {
       if (statusFilter) q.set('status', statusFilter);
       if (typeFilter)   q.set('type',   typeFilter);
       if (dateFilter)   q.set('date',   dateFilter);
-      return apiClient.get(`/attendance-requests/admin/list?${q}`).then((r) => r.data);
+      return apiClient.get(`/attendance-requests/admin/list?${q}`).then((r) => r.data?.items ?? r.data ?? []);
     },
     refetchInterval: 30_000,
   });

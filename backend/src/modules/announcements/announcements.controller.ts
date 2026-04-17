@@ -37,6 +37,12 @@ export class AnnouncementsController {
     return this.svc.getMyAnnouncements(userId);
   }
 
+  @Get('me/unread-count')
+  @ApiOperation({ summary: 'Jumlah pengumuman belum dibaca' })
+  getUnreadCount(@CurrentUser('id') userId: string) {
+    return this.svc.getUnreadCount(userId).then((count) => ({ count }));
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.svc.findOne(id);

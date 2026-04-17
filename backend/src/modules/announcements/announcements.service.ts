@@ -197,6 +197,12 @@ export class AnnouncementsService {
     }
   }
 
+  async getUnreadCount(userId: string): Promise<number> {
+    const total = await this.annRepo.count({ where: { status: 'sent' } });
+    const readOrHidden = await this.readRepo.count({ where: { user_id: userId } });
+    return Math.max(0, total - readOrHidden);
+  }
+
   async getMyAnnouncements(userId: string): Promise<(AnnouncementEntity & { is_read: boolean })[]> {
     const anns = await this.annRepo.find({
       where: { status: 'sent' },

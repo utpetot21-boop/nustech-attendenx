@@ -598,7 +598,7 @@ export default function PekerjaanScreen() {
           </>
         )}
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: insets.bottom + 96 }} />
       </ScrollView>
     </View>
   );

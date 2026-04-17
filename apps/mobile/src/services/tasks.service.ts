@@ -87,4 +87,20 @@ export const tasksService = {
       created_at: string;
     }[];
   },
+
+  async createVisitTask(payload: {
+    title: string;
+    assigned_to: string;
+    client_id?: string;
+    priority: 'low' | 'normal' | 'high' | 'urgent';
+    scheduled_at?: string;
+    notes?: string;
+  }) {
+    const res = await api.post('/tasks', {
+      ...payload,
+      type: 'visit',
+      dispatch_type: 'direct',
+    });
+    return res.data as TaskSummary;
+  },
 };

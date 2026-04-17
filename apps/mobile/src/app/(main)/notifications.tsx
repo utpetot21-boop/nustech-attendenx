@@ -48,6 +48,7 @@ interface Notif {
   body: string;
   is_read: boolean;
   created_at: string;
+  data?: Record<string, unknown> | null;
 }
 
 interface Announcement {
@@ -325,9 +326,24 @@ export default function NotificationsScreen() {
                       const route = NOTIF_ROUTE_MAP[notif.type];
                       if (route === '__ann__') {
                         setActiveTab('ann');
-                      } else if (route) {
-                        router.push(route as Href);
+                        return;
                       }
+                      if (!route) return;
+                      // SOS alert perlu params lat/lng/userName dari data payload
+                      if (notif.type === 'sos_alert') {
+                        const d = (notif.data ?? {}) as Record<string, unknown>;
+                        router.push({
+                          pathname: '/(main)/sos-alert',
+                          params: {
+                            alertId:  String(d.alertId  ?? ''),
+                            lat:      String(d.lat      ?? ''),
+                            lng:      String(d.lng      ?? ''),
+                            userName: String(d.userName ?? 'Rekan Anda'),
+                          },
+                        });
+                        return;
+                      }
+                      router.push(route as Href);
                     }}
                     activeOpacity={0.78}
                     style={{
