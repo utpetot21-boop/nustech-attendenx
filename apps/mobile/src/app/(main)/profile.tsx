@@ -43,6 +43,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { LeaveCardSkeleton, SkeletonBone } from '@/components/ui/SkeletonLoader';
 
 interface LeaveBalance {
   balance_days: number;
@@ -115,7 +116,7 @@ export default function ProfileScreen() {
     reason: '',
   });
 
-  const { data: balance, refetch: refetchBalance, isRefetching } = useQuery({
+  const { data: balance, refetch: refetchBalance, isRefetching, isLoading: balanceLoading } = useQuery({
     queryKey: ['leave-balance'],
     queryFn: () => api.get('/leave/balance/me').then((r) => r.data as LeaveBalance),
   });
@@ -441,6 +442,11 @@ export default function ProfileScreen() {
         </View>
 
         {/* Saldo cuti card */}
+        {balanceLoading ? (
+          <View style={{ marginHorizontal: 20, marginBottom: 16, gap: 12 }}>
+            <SkeletonBone width="100%" height={160} borderRadius={20} />
+          </View>
+        ) : null}
         <View
           style={{
             marginHorizontal: 20,
@@ -449,6 +455,7 @@ export default function ProfileScreen() {
             borderRadius: R.xl,
             borderWidth: B.default,
             borderColor: isDark ? 'rgba(0,122,255,0.3)' : '#BFDBFE',
+            display: balanceLoading ? 'none' : 'flex',
             padding: 20,
           }}
         >

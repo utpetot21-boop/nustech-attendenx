@@ -35,6 +35,9 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Swipeable } from 'react-native-gesture-handler';
 import { api } from '@/services/api';
+import * as Haptics from 'expo-haptics';
+import { Toast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
 
 interface Notif {
   id: string;
@@ -109,6 +112,7 @@ export default function NotificationsScreen() {
   const qc = useQueryClient();
   const insets = useSafeAreaInsets();
   const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { toast, hide: hideToast, success: toastSuccess, error: toastError } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>(tab === 'ann' ? 'ann' : 'notif');
   const [selectedAnn, setSelectedAnn] = useState<Announcement | null>(null);
 
@@ -121,22 +125,36 @@ export default function NotificationsScreen() {
 
   const markReadMut = useMutation({
     mutationFn: (id: string) => api.post(`/notifications/${id}/read`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+    },
   });
 
   const markAllMut = useMutation({
     mutationFn: () => api.post('/notifications/read-all'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      toastSuccess('Semua notifikasi ditandai terbaca.');
+    },
+    onError: () => toastError('Gagal memperbarui notifikasi.'),
   });
 
   const deleteNotifMut = useMutation({
     mutationFn: (id: string) => api.delete(`/notifications/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+    },
   });
 
   const deleteAnnMut = useMutation({
     mutationFn: (id: string) => api.delete(`/announcements/me/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-announcements'] }),
+    onSuccess: () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      qc.invalidateQueries({ queryKey: ['my-announcements'] });
+    },
   });
 
   // Tipe pengumuman tidak ditampilkan di tab Notif — hanya ada di tab Pengumuman
@@ -196,6 +214,7 @@ export default function NotificationsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

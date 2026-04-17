@@ -7,6 +7,9 @@ import {
   Wrench,
   LayoutGrid,
 } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
+import { tasksService } from '@/services/tasks.service';
+import { api } from '@/services/api';
 
 // ── Warna aksen per tab ──────────────────────────────────────────────────────
 const TAB_COLORS = {
@@ -51,6 +54,24 @@ export default function MainLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const inactiveColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)';
+
+  // Badge: tugas pending_confirmation yang perlu aksi
+  const { data: pendingTasks } = useQuery({
+    queryKey: ['tasks', 'pending_confirmation'],
+    queryFn: () => tasksService.getMyTasks({ status: 'pending_confirmation' }),
+    refetchInterval: 30000,
+    select: (d) => d?.length ?? 0,
+  });
+
+  // Badge: notif belum dibaca
+  const { data: unreadCount } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: () => api.get('/notifications/unread-count').then((r) => r.data?.count ?? 0),
+    refetchInterval: 30000,
+  });
+
+  const taskBadge = (pendingTasks ?? 0) > 0 ? pendingTasks : undefined;
+  const notifBadge = (unreadCount ?? 0) > 0 ? unreadCount : undefined;
 
   return (
     <Tabs
@@ -97,6 +118,8 @@ export default function MainLayout() {
         name="index"
         options={{
           title: 'Beranda',
+          tabBarBadge: notifBadge,
+          tabBarBadgeStyle: { backgroundColor: '#FF3B30', fontSize: 10, minWidth: 16, height: 16 },
           tabBarIcon: ({ focused, color }) => (
             <TabIcon icon={Home} focused={focused} color={color} activeColor={TAB_COLORS.index} />
           ),
@@ -106,6 +129,8 @@ export default function MainLayout() {
         name="pekerjaan"
         options={{
           title: 'Pekerjaan',
+          tabBarBadge: taskBadge,
+          tabBarBadgeStyle: { backgroundColor: '#FF9500', fontSize: 10, minWidth: 16, height: 16 },
           tabBarIcon: ({ focused, color }) => (
             <TabIcon icon={Wrench} focused={focused} color={color} activeColor={TAB_COLORS.pekerjaan} />
           ),
@@ -136,6 +161,7 @@ export default function MainLayout() {
       <Tabs.Screen name="notifications"         options={{ href: null, title: 'Notifikasi' }} />
       <Tabs.Screen name="leave"                 options={{ href: null, title: 'Cuti & Izin' }} />
       <Tabs.Screen name="schedule-swap"         options={{ href: null, title: 'Tukar Jadwal' }} />
+      <Tabs.Screen name="sos-alert"             options={{ href: null, title: 'SOS Alert' }} />
     </Tabs>
   );
 }

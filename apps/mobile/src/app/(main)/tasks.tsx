@@ -17,6 +17,8 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
+import { Toast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +37,7 @@ import { tasksService, type TaskSummary, type HoldTaskPayload } from '@/services
 import { TaskCard } from '@/components/tasks/TaskCard';
 import * as Location from 'expo-location';
 import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
+import * as Haptics from 'expo-haptics';
 
 const HOLD_REASONS = [
   { value: 'client_absent', label: 'Klien/PIC tidak ada di lokasi' },
@@ -60,6 +63,7 @@ export default function TasksScreen() {
   const qc = useQueryClient();
   const insets = useSafeAreaInsets();
 
+  const { toast, hide: hideToast, success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [selectedTask, setSelectedTask] = useState<TaskSummary | null>(null);
   const [userLat, setUserLat] = useState<number | undefined>(undefined);
@@ -101,21 +105,30 @@ export default function TasksScreen() {
   const acceptMutation = useMutation({
     mutationFn: (id: string) => tasksService.accept(id),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['tasks'] });
-      Alert.alert('Berhasil', 'Tugas berhasil diterima.');
+      toastSuccess('Tugas berhasil diterima.');
     },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toastError(err.message ?? 'Gagal menerima tugas.');
+    },
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       tasksService.reject(id, reason),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setShowRejectModal(false);
       setRejectReason('');
+      toastSuccess('Tugas berhasil ditolak.');
     },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toastError(err.message ?? 'Gagal menolak tugas.');
+    },
   });
 
   const holdMutation = useMutation({
@@ -127,26 +140,35 @@ export default function TasksScreen() {
         visit_id: payload.visit_id,
       }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setShowHoldModal(false);
       setHoldNotes('');
-      Alert.alert('Tunda Diajukan', 'Permintaan penundaan telah dikirim ke manajer.');
+      toastWarning('Permintaan penundaan dikirim ke manajer.');
     },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toastError(err.message ?? 'Gagal mengajukan tunda.');
+    },
   });
 
   const delegateMutation = useMutation({
     mutationFn: ({ id, to_user_id, reason }: { id: string; to_user_id: string; reason: string }) =>
       tasksService.delegate(id, { to_user_id, reason }),
     onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setShowDelegateModal(false);
-      Alert.alert('Delegasi Dikirim', 'Permintaan delegasi tugas telah dikirim ke manajer untuk disetujui.');
+      toastSuccess('Permintaan delegasi dikirim ke manajer.');
     },
-    onError: (err: Error) => Alert.alert('Gagal', err.message),
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toastError(err.message ?? 'Gagal mendelegasikan tugas.');
+    },
   });
 
   const handleAccept = (task: TaskSummary) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Terima Tugas?',
       `Anda akan menerima tugas "${task.title}".`,
@@ -187,7 +209,7 @@ export default function TasksScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
