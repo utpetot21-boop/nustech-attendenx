@@ -28,7 +28,6 @@ import {
   PlusCircle,
   Gift,
   Plus,
-  Bell,
   Receipt,
   FileText,
   Briefcase,
@@ -376,35 +375,7 @@ export default function ProfileScreen() {
 
         {/* ── Menu Hub ──────────────────────────────────────────────────── */}
         <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-          {/* Baris 1: Jadwal & Notifikasi */}
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-            {[
-              { label: 'Jadwal', sub: 'Lihat shift & kalender', Icon: Calendar, color: C.purple, bg: isDark ? 'rgba(175,82,222,0.15)' : '#F5F3FF', route: '/(main)/schedule' },
-              { label: 'Notifikasi', sub: 'Pemberitahuan & pengumuman', Icon: Bell, color: C.blue, bg: isDark ? 'rgba(0,122,255,0.15)' : '#EFF6FF', route: '/(main)/notifications' },
-            ].map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                onPress={() => router.push(item.route as never)}
-                activeOpacity={0.75}
-                style={{
-                  flex: 1,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-                  borderRadius: R.lg,
-                  borderWidth: B.default,
-                  borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.10)',
-                  padding: 14,
-                }}
-              >
-                <View style={{ width: 38, height: 38, borderRadius: R.sm, backgroundColor: item.bg, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-                  <item.Icon size={20} strokeWidth={1.8} color={item.color} />
-                </View>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: textPrimary, marginBottom: 2 }}>{item.label}</Text>
-                <Text style={{ fontSize: 11, color: textSecondary, lineHeight: 15 }}>{item.sub}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Baris 2: Klaim, BA, Surat Tugas, SOS */}
+          {/* Menu: Klaim, BA, Surat Tugas, Cuti, SOS */}
           <View style={{
             backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
             borderRadius: R.lg,
