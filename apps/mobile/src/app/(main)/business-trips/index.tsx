@@ -15,6 +15,7 @@ import {
   Plus, CheckCircle2, XCircle, Send, Car, Ship, AlertCircle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { businessTripsService, BusinessTrip, CreateBusinessTripDto } from '@/services/business-trips.service';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
