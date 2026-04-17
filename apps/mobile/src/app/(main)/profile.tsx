@@ -905,7 +905,8 @@ export default function ProfileScreen() {
                     setShowStartPicker(false);
                     if (date) {
                       const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                      setForm((f) => ({ ...f, start_date: iso, end_date: f.end_date && f.end_date < iso ? iso : f.end_date }));
+                      // Auto-isi end_date = start_date (1 hari); user bisa ubah sendiri jika perlu lebih
+                      setForm((f) => ({ ...f, start_date: iso, end_date: !f.end_date || f.end_date < iso ? iso : f.end_date }));
                     }
                   }}
                 />
