@@ -176,7 +176,7 @@ export default function MapComponent({
       center={defaultCenter}
       zoom={zoom ?? 14}
       style={{ width: '100%', height: '100%' }}
-      zoomControl={!isMobile}
+      zoomControl={false}
       dragging={!isMobile}
       touchZoom={false}
       tap={false}
