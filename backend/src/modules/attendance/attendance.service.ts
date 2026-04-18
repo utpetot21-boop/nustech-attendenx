@@ -365,6 +365,19 @@ export class AttendanceService {
       return { canCheckout: false, remainingSeconds: 0, checkoutEarliest: att.checkout_earliest, checkedOut: true };
     }
 
+    // Izin pulang awal approved → bypass lock 8 jam (konsisten dgn checkOut())
+    const approvedEarly = await this.attendanceRequestRepo.findOne({
+      where: { user_id: userId, date: today, type: 'early_departure', status: 'approved' },
+    });
+    if (approvedEarly) {
+      return {
+        canCheckout: true,
+        remainingSeconds: 0,
+        checkoutEarliest: att.checkout_earliest,
+        checkedOut: false,
+      };
+    }
+
     const now = new Date();
     if (!att.checkout_earliest) {
       return { canCheckout: false, remainingSeconds: 0, checkoutEarliest: null, checkedOut: false };

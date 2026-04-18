@@ -630,7 +630,12 @@ export default function AttendanceScreen() {
         )}
 
         {/* ── Checkout card ────────────────────────────────────── */}
-        {alreadyCheckedIn && !alreadyCheckedOut && (
+        {alreadyCheckedIn && !alreadyCheckedOut && (() => {
+          // Trust server override — kalau izin pulang awal approved, BE return canCheckout=true
+          // walau belum 8 jam. FE tidak boleh lock berdasarkan timer lokal saja.
+          const canCheckout = checkoutInfo?.canCheckout === true || timer.canCheckout;
+          const approvedEarly = checkoutInfo?.canCheckout === true && !timer.canCheckout;
+          return (
           <View style={{
             marginBottom: 12,
             backgroundColor: isDark ? `${C.orange}12` : '#FEFCE8',
@@ -642,9 +647,9 @@ export default function AttendanceScreen() {
               Check-Out
             </Text>
 
-            {timer.canCheckout ? (
+            {canCheckout ? (
               <Text style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.70)' : '#374151', marginBottom: 14 }}>
-                Siap checkout sekarang
+                {approvedEarly ? 'Izin pulang awal disetujui · siap checkout' : 'Siap checkout sekarang'}
               </Text>
             ) : (
               <>
@@ -665,14 +670,14 @@ export default function AttendanceScreen() {
 
             <TouchableOpacity
               onPress={() => checkOutMutation.mutate()}
-              disabled={!timer.canCheckout || checkOutMutation.isPending}
+              disabled={!canCheckout || checkOutMutation.isPending}
               style={{
                 height: 56, borderRadius: 16,
-                backgroundColor: timer.canCheckout
+                backgroundColor: canCheckout
                   ? 'rgba(0,122,255,0.90)'
                   : isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
                 borderWidth: B.glass,
-                borderColor: timer.canCheckout ? 'rgba(0,122,255,0.60)' : 'rgba(0,0,0,0.10)',
+                borderColor: canCheckout ? 'rgba(0,122,255,0.60)' : 'rgba(0,0,0,0.10)',
                 alignItems: 'center', justifyContent: 'center',
               }}
               activeOpacity={0.85}
@@ -682,14 +687,15 @@ export default function AttendanceScreen() {
               ) : (
                 <Text style={{
                   fontSize: 17, fontWeight: '700',
-                  color: timer.canCheckout ? '#FFFFFF' : lTertiary(isDark),
+                  color: canCheckout ? '#FFFFFF' : lTertiary(isDark),
                 }}>
-                  {timer.canCheckout ? 'Check-Out Sekarang' : 'Menunggu 8 Jam...'}
+                  {canCheckout ? 'Check-Out Sekarang' : 'Menunggu 8 Jam...'}
                 </Text>
               )}
             </TouchableOpacity>
           </View>
-        )}
+          );
+        })()}
 
         {/* ── Permohonan Izin Absen ───────────────────────────── */}
         <View style={{
