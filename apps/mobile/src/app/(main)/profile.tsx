@@ -10,6 +10,7 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   TextInput,
   useColorScheme,
   RefreshControl,
@@ -150,7 +151,8 @@ export default function ProfileScreen() {
   const [showEndPicker, setShowEndPicker]     = useState(false);
 
   // ── Approval (admin/manager/super_admin) ──────────────────────────
-  const isApprover = APPROVER_ROLES.includes(user?.role?.name ?? '');
+  const roleName = typeof user?.role === 'string' ? user.role : (user?.role?.name ?? '');
+  const isApprover = APPROVER_ROLES.includes(roleName);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [rejectId, setRejectId]     = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -507,16 +509,17 @@ export default function ProfileScreen() {
         {/* ── Persetujuan Cuti (approver only) ──────────────────────── */}
         {isApprover && (
           <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-            <TouchableOpacity
+            <Pressable
               onPress={() => setShowApprovalModal(true)}
-              activeOpacity={0.75}
-              style={{
+              style={({ pressed }) => ({
                 flexDirection: 'row', alignItems: 'center', gap: 12,
-                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+                backgroundColor: pressed
+                  ? (isDark ? 'rgba(52,199,89,0.15)' : 'rgba(52,199,89,0.08)')
+                  : (isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF'),
                 borderRadius: R.lg, borderWidth: B.default,
                 borderColor: isDark ? 'rgba(52,199,89,0.30)' : 'rgba(52,199,89,0.25)',
                 paddingHorizontal: 16, paddingVertical: 14,
-              }}
+              })}
             >
               <View style={{ width: 34, height: 34, borderRadius: R.xs + 2, backgroundColor: C.green + '1F', alignItems: 'center', justifyContent: 'center' }}>
                 <ClipboardList size={18} strokeWidth={1.8} color={C.green} />
@@ -528,7 +531,7 @@ export default function ProfileScreen() {
                 </Text>
               </View>
               <ChevronRight size={16} strokeWidth={1.8} color={lTertiary(isDark)} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
 
