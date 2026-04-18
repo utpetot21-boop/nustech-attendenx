@@ -1151,7 +1151,7 @@ export default function WarningLettersScreen() {
           style={{
             position: 'absolute',
             right: 20,
-            bottom: insets.bottom + 20,
+            bottom: insets.bottom + 104,
             width: 56, height: 56, borderRadius: 28,
             backgroundColor: C.red,
             alignItems: 'center', justifyContent: 'center',
