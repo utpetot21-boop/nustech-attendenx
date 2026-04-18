@@ -2,7 +2,7 @@
  * M-10 — Notifikasi & Pengumuman
  * iOS 26 Liquid Glass design — dengan tab Notifikasi / Pengumuman
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, useColorScheme,
   RefreshControl, StatusBar, ActivityIndicator,
@@ -132,6 +132,7 @@ export default function NotificationsScreen() {
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notif-unread-count'] });
     },
   });
 
@@ -140,16 +141,33 @@ export default function NotificationsScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notif-unread-count'] });
       toastSuccess('Semua notifikasi ditandai terbaca.');
     },
     onError: () => toastError('Gagal memperbarui notifikasi.'),
   });
+
+  // Auto-mark semua notif sebagai dibaca saat halaman Notifikasi dibuka.
+  // Pakai ref agar hanya sekali per mount + setiap pertama kali ada unread baru.
+  const autoReadFiredRef = useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'notif' || notifLoading) return;
+    const hasUnread = (notifData?.items ?? []).some((n) => !n.is_read);
+    if (hasUnread && !autoReadFiredRef.current && !markAllMut.isPending) {
+      autoReadFiredRef.current = true;
+      api.post('/notifications/read-all').then(() => {
+        qc.invalidateQueries({ queryKey: ['notifications'] });
+        qc.invalidateQueries({ queryKey: ['notif-unread-count'] });
+      }).catch(() => { autoReadFiredRef.current = false; });
+    }
+  }, [activeTab, notifLoading, notifData]);
 
   const deleteNotifMut = useMutation({
     mutationFn: (id: string) => api.delete(`/notifications/${id}`),
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notif-unread-count'] });
     },
   });
 
