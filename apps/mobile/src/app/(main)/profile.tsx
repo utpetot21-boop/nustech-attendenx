@@ -182,6 +182,14 @@ export default function ProfileScreen() {
     onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? 'Gagal menolak'),
   });
 
+  // ── Refresh user dari /auth/me agar role selalu up-to-date ────────
+  useEffect(() => {
+    api.get('/auth/me').then((r) => {
+      const fresh = r.data as { role: { name: string; can_approve?: boolean } };
+      if (fresh?.role) updateUser({ role: fresh.role });
+    }).catch(() => null);
+  }, []);
+
   // ── Pengingat Check-in ─────────────────────────────────────────────
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
   useEffect(() => {

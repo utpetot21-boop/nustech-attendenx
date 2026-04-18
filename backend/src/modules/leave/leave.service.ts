@@ -18,6 +18,11 @@ import { NationalHolidayEntity } from '../schedule/entities/national-holiday.ent
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { RejectLeaveDto } from './dto/review-leave.dto';
 import { CreateObjectionDto } from './dto/create-objection.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+
+const LEAVE_TYPE_LABEL: Record<string, string> = {
+  cuti: 'Cuti', izin: 'Izin', sakit: 'Sakit', dinas: 'Dinas',
+};
 
 @Injectable()
 export class LeaveService {
@@ -38,6 +43,7 @@ export class LeaveService {
     private readonly userRepo: Repository<UserEntity>,
     @InjectRepository(NationalHolidayEntity)
     private readonly holidayRepo: Repository<NationalHolidayEntity>,
+    private readonly notifService: NotificationsService,
   ) {}
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -135,7 +141,29 @@ export class LeaveService {
       status: 'pending',
     });
 
-    return this.requestRepo.save(request);
+    const saved = await this.requestRepo.save(request);
+
+    // Notifikasi ke semua approver (can_approve=true)
+    const requester = await this.userRepo.findOne({ where: { id: userId } });
+    const approvers = await this.userRepo.find({
+      where: { is_active: true },
+      relations: ['role'],
+    });
+    const approverIds = approvers.filter((u) => u.role?.can_approve).map((u) => u.id);
+    if (approverIds.length > 0) {
+      const typeLabel = LEAVE_TYPE_LABEL[dto.type] ?? dto.type;
+      this.notifService
+        .sendMany(
+          approverIds,
+          'leave_request',
+          `Pengajuan ${typeLabel} Baru`,
+          `${requester?.full_name ?? 'Karyawan'} mengajukan ${typeLabel} ${dto.start_date === dto.end_date ? dto.start_date : `${dto.start_date} s/d ${dto.end_date}`}`,
+          { leave_request_id: saved.id },
+        )
+        .catch(() => null);
+    }
+
+    return saved;
   }
 
   async getRequests(filters: {
@@ -197,7 +225,19 @@ export class LeaveService {
       approved_at: new Date(),
     });
 
-    return this.findRequest(requestId);
+    const approved = await this.findRequest(requestId);
+    const typeLabel = LEAVE_TYPE_LABEL[approved.type] ?? approved.type;
+    this.notifService
+      .send({
+        userId: approved.user_id,
+        type: 'leave_approved',
+        title: `${typeLabel} Disetujui`,
+        body: `Pengajuan ${typeLabel} Anda ${approved.start_date === approved.end_date ? approved.start_date : `${approved.start_date} s/d ${approved.end_date}`} telah disetujui.`,
+        data: { leave_request_id: approved.id },
+      })
+      .catch(() => null);
+
+    return approved;
   }
 
   async rejectRequest(
@@ -216,7 +256,19 @@ export class LeaveService {
       reject_reason: dto.reason,
     });
 
-    return this.findRequest(requestId);
+    const rejected = await this.findRequest(requestId);
+    const typeLabel = LEAVE_TYPE_LABEL[rejected.type] ?? rejected.type;
+    this.notifService
+      .send({
+        userId: rejected.user_id,
+        type: 'leave_rejected',
+        title: `${typeLabel} Ditolak`,
+        body: `Pengajuan ${typeLabel} Anda ${rejected.start_date === rejected.end_date ? rejected.start_date : `${rejected.start_date} s/d ${rejected.end_date}`} ditolak. Alasan: ${dto.reason}`,
+        data: { leave_request_id: rejected.id },
+      })
+      .catch(() => null);
+
+    return rejected;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
