@@ -275,8 +275,9 @@ export class TasksService {
       throw new BadRequestException('Tugas tidak dalam status aktif untuk di-hold.');
     }
 
-    if (dto.evidence_urls.length < 1 || dto.evidence_urls.length > 5) {
-      throw new BadRequestException('Wajib upload 1–5 foto bukti.');
+    const evidenceUrls = dto.evidence_urls ?? [];
+    if (evidenceUrls.length > 5) {
+      throw new BadRequestException('Maksimal 5 foto bukti.');
     }
 
     // Find visit if provided
@@ -298,7 +299,7 @@ export class TasksService {
       held_by: userId,
       reason_type: dto.reason_type,
       reason_notes: dto.reason_notes,
-      evidence_urls: dto.evidence_urls,
+      evidence_urls: evidenceUrls,
       auto_approve_at: autoApproveAt,
     });
 

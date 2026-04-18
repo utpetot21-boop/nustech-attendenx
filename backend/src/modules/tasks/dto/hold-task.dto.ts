@@ -21,7 +21,8 @@ export class HoldTaskDto {
   @IsNotEmpty()
   reason_notes: string;
 
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  evidence_urls: string[]; // 1–5 URLs uploaded via separate endpoint
+  evidence_urls?: string[]; // 0–5 URLs (optional)
 }
