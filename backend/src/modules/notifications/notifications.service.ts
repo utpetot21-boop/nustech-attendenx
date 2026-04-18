@@ -151,7 +151,11 @@ export class NotificationsService {
 
   private autoChannels(type: string): ('push' | 'whatsapp' | 'email')[] {
     const critical = ['task_assigned', 'alfa_detected', 'task_hold_submitted', 'sos'];
-    const push = ['leave_approved', 'leave_rejected', 'delegation_request', 'ba_generated'];
+    const push = [
+      'leave_approved', 'leave_rejected', 'delegation_request', 'ba_generated',
+      'attendance_request_submitted', 'attendance_request_approved', 'attendance_request_rejected',
+      'expense_claim_submitted', 'expense_claim_approved', 'expense_claim_rejected', 'expense_claim_paid',
+    ];
     if (critical.includes(type)) return ['push', 'whatsapp'];
     if (push.includes(type)) return ['push'];
     return ['push'];

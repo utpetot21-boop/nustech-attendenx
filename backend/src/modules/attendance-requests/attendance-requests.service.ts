@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,12 +11,15 @@ import { Repository } from 'typeorm';
 import { AttendanceRequestEntity } from './entities/attendance-request.entity';
 import { AttendanceEntity } from '../attendance/entities/attendance.entity';
 import { UserScheduleEntity } from '../schedule/entities/user-schedule.entity';
+import { UserEntity } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateAttendanceRequestDto } from './dto/create-attendance-request.dto';
 import { ReviewAttendanceRequestDto } from './dto/review-attendance-request.dto';
 
 @Injectable()
 export class AttendanceRequestsService {
+  private readonly logger = new Logger(AttendanceRequestsService.name);
+
   constructor(
     @InjectRepository(AttendanceRequestEntity)
     private requestRepo: Repository<AttendanceRequestEntity>,
@@ -23,6 +27,8 @@ export class AttendanceRequestsService {
     private attendanceRepo: Repository<AttendanceEntity>,
     @InjectRepository(UserScheduleEntity)
     private scheduleRepo: Repository<UserScheduleEntity>,
+    @InjectRepository(UserEntity)
+    private userRepo: Repository<UserEntity>,
     private notificationsService: NotificationsService,
   ) {}
 
@@ -102,7 +108,37 @@ export class AttendanceRequestsService {
       status: 'pending',
     });
 
-    return this.requestRepo.save(request);
+    const saved = await this.requestRepo.save(request);
+
+    // Notifikasi ke semua approver (role.can_approve=true), kecuali pemohon sendiri
+    try {
+      const requester = await this.userRepo.findOne({ where: { id: userId } });
+      const approvers = await this.userRepo.find({
+        where: { is_active: true },
+        relations: ['role'],
+      });
+      const approverIds = approvers
+        .filter((u) => u.role?.can_approve && u.id !== userId)
+        .map((u) => u.id);
+
+      if (approverIds.length > 0) {
+        const label = dto.type === 'late_arrival' ? 'Izin Terlambat' : 'Izin Pulang Awal';
+        await this.notificationsService.sendMany(
+          approverIds,
+          'attendance_request_submitted',
+          `Pengajuan ${label} Baru`,
+          `${requester?.full_name ?? 'Karyawan'} mengajukan ${label.toLowerCase()} untuk hari ini${dto.estimated_time ? ` (${dto.estimated_time})` : ''}.`,
+          { attendance_request_id: saved.id, type: dto.type },
+        );
+        this.logger.log(
+          `[attendance_request_submitted] saved=${saved.id} requester=${userId} approvers=${approverIds.length}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error(`[attendance_request_submitted] notif gagal: ${err}`);
+    }
+
+    return saved;
   }
 
   // ── Approve ───────────────────────────────────────────────────

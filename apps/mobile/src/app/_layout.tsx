@@ -152,6 +152,9 @@ export default function RootLayout() {
         late_arrival_rejected:          '/(main)/attendance',
         early_departure_approved:       '/(main)/attendance',
         early_departure_rejected:       '/(main)/attendance',
+        attendance_request_submitted:   '/(main)/attendance',
+        attendance_request_approved:    '/(main)/attendance',
+        attendance_request_rejected:    '/(main)/attendance',
         // Absensi / SP
         sp_reminder:                    '/(main)/attendance',
         alfa_detected:                  '/(main)/attendance',
@@ -162,6 +165,11 @@ export default function RootLayout() {
         sla_breach:                     '/(main)/tasks',
         // Berita Acara
         ba_generated:                   '/(main)/service-reports/index',
+        // Klaim Biaya
+        expense_claim_submitted:        '/(main)/expense-claims',
+        expense_claim_approved:         '/(main)/expense-claims',
+        expense_claim_rejected:         '/(main)/expense-claims',
+        expense_claim_paid:             '/(main)/expense-claims',
       };
 
       // Pengumuman — buka tab Pengumuman di halaman notifikasi

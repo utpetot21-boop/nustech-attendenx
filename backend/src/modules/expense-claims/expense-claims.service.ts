@@ -1,26 +1,42 @@
 import {
   BadRequestException, ForbiddenException,
-  Injectable, NotFoundException,
+  Injectable, Logger, NotFoundException,
 } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { ExpenseClaimEntity } from './entities/expense-claim.entity';
 import { ExpenseConfigEntity } from './entities/expense-config.entity';
+import { UserEntity } from '../users/entities/user.entity';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { ReviewClaimDto, ReviewAction } from './dto/review-claim.dto';
 import { StorageService } from '../../services/storage.service';
+import { NotificationsService } from '../notifications/notifications.service';
+
+const CATEGORY_LABEL: Record<string, string> = {
+  transport: 'Transport',
+  parkir:    'Parkir',
+  material:  'Material',
+  konsumsi:  'Konsumsi',
+  akomodasi: 'Akomodasi',
+  lainnya:   'Lainnya',
+};
 
 @Injectable()
 export class ExpenseClaimsService {
+  private readonly logger = new Logger(ExpenseClaimsService.name);
+
   constructor(
     @InjectRepository(ExpenseClaimEntity)
     private readonly claimRepo: Repository<ExpenseClaimEntity>,
     @InjectRepository(ExpenseConfigEntity)
     private readonly configRepo: Repository<ExpenseConfigEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
     @InjectDataSource()
     private readonly ds: DataSource,
     private readonly storage: StorageService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ── Upload receipt foto ────────────────────────────────────────────────────
@@ -66,6 +82,35 @@ export class ExpenseClaimsService {
     // Generate nomor klaim KC-YYYY/NNN
     const number = await this.generateClaimNumber(saved.id);
     saved.claim_number = number;
+
+    // Notifikasi ke semua approver (role.can_approve=true), kecuali pemohon sendiri
+    try {
+      const requester = await this.userRepo.findOne({ where: { id: userId } });
+      const approvers = await this.userRepo.find({
+        where: { is_active: true },
+        relations: ['role'],
+      });
+      const approverIds = approvers
+        .filter((u) => u.role?.can_approve && u.id !== userId)
+        .map((u) => u.id);
+
+      if (approverIds.length > 0) {
+        const catLabel = CATEGORY_LABEL[dto.category] ?? dto.category;
+        await this.notifications.sendMany(
+          approverIds,
+          'expense_claim_submitted',
+          'Klaim Biaya Baru',
+          `${requester?.full_name ?? 'Karyawan'} mengajukan klaim ${catLabel} sebesar Rp ${dto.amount.toLocaleString('id-ID')}.`,
+          { expense_claim_id: saved.id, category: dto.category },
+        );
+        this.logger.log(
+          `[expense_claim_submitted] saved=${saved.id} requester=${userId} approvers=${approverIds.length}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error(`[expense_claim_submitted] notif gagal: ${err}`);
+    }
+
     return saved;
   }
 
@@ -168,7 +213,46 @@ export class ExpenseClaimsService {
     claim.reviewer_id = reviewerId;
     claim.review_note = dto.note ?? null;
     claim.reviewed_at = new Date();
-    return this.claimRepo.save(claim);
+    const saved = await this.claimRepo.save(claim);
+
+    // Notifikasi ke pemohon
+    try {
+      const catLabel = CATEGORY_LABEL[saved.category] ?? saved.category;
+      const claimNumber = saved.claim_number ?? '';
+      const amountStr = `Rp ${Number(saved.amount).toLocaleString('id-ID')}`;
+
+      if (dto.action === ReviewAction.APPROVE) {
+        await this.notifications.send({
+          userId: saved.user_id,
+          type: 'expense_claim_approved',
+          title: 'Klaim Biaya Disetujui',
+          body: `Klaim ${catLabel} ${claimNumber} (${amountStr}) telah disetujui.`,
+          data: { expense_claim_id: saved.id, category: saved.category },
+        });
+      } else if (dto.action === ReviewAction.REJECT) {
+        await this.notifications.send({
+          userId: saved.user_id,
+          type: 'expense_claim_rejected',
+          title: 'Klaim Biaya Ditolak',
+          body: dto.note
+            ? `Klaim ${catLabel} ${claimNumber} ditolak. Alasan: ${dto.note}`
+            : `Klaim ${catLabel} ${claimNumber} ditolak.`,
+          data: { expense_claim_id: saved.id, category: saved.category },
+        });
+      } else if (dto.action === ReviewAction.PAID) {
+        await this.notifications.send({
+          userId: saved.user_id,
+          type: 'expense_claim_paid',
+          title: 'Klaim Biaya Dibayarkan',
+          body: `Klaim ${catLabel} ${claimNumber} (${amountStr}) telah dibayarkan.`,
+          data: { expense_claim_id: saved.id, category: saved.category },
+        });
+      }
+    } catch (err) {
+      this.logger.error(`[expense_claim_review] notif gagal: ${err}`);
+    }
+
+    return saved;
   }
 
   // ── Private: generate claim number ───────────────────────────────────────

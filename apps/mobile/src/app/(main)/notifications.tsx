@@ -29,6 +29,9 @@ import {
   Ban,
   Hand,
   Repeat2,
+  Clock,
+  Receipt,
+  Wallet,
   X,
   Trash2,
   type LucideIcon,
@@ -92,6 +95,14 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   late_arrival_rejected:           '/(main)/attendance',
   early_departure_approved:        '/(main)/attendance',
   early_departure_rejected:        '/(main)/attendance',
+  attendance_request_submitted:    '/(main)/attendance',
+  attendance_request_approved:     '/(main)/attendance',
+  attendance_request_rejected:     '/(main)/attendance',
+  // Klaim Biaya
+  expense_claim_submitted:         '/(main)/expense-claims',
+  expense_claim_approved:          '/(main)/expense-claims',
+  expense_claim_rejected:          '/(main)/expense-claims',
+  expense_claim_paid:              '/(main)/expense-claims',
   // Tugas
   task_assigned:                   '/(main)/tasks',
   task_accepted:                   '/(main)/tasks',
@@ -231,6 +242,13 @@ export default function NotificationsScreen() {
     delegation_request: { Icon: Repeat2,        color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'   : '#FFF7ED' },
     ba_generated:       { Icon: FileText,       color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'   : '#ECFEFF' },
     sos:                { Icon: AlertCircle,    color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
+    attendance_request_submitted: { Icon: Clock,        color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)' : '#FFFBEB' },
+    attendance_request_approved:  { Icon: CheckCircle2, color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)' : '#DCFCE7' },
+    attendance_request_rejected:  { Icon: XCircle,      color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)' : '#FEF2F2' },
+    expense_claim_submitted:      { Icon: Receipt,      color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)' : '#FFFBEB' },
+    expense_claim_approved:       { Icon: CheckCircle2, color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)' : '#DCFCE7' },
+    expense_claim_rejected:       { Icon: XCircle,      color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)' : '#FEF2F2' },
+    expense_claim_paid:           { Icon: Wallet,       color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)' : '#DCFCE7' },
     default:            { Icon: Bell,           color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'   : '#EFF6FF' },
   }), [isDark]);
 
