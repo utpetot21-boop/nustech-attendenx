@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -26,6 +27,8 @@ const LEAVE_TYPE_LABEL: Record<string, string> = {
 
 @Injectable()
 export class LeaveService {
+  private readonly logger = new Logger(LeaveService.name);
+
   constructor(
     @InjectRepository(LeaveBalanceEntity)
     private readonly balanceRepo: Repository<LeaveBalanceEntity>,
@@ -143,24 +146,32 @@ export class LeaveService {
 
     const saved = await this.requestRepo.save(request);
 
-    // Notifikasi ke semua approver (can_approve=true)
-    const requester = await this.userRepo.findOne({ where: { id: userId } });
-    const approvers = await this.userRepo.find({
-      where: { is_active: true },
-      relations: ['role'],
-    });
-    const approverIds = approvers.filter((u) => u.role?.can_approve).map((u) => u.id);
-    if (approverIds.length > 0) {
-      const typeLabel = LEAVE_TYPE_LABEL[dto.type] ?? dto.type;
-      this.notifService
-        .sendMany(
+    // Notifikasi ke semua approver (can_approve=true), kecuali pemohon sendiri
+    try {
+      const requester = await this.userRepo.findOne({ where: { id: userId } });
+      const approvers = await this.userRepo.find({
+        where: { is_active: true },
+        relations: ['role'],
+      });
+      const approverIds = approvers
+        .filter((u) => u.role?.can_approve && u.id !== userId)
+        .map((u) => u.id);
+      this.logger.log(
+        `[leave_request] saved=${saved.id} requester=${userId} approvers=${approverIds.length}`,
+      );
+      if (approverIds.length > 0) {
+        const typeLabel = LEAVE_TYPE_LABEL[dto.type] ?? dto.type;
+        await this.notifService.sendMany(
           approverIds,
           'leave_request',
           `Pengajuan ${typeLabel} Baru`,
           `${requester?.full_name ?? 'Karyawan'} mengajukan ${typeLabel} ${dto.start_date === dto.end_date ? dto.start_date : `${dto.start_date} s/d ${dto.end_date}`}`,
           { leave_request_id: saved.id },
-        )
-        .catch(() => null);
+        );
+        this.logger.log(`[leave_request] notif terkirim ke ${approverIds.length} approver`);
+      }
+    } catch (err) {
+      this.logger.error(`[leave_request] notif gagal: ${err}`);
     }
 
     return saved;
