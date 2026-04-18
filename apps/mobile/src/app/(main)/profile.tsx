@@ -524,51 +524,77 @@ export default function ProfileScreen() {
           <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
             <Pressable
               onPress={() => setShowApprovalModal(true)}
-              style={({ pressed }) => ({
-                flexDirection: 'row', alignItems: 'center', gap: 14,
-                backgroundColor: pressed
-                  ? C.green + (isDark ? '40' : '28')
-                  : C.green + (isDark ? '24' : '18'),
-                borderRadius: R.xl,
-                borderWidth: 1,
-                borderColor: C.green + (isDark ? '66' : '4D'),
-                paddingHorizontal: 18, paddingVertical: 16,
-                shadowColor: C.green,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: isDark ? 0.25 : 0.18,
-                shadowRadius: 10,
-                elevation: 4,
-              })}
+              style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
             >
-              <View style={{
-                width: 44, height: 44, borderRadius: R.md,
-                backgroundColor: C.green,
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <ClipboardList size={22} strokeWidth={2} color="#FFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.2 }}>
-                  Persetujuan Cuti / Izin
-                </Text>
-                <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 2 }}>
-                  {pendingData?.total ? 'Tap untuk meninjau pengajuan' : 'Tidak ada pengajuan menunggu'}
-                </Text>
-              </View>
-              {!!pendingData?.total && pendingData.total > 0 && (
-                <View style={{
-                  minWidth: 28, height: 28, borderRadius: 14,
-                  backgroundColor: C.red,
-                  alignItems: 'center', justifyContent: 'center',
-                  paddingHorizontal: 8,
-                  marginRight: 4,
-                }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#FFF' }}>
-                    {pendingData.total}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: isDark ? 'rgba(52,199,89,0.14)' : 'rgba(52,199,89,0.10)',
+                  borderRadius: R.xl,
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(52,199,89,0.40)' : 'rgba(52,199,89,0.30)',
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  shadowColor: C.green,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: isDark ? 0.22 : 0.14,
+                  shadowRadius: 8,
+                  elevation: 3,
+                }}
+              >
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    backgroundColor: C.green,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12,
+                  }}
+                >
+                  <ClipboardList size={20} strokeWidth={2} color="#FFF" />
+                </View>
+
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontSize: 15, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.2 }}
+                  >
+                    Persetujuan Cuti / Izin
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontSize: 12, color: lSecondary(isDark), marginTop: 2 }}
+                  >
+                    {pendingData?.total
+                      ? 'Tap untuk meninjau pengajuan'
+                      : 'Tidak ada pengajuan menunggu'}
                   </Text>
                 </View>
-              )}
-              <ChevronRight size={18} strokeWidth={2} color={C.green} />
+
+                {!!pendingData?.total && pendingData.total > 0 && (
+                  <View
+                    style={{
+                      minWidth: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: C.red,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 7,
+                      marginLeft: 8,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFF' }}>
+                      {pendingData.total}
+                    </Text>
+                  </View>
+                )}
+
+                <ChevronRight size={18} strokeWidth={2} color={C.green} style={{ marginLeft: 6 }} />
+              </View>
             </Pressable>
           </View>
         )}
