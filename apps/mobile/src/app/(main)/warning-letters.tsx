@@ -1,8 +1,10 @@
 /**
- * Surat Peringatan Saya — daftar SP yang diterima karyawan.
- * Detail via bottom sheet modal, acknowledge + download PDF.
+ * Surat Peringatan — dual mode:
+ *  - Karyawan: daftar SP diri sendiri (`/warning-letters/me`) + detail + konfirmasi + PDF.
+ *  - Admin/HR/Manager/Super Admin: tambah tab "Semua SP" (`/warning-letters`) + FAB "Buat SP".
+ * Detail pakai bottom-sheet modal; create form pakai page-sheet modal.
  */
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,10 +17,14 @@ import {
   Modal,
   Alert,
   Linking,
+  TextInput,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   ShieldAlert,
   CheckCircle2,
@@ -29,6 +35,11 @@ import {
   X,
   AlertTriangle,
   Info,
+  Plus,
+  Search,
+  User,
+  ChevronDown,
+  Check,
 } from 'lucide-react-native';
 import { C, R, B, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -37,9 +48,22 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import {
   warningLettersService,
   WarningLetter,
+  WarningLevel,
   WARNING_LEVEL_LABELS,
   WARNING_LEVEL_COLORS,
+  CreateWarningLetterInput,
 } from '@/services/warning-letters.service';
+import { useAuthStore } from '@/stores/auth.store';
+import api from '@/services/api';
+
+const ADMIN_ROLES = ['super_admin', 'admin', 'manager'];
+
+interface EmployeeOption {
+  id: string;
+  full_name: string;
+  employee_id?: string;
+  department?: { name?: string } | null;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,16 +89,25 @@ function fmtDateTime(iso: string | null) {
   });
 }
 
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // ── Card ─────────────────────────────────────────────────────────────────────
 
 function WarningCard({
   sp,
   onPress,
   isDark,
+  showUser,
 }: {
   sp: WarningLetter;
   onPress: () => void;
   isDark: boolean;
+  showUser?: boolean;
 }) {
   const color = WARNING_LEVEL_COLORS[sp.level] ?? C.red;
   const label = WARNING_LEVEL_LABELS[sp.level] ?? sp.level;
@@ -116,6 +149,13 @@ function WarningCard({
               {label}
             </Text>
           </View>
+
+          {showUser && sp.user?.full_name && (
+            <Text style={{ fontSize: 13, color: lPrimary(isDark), fontWeight: '700', marginBottom: 2 }} numberOfLines={1}>
+              {sp.user.full_name}
+            </Text>
+          )}
+
           <Text
             style={{ fontSize: 13, color: lPrimary(isDark), fontWeight: '500' }}
             numberOfLines={2}
@@ -149,10 +189,12 @@ function DetailModal({
   sp,
   onClose,
   isDark,
+  currentUserId,
 }: {
   sp: WarningLetter | null;
   onClose: () => void;
   isDark: boolean;
+  currentUserId: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
@@ -162,6 +204,7 @@ function DetailModal({
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['warning-letters-me'] });
+      qc.invalidateQueries({ queryKey: ['warning-letters-all'] });
       Alert.alert('Terkonfirmasi', 'Anda telah mengkonfirmasi penerimaan SP ini.');
       onClose();
     },
@@ -190,6 +233,7 @@ function DetailModal({
   const color = WARNING_LEVEL_COLORS[sp.level] ?? C.red;
   const label = WARNING_LEVEL_LABELS[sp.level] ?? sp.level;
   const acknowledged = !!sp.acknowledged_at;
+  const isOwnSp = currentUserId != null && currentUserId === sp.user_id;
 
   const confirmAck = () => {
     Alert.alert(
@@ -283,6 +327,9 @@ function DetailModal({
               marginBottom: 16,
             }}
           >
+            {sp.user?.full_name && (
+              <FieldRow label="Karyawan" value={sp.user.full_name} isDark={isDark} />
+            )}
             <FieldRow
               label="Tanggal Terbit"
               value={fmtDate(sp.issued_at)}
@@ -367,8 +414,8 @@ function DetailModal({
             </>
           )}
 
-          {/* Info box jika belum acknowledged */}
-          {!acknowledged && (
+          {/* Info box jika belum acknowledged & pemiliknya sendiri */}
+          {!acknowledged && isOwnSp && (
             <View
               style={{
                 flexDirection: 'row',
@@ -391,7 +438,7 @@ function DetailModal({
 
           {/* Action buttons */}
           <View style={{ gap: 10 }}>
-            {!acknowledged && (
+            {!acknowledged && isOwnSp && (
               <TouchableOpacity
                 onPress={confirmAck}
                 disabled={acknowledgeMut.isPending}
@@ -494,26 +541,496 @@ function FieldRow({
   );
 }
 
+// ── Create Sheet (admin only) ────────────────────────────────────────────────
+
+function CreateSheet({
+  visible,
+  onClose,
+  isDark,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  isDark: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
+
+  const [employee, setEmployee] = useState<EmployeeOption | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [empSearch, setEmpSearch] = useState('');
+  const [level, setLevel] = useState<WarningLevel>('SP1');
+  const [reason, setReason] = useState('');
+  const [notes, setNotes] = useState('');
+  const [issuedAt, setIssuedAt] = useState<Date>(new Date());
+  const [validUntil, setValidUntil] = useState<Date | null>(null);
+  const [datePickerFor, setDatePickerFor] = useState<'issued' | 'valid' | null>(null);
+
+  const resetForm = () => {
+    setEmployee(null);
+    setPickerOpen(false);
+    setEmpSearch('');
+    setLevel('SP1');
+    setReason('');
+    setNotes('');
+    setIssuedAt(new Date());
+    setValidUntil(null);
+    setDatePickerFor(null);
+  };
+
+  const closeAndReset = () => {
+    onClose();
+    setTimeout(resetForm, 300);
+  };
+
+  const { data: employees = [], isFetching: loadingEmployees } = useQuery<EmployeeOption[]>({
+    queryKey: ['sp-employee-search', empSearch],
+    queryFn: () =>
+      api
+        .get('/users', { params: { search: empSearch || undefined, limit: 20 } })
+        .then((r) => r.data?.items ?? []),
+    enabled: visible && pickerOpen,
+    staleTime: 30_000,
+  });
+
+  const createMut = useMutation({
+    mutationFn: (dto: CreateWarningLetterInput) => warningLettersService.create(dto),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['warning-letters-all'] });
+      qc.invalidateQueries({ queryKey: ['warning-letters-me'] });
+      Alert.alert('Tersimpan', 'Surat Peringatan berhasil dibuat. Karyawan telah diberi notifikasi.');
+      closeAndReset();
+    },
+    onError: (e: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', e?.response?.data?.message ?? 'Gagal membuat SP');
+    },
+  });
+
+  const submit = () => {
+    if (!employee) {
+      Alert.alert('Lengkapi Data', 'Pilih karyawan yang akan diberi SP.');
+      return;
+    }
+    if (!reason.trim()) {
+      Alert.alert('Lengkapi Data', 'Alasan SP wajib diisi.');
+      return;
+    }
+    const dto: CreateWarningLetterInput = {
+      user_id: employee.id,
+      level,
+      reason: reason.trim(),
+      issued_at: toDateStr(issuedAt),
+      valid_until: validUntil ? toDateStr(validUntil) : undefined,
+      notes: notes.trim() || undefined,
+    };
+    createMut.mutate(dto);
+  };
+
+  const inputBg = isDark ? 'rgba(255,255,255,0.06)' : '#F8FAFC';
+  const inputBorder = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.12)';
+  const textPrimary = lPrimary(isDark);
+  const textSecondary = lSecondary(isDark);
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={closeAndReset}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, backgroundColor: pageBg(isDark) }}
+      >
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
+          }}
+        >
+          <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, letterSpacing: -0.4 }}>
+            Buat Surat Peringatan
+          </Text>
+          <TouchableOpacity onPress={closeAndReset} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <X size={22} strokeWidth={2} color={textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Karyawan */}
+          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Karyawan *
+          </Text>
+
+          {!pickerOpen && (
+            <TouchableOpacity
+              onPress={() => { setPickerOpen(true); setEmpSearch(''); }}
+              activeOpacity={0.75}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5,
+                borderColor: inputBorder, paddingHorizontal: 14, paddingVertical: 14,
+                marginBottom: 14,
+              }}
+            >
+              {employee ? (
+                <>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.red + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                    <User size={16} strokeWidth={2} color={C.red} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: textPrimary }} numberOfLines={1}>
+                      {employee.full_name}
+                    </Text>
+                    {(employee.employee_id || employee.department?.name) && (
+                      <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 1 }} numberOfLines={1}>
+                        {[employee.employee_id, employee.department?.name].filter(Boolean).join(' · ')}
+                      </Text>
+                    )}
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Search size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                  <Text style={{ flex: 1, fontSize: 15, color: lTertiary(isDark) }}>
+                    Pilih karyawan...
+                  </Text>
+                </>
+              )}
+              <ChevronDown size={18} strokeWidth={2} color={lTertiary(isDark)} />
+            </TouchableOpacity>
+          )}
+
+          {pickerOpen && (
+            <View style={{ marginBottom: 14 }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5,
+                borderColor: C.red, paddingHorizontal: 14, paddingVertical: 12,
+              }}>
+                <Search size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                <TextInput
+                  value={empSearch}
+                  onChangeText={setEmpSearch}
+                  placeholder="Cari nama atau NIK..."
+                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
+                  autoFocus
+                  style={{ flex: 1, fontSize: 15, color: textPrimary, padding: 0 }}
+                />
+                <TouchableOpacity
+                  onPress={() => { setPickerOpen(false); setEmpSearch(''); }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                </TouchableOpacity>
+              </View>
+              <View style={{
+                marginTop: 8, backgroundColor: inputBg, borderRadius: 14,
+                borderWidth: 1, borderColor: inputBorder,
+                maxHeight: 240, overflow: 'hidden',
+              }}>
+                {loadingEmployees ? (
+                  <ActivityIndicator color={C.red} style={{ paddingVertical: 20 }} />
+                ) : employees.length === 0 ? (
+                  <Text style={{ textAlign: 'center', color: lTertiary(isDark), padding: 16, fontSize: 14 }}>
+                    {empSearch ? 'Tidak ada hasil' : 'Ketik untuk mencari karyawan'}
+                  </Text>
+                ) : (
+                  <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                    {employees.map((emp) => {
+                      const active = employee?.id === emp.id;
+                      return (
+                        <TouchableOpacity
+                          key={emp.id}
+                          onPress={() => {
+                            setEmployee(emp);
+                            setPickerOpen(false);
+                            setEmpSearch('');
+                          }}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center', gap: 10,
+                            paddingHorizontal: 14, paddingVertical: 10,
+                            backgroundColor: active ? C.red + '14' : 'transparent',
+                            borderBottomWidth: 0.5,
+                            borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                          }}
+                        >
+                          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.red + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                            <User size={15} strokeWidth={2} color={C.red} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: textPrimary }} numberOfLines={1}>
+                              {emp.full_name}
+                            </Text>
+                            {(emp.employee_id || emp.department?.name) && (
+                              <Text style={{ fontSize: 11, color: lTertiary(isDark), marginTop: 1 }} numberOfLines={1}>
+                                {[emp.employee_id, emp.department?.name].filter(Boolean).join(' · ')}
+                              </Text>
+                            )}
+                          </View>
+                          {active && <Check size={16} strokeWidth={2.5} color={C.red} />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Level */}
+          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Tingkat SP *
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+            {(['SP1', 'SP2', 'SP3'] as WarningLevel[]).map((lv) => {
+              const active = level === lv;
+              const lvColor = WARNING_LEVEL_COLORS[lv];
+              return (
+                <TouchableOpacity
+                  key={lv}
+                  onPress={() => setLevel(lv)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    backgroundColor: active ? lvColor + (isDark ? '30' : '1F') : inputBg,
+                    borderWidth: 1.5,
+                    borderColor: active ? lvColor : inputBorder,
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: active ? lvColor : textSecondary, letterSpacing: -0.2 }}>
+                    {lv}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: active ? lvColor : lTertiary(isDark), marginTop: 2 }} numberOfLines={1}>
+                    {WARNING_LEVEL_LABELS[lv].replace('Surat Peringatan ', 'Tingkat ')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Tanggal */}
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Tanggal Terbit *
+              </Text>
+              <TouchableOpacity
+                onPress={() => setDatePickerFor('issued')}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  backgroundColor: inputBg, borderRadius: 14, borderWidth: 1.5,
+                  borderColor: inputBorder, paddingHorizontal: 12, paddingVertical: 13,
+                }}
+              >
+                <Calendar size={15} strokeWidth={2} color={C.red} />
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: textPrimary }}>
+                  {fmtDate(toDateStr(issuedAt))}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Berlaku s/d
+              </Text>
+              <TouchableOpacity
+                onPress={() => setDatePickerFor('valid')}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  backgroundColor: inputBg, borderRadius: 14, borderWidth: 1.5,
+                  borderColor: inputBorder, paddingHorizontal: 12, paddingVertical: 13,
+                }}
+              >
+                <Calendar size={15} strokeWidth={2} color={validUntil ? C.red : lTertiary(isDark)} />
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: validUntil ? textPrimary : lTertiary(isDark) }}>
+                  {validUntil ? fmtDate(toDateStr(validUntil)) : 'Opsional'}
+                </Text>
+                {validUntil && (
+                  <TouchableOpacity onPress={() => setValidUntil(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <X size={14} strokeWidth={2} color={lTertiary(isDark)} />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {datePickerFor && (
+            <DateTimePicker
+              value={datePickerFor === 'issued' ? issuedAt : (validUntil ?? new Date())}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selected) => {
+                if (Platform.OS !== 'ios') setDatePickerFor(null);
+                if (event.type === 'set' && selected) {
+                  if (datePickerFor === 'issued') setIssuedAt(selected);
+                  else setValidUntil(selected);
+                }
+              }}
+            />
+          )}
+
+          {Platform.OS === 'ios' && datePickerFor && (
+            <TouchableOpacity
+              onPress={() => setDatePickerFor(null)}
+              style={{
+                alignSelf: 'flex-end', backgroundColor: C.red,
+                paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, marginBottom: 10,
+              }}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>Selesai</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Alasan */}
+          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Alasan *
+          </Text>
+          <TextInput
+            value={reason}
+            onChangeText={setReason}
+            placeholder="Jelaskan alasan penerbitan SP..."
+            placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
+            multiline numberOfLines={4} textAlignVertical="top"
+            style={{
+              backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5,
+              borderColor: inputBorder, padding: 14, fontSize: 15,
+              color: textPrimary, minHeight: 100, marginBottom: 14,
+            }}
+          />
+
+          {/* Catatan */}
+          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Catatan (opsional)
+          </Text>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Catatan tambahan, rekomendasi perbaikan, dll."
+            placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
+            multiline numberOfLines={3} textAlignVertical="top"
+            style={{
+              backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5,
+              borderColor: inputBorder, padding: 14, fontSize: 15,
+              color: textPrimary, minHeight: 80, marginBottom: 18,
+            }}
+          />
+
+          {/* Peringatan */}
+          <View style={{
+            flexDirection: 'row', gap: 10,
+            backgroundColor: C.orange + (isDark ? '1F' : '14'),
+            borderRadius: R.md, borderWidth: 1, borderColor: C.orange + '55',
+            padding: 12, marginBottom: 18,
+          }}>
+            <AlertTriangle size={18} strokeWidth={2} color={C.orange} />
+            <Text style={{ flex: 1, fontSize: 12, color: lPrimary(isDark), lineHeight: 18 }}>
+              SP bersifat resmi. PDF akan dihasilkan otomatis dan notifikasi terkirim ke karyawan.
+              Pastikan data sudah benar sebelum submit.
+            </Text>
+          </View>
+
+          {/* Actions */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              onPress={closeAndReset}
+              style={{
+                flex: 1, paddingVertical: 15, borderRadius: 16,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: textPrimary, fontWeight: '600', fontSize: 15 }}>Batal</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={submit}
+              disabled={createMut.isPending || !employee || !reason.trim()}
+              style={{
+                flex: 1, paddingVertical: 15, borderRadius: 16,
+                backgroundColor: (employee && reason.trim()) ? C.red : (isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0'),
+                alignItems: 'center',
+              }}
+            >
+              {createMut.isPending ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={{
+                  color: (employee && reason.trim()) ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'),
+                  fontWeight: '700', fontSize: 15,
+                }}>
+                  Terbitkan SP
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 // ── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function WarningLettersScreen() {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = ADMIN_ROLES.includes(user?.role?.name ?? '');
+
+  const [tab, setTab] = useState<'me' | 'all'>('me');
+  const activeTab = isAdmin ? tab : 'me';
 
   const [selected, setSelected] = useState<WarningLetter | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
-  const { data, isLoading, isRefetching, refetch } = useQuery<WarningLetter[]>({
+  const meQ = useQuery<WarningLetter[]>({
     queryKey: ['warning-letters-me'],
     queryFn: () => warningLettersService.getMine(),
     staleTime: 60_000,
+    enabled: activeTab === 'me',
   });
+
+  const allQ = useQuery<WarningLetter[]>({
+    queryKey: ['warning-letters-all'],
+    queryFn: () => warningLettersService.getAll(),
+    staleTime: 60_000,
+    enabled: isAdmin && activeTab === 'all',
+  });
+
+  const { data, isLoading, isRefetching, refetch } =
+    activeTab === 'me' ? meQ : allQ;
 
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
 
   const letters = data ?? [];
-  const pendingAck = letters.filter((l) => !l.acknowledged_at).length;
+  const pendingAck = useMemo(
+    () => letters.filter((l) => !l.acknowledged_at).length,
+    [letters],
+  );
+
+  const subtitle =
+    letters.length === 0
+      ? activeTab === 'me'
+        ? 'Tidak ada SP'
+        : 'Belum ada SP terbit'
+      : activeTab === 'me' && pendingAck > 0
+      ? `${pendingAck} belum dikonfirmasi`
+      : `${letters.length} SP tercatat`;
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
@@ -521,15 +1038,55 @@ export default function WarningLettersScreen() {
 
       <BackHeader
         title="Surat Peringatan"
-        subtitle={
-          letters.length === 0
-            ? 'Tidak ada SP'
-            : pendingAck > 0
-            ? `${pendingAck} belum dikonfirmasi`
-            : `${letters.length} SP tercatat`
-        }
+        subtitle={subtitle}
         accentColor={C.red}
       />
+
+      {/* Tab switcher (admin only) */}
+      {isAdmin && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(60,60,67,0.06)',
+              borderRadius: 12,
+              padding: 3,
+            }}
+          >
+            {(['me', 'all'] as const).map((t) => {
+              const active = tab === t;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => setTab(t)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    borderRadius: 9,
+                    backgroundColor: active ? (isDark ? 'rgba(255,255,255,0.12)' : '#FFFFFF') : 'transparent',
+                    alignItems: 'center',
+                    ...(active && {
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: isDark ? 0 : 0.04,
+                      shadowRadius: 2,
+                    }),
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 13,
+                    fontWeight: active ? '700' : '600',
+                    color: active ? lPrimary(isDark) : lSecondary(isDark),
+                  }}>
+                    {t === 'me' ? 'SP Saya' : 'Semua SP'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: insets.bottom + 96 }}
@@ -537,7 +1094,7 @@ export default function WarningLettersScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Info banner */}
-        {letters.length > 0 && (
+        {letters.length > 0 && activeTab === 'me' && (
           <View
             style={{
               flexDirection: 'row',
@@ -562,18 +1119,60 @@ export default function WarningLettersScreen() {
         ) : letters.length === 0 ? (
           <EmptyState
             icon={FileText}
-            iconColor={C.green}
-            title="Tidak ada Surat Peringatan"
-            message="Pertahankan kinerja terbaikmu. Catatan SP akan muncul di sini jika ada."
+            iconColor={activeTab === 'me' ? C.green : C.blue}
+            title={activeTab === 'me' ? 'Tidak ada Surat Peringatan' : 'Belum ada SP Terbit'}
+            message={
+              activeTab === 'me'
+                ? 'Pertahankan kinerja terbaikmu. Catatan SP akan muncul di sini jika ada.'
+                : 'Tekan tombol + untuk menerbitkan Surat Peringatan kepada karyawan.'
+            }
           />
         ) : (
           letters.map((sp) => (
-            <WarningCard key={sp.id} sp={sp} onPress={() => setSelected(sp)} isDark={isDark} />
+            <WarningCard
+              key={sp.id}
+              sp={sp}
+              onPress={() => setSelected(sp)}
+              isDark={isDark}
+              showUser={activeTab === 'all'}
+            />
           ))
         )}
       </ScrollView>
 
-      <DetailModal sp={selected} onClose={() => setSelected(null)} isDark={isDark} />
+      {/* FAB Buat SP */}
+      {isAdmin && (
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowCreate(true);
+          }}
+          activeOpacity={0.85}
+          style={{
+            position: 'absolute',
+            right: 20,
+            bottom: insets.bottom + 20,
+            width: 56, height: 56, borderRadius: 28,
+            backgroundColor: C.red,
+            alignItems: 'center', justifyContent: 'center',
+            shadowColor: C.red,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.35,
+            shadowRadius: 10,
+            elevation: 6,
+          }}
+        >
+          <Plus size={26} strokeWidth={2.5} color="#FFF" />
+        </TouchableOpacity>
+      )}
+
+      <DetailModal
+        sp={selected}
+        onClose={() => setSelected(null)}
+        isDark={isDark}
+        currentUserId={user?.id ?? null}
+      />
+      <CreateSheet visible={showCreate} onClose={() => setShowCreate(false)} isDark={isDark} />
     </View>
   );
 }

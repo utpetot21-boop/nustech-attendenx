@@ -38,10 +38,28 @@ export const WARNING_LEVEL_COLORS: Record<WarningLevel, string> = {
   SP3: '#AF52DE',
 };
 
+export interface CreateWarningLetterInput {
+  user_id: string;
+  level: WarningLevel;
+  reason: string;
+  issued_at?: string;       // YYYY-MM-DD (default: hari ini)
+  valid_until?: string;     // YYYY-MM-DD
+  notes?: string;
+  reference_violation_id?: string;
+}
+
 export const warningLettersService = {
   getMine: () => api.get<WarningLetter[]>('/warning-letters/me').then((r) => r.data),
 
+  getAll: (params?: { userId?: string; level?: WarningLevel }) =>
+    api
+      .get<WarningLetter[]>('/warning-letters', { params })
+      .then((r) => r.data),
+
   getOne: (id: string) => api.get<WarningLetter>(`/warning-letters/${id}`).then((r) => r.data),
+
+  create: (dto: CreateWarningLetterInput) =>
+    api.post<WarningLetter>('/warning-letters', dto).then((r) => r.data),
 
   acknowledge: (id: string) =>
     api.post<WarningLetter>(`/warning-letters/${id}/acknowledge`).then((r) => r.data),
