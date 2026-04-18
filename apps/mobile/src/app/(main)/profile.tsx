@@ -151,16 +151,24 @@ export default function ProfileScreen() {
   const [showEndPicker, setShowEndPicker]     = useState(false);
 
   // ── Approval (admin/manager/super_admin) ──────────────────────────
-  const roleName = typeof user?.role === 'string' ? user.role : (user?.role?.name ?? '');
-  const isApprover = APPROVER_ROLES.includes(roleName);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [rejectId, setRejectId]     = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  // Cek can_approve dari /auth/me (selalu fresh, tidak bergantung SecureStore)
+  const { data: meData } = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => api.get('/auth/me').then((r) => r.data as { role?: { name?: string; can_approve?: boolean } }),
+    staleTime: 60_000,
+  });
+  const isApprover = !!meData?.role?.can_approve
+    || APPROVER_ROLES.includes(meData?.role?.name ?? '')
+    || APPROVER_ROLES.includes(typeof user?.role === 'string' ? user.role : (user?.role?.name ?? ''));
+
   const { data: pendingData, isLoading: pendingLoading, refetch: refetchPending } = useQuery({
     queryKey: ['leave-requests-pending'],
     queryFn: () => api.get('/leave/requests?status=pending').then((r) => r.data as { items: PendingLeaveRequest[]; total: number }),
-    enabled: showApprovalModal,
+    enabled: isApprover,
     staleTime: 0,
   });
 
@@ -182,13 +190,10 @@ export default function ProfileScreen() {
     onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? 'Gagal menolak'),
   });
 
-  // ── Refresh user dari /auth/me agar role selalu up-to-date ────────
+  // ── Sync user.role dari /auth/me ke store (untuk konsistensi global) ─
   useEffect(() => {
-    api.get('/auth/me').then((r) => {
-      const fresh = r.data as { role: { name: string; can_approve?: boolean } };
-      if (fresh?.role) updateUser({ role: fresh.role });
-    }).catch(() => null);
-  }, []);
+    if (meData?.role) updateUser({ role: { name: meData.role.name ?? '' } });
+  }, [meData?.role?.name]);
 
   // ── Pengingat Check-in ─────────────────────────────────────────────
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);

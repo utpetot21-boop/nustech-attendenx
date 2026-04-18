@@ -80,6 +80,7 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   swap_request_rejected:           '/(main)/schedule-swap',
   swap_request_admin:              '/(main)/schedule-swap',
   // Cuti & Izin
+  leave_request:                   '/(main)/profile',
   leave_approved:                  '/(main)/leave',
   leave_rejected:                  '/(main)/leave',
   leave_expiry_reminder:           '/(main)/leave',
@@ -205,6 +206,7 @@ export default function NotificationsScreen() {
     task_accepted:      { Icon: CheckCircle2,   color: C.green, bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
     task_rejected:      { Icon: XCircle,        color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
     alfa_detected:      { Icon: AlertTriangle,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'   : '#FFFBEB' },
+    leave_request:      { Icon: ClipboardList,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
     leave_approved:     { Icon: Sun,            color: C.green, bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
     leave_rejected:     { Icon: Ban,            color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
     objection_pending:  { Icon: Hand,           color: C.purple, bg: isDark ? 'rgba(175,82,222,0.18)'  : '#F5F3FF' },

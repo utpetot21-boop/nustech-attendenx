@@ -142,6 +142,7 @@ export default function RootLayout() {
         swap_request_rejected:          '/(main)/schedule-swap',
         swap_request_admin:             '/(main)/schedule-swap',
         // Cuti & Izin
+        leave_request:                  '/(main)/profile',
         leave_approved:                 '/(main)/leave',
         leave_rejected:                 '/(main)/leave',
         leave_expiry_reminder:          '/(main)/leave',
