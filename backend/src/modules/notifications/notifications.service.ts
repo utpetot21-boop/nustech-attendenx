@@ -144,7 +144,9 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    return this.notifRepo.count({ where: { user_id: userId, is_read: false } });
+    return this.notifRepo.count({
+      where: { user_id: userId, is_read: false, hidden_for_user: false },
+    });
   }
 
   private autoChannels(type: string): ('push' | 'whatsapp' | 'email')[] {
