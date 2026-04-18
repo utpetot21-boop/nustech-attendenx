@@ -27,7 +27,6 @@ import {
   Wallet,
   Clock,
   ChevronRight,
-  TrendingUp,
   Calendar,
   Sun,
   Coffee,
@@ -828,21 +827,16 @@ export default function BerandaScreen() {
             />
           </View>
 
-          {/* ── BENTO: SALDO CUTI + KLAIM BIAYA ───────────────────────────── */}
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <StatCard
-              label="Saldo Cuti"  value="—"  sub="hari tersisa"
-              accentColor={C.purple} icon={TrendingUp}
-              onPress={() => router.push('/(main)/profile')}
-              isDark={isDark}
-            />
-            <StatCard
-              label="Klaim"       value="—"  sub="menunggu"
-              accentColor={C.blue}   icon={Wallet}
-              onPress={() => router.push('/(main)/expense-claims')}
-              isDark={isDark}
-            />
-          </View>
+          {/* ── KLAIM BIAYA ───────────────────────────────────────────────── */}
+          {/* Saldo Cuti dipindah ke /(main)/leave (single source of truth). */}
+          <NavCard
+            label="Klaim Biaya"
+            sub="Ajukan reimbursement biaya operasional"
+            accentColor={C.blue}
+            icon={Wallet}
+            onPress={() => router.push('/(main)/expense-claims')}
+            isDark={isDark}
+          />
 
           {/* ── SOS ──────────────────────────────────────────────────────── */}
           <SosButton isDark={isDark} />
