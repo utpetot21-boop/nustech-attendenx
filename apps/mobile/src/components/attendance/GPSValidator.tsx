@@ -7,6 +7,7 @@ import Animated, {
   withSequence,
   withTiming,
   withRepeat,
+  withDelay,
   cancelAnimation,
   ReduceMotion,
   Easing,
@@ -22,7 +23,7 @@ interface Props {
   accuracy?: number | null;
 }
 
-const PULSE_ITERATIONS = 3; // ~4.5 detik lalu berhenti otomatis — hemat battery
+const BURST_RIPPLES = 3; // ~4.5 detik lalu berhenti
 
 export function GPSValidator({
   isLoading,
@@ -34,66 +35,99 @@ export function GPSValidator({
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
 
-  // Shared values (UI thread — tidak lewat JS bridge)
+  // Shared values (UI thread)
   const iconScale   = useSharedValue(1);
-  const ringScale   = useSharedValue(1);
-  const ringOpacity = useSharedValue(0);
+  const idlePulse   = useSharedValue(1); // denyut halus kontinu
+  const ring1Scale  = useSharedValue(1);
+  const ring1Op     = useSharedValue(0);
+  const ring2Scale  = useSharedValue(1);
+  const ring2Op     = useSharedValue(0);
   const cardGlow    = useSharedValue(0);
+  const badgeOp     = useSharedValue(0); // "TERVERIFIKASI" badge fade
 
-  const prevInRadius = useRef<boolean | null>(null);
+  const prevInRadius  = useRef<boolean | null>(null);
+  const idleStartedRef = useRef(false);
 
+  // Idle pulse — hidup selama dalam radius, stop saat keluar
+  useEffect(() => {
+    if (isWithinRadius === true && !idleStartedRef.current) {
+      idleStartedRef.current = true;
+      idlePulse.value = withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 900, easing: Easing.inOut(Easing.quad), reduceMotion: ReduceMotion.System }),
+          withTiming(1,    { duration: 900, easing: Easing.inOut(Easing.quad), reduceMotion: ReduceMotion.System }),
+        ),
+        -1,
+        false,
+      );
+      badgeOp.value = withTiming(1, { duration: 400, reduceMotion: ReduceMotion.System });
+    } else if (isWithinRadius !== true && idleStartedRef.current) {
+      idleStartedRef.current = false;
+      cancelAnimation(idlePulse);
+      idlePulse.value = withTiming(1, { duration: 200 });
+      badgeOp.value = withTiming(0, { duration: 200 });
+    }
+  }, [isWithinRadius, idlePulse, badgeOp]);
+
+  // Burst satu-kali saat transisi masuk radius
   useEffect(() => {
     const enteringValid = isWithinRadius === true && prevInRadius.current !== true;
     prevInRadius.current = isWithinRadius;
 
     if (!enteringValid) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Icon bounce
+    // Icon burst besar
     iconScale.value = withSequence(
-      withSpring(1.25, { damping: 7,  stiffness: 220, reduceMotion: ReduceMotion.System }),
-      withSpring(1,    { damping: 12, stiffness: 180, reduceMotion: ReduceMotion.System }),
+      withSpring(1.45, { damping: 6,  stiffness: 180, reduceMotion: ReduceMotion.System }),
+      withSpring(1,    { damping: 10, stiffness: 150, reduceMotion: ReduceMotion.System }),
     );
 
-    // Halo ring pulse — finite 3x
-    ringOpacity.value = 0.55;
-    ringScale.value   = 1;
-    ringOpacity.value = withRepeat(
-      withTiming(0, { duration: 1500, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }),
-      PULSE_ITERATIONS,
-      false,
-    );
-    ringScale.value = withRepeat(
-      withTiming(3.2, { duration: 1500, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }),
-      PULSE_ITERATIONS,
-      false,
-    );
+    // Double ripple — ring 1 + ring 2 (delay)
+    ring1Op.value = 0.7;
+    ring1Scale.value = 1;
+    ring1Op.value    = withRepeat(withTiming(0,   { duration: 1400, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }), BURST_RIPPLES, false);
+    ring1Scale.value = withRepeat(withTiming(3.8, { duration: 1400, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }), BURST_RIPPLES, false);
 
-    // Card glow sekali — fade in cepat, fade out 600ms
+    ring2Op.value    = withDelay(350, withTiming(0.5, { duration: 0 }));
+    ring2Scale.value = withDelay(350, withTiming(1,   { duration: 0 }));
+    ring2Op.value    = withDelay(350, withRepeat(withTiming(0,   { duration: 1400, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }), BURST_RIPPLES, false));
+    ring2Scale.value = withDelay(350, withRepeat(withTiming(3.8, { duration: 1400, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }), BURST_RIPPLES, false));
+
+    // Card glow panjang & terang
     cardGlow.value = withSequence(
-      withTiming(1, { duration: 180, reduceMotion: ReduceMotion.System }),
-      withTiming(0, { duration: 800, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }),
+      withTiming(1, { duration: 220, reduceMotion: ReduceMotion.System }),
+      withDelay(500, withTiming(0, { duration: 1200, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System })),
     );
-  }, [isWithinRadius, iconScale, ringScale, ringOpacity, cardGlow]);
+  }, [isWithinRadius, iconScale, ring1Scale, ring1Op, ring2Scale, ring2Op, cardGlow]);
 
   useEffect(() => {
     return () => {
       cancelAnimation(iconScale);
-      cancelAnimation(ringScale);
-      cancelAnimation(ringOpacity);
+      cancelAnimation(idlePulse);
+      cancelAnimation(ring1Scale);
+      cancelAnimation(ring1Op);
+      cancelAnimation(ring2Scale);
+      cancelAnimation(ring2Op);
       cancelAnimation(cardGlow);
+      cancelAnimation(badgeOp);
     };
-  }, [iconScale, ringScale, ringOpacity, cardGlow]);
+  }, [iconScale, idlePulse, ring1Scale, ring1Op, ring2Scale, ring2Op, cardGlow, badgeOp]);
 
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: iconScale.value }] }));
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: ringOpacity.value,
-    transform: [{ scale: ringScale.value }],
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value * idlePulse.value }],
   }));
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: cardGlow.value,
+  const ring1Style = useAnimatedStyle(() => ({
+    opacity: ring1Op.value,
+    transform: [{ scale: ring1Scale.value }],
   }));
+  const ring2Style = useAnimatedStyle(() => ({
+    opacity: ring2Op.value,
+    transform: [{ scale: ring2Scale.value }],
+  }));
+  const glowStyle  = useAnimatedStyle(() => ({ opacity: cardGlow.value }));
+  const badgeStyle = useAnimatedStyle(() => ({ opacity: badgeOp.value }));
 
   if (isLoading) {
     return (
@@ -135,22 +169,22 @@ export function GPSValidator({
 
   return (
     <View style={{ marginHorizontal: 10, position: 'relative' }}>
-      {/* Glow overlay — fade in/out saat masuk radius */}
+      {/* Glow overlay */}
       {isWithinRadius && (
         <Animated.View
           pointerEvents="none"
           style={[
             {
               position: 'absolute',
-              top: -3, left: -3, right: -3, bottom: -3,
-              borderRadius: 17,
-              borderWidth: 2,
+              top: -4, left: -4, right: -4, bottom: -4,
+              borderRadius: 18,
+              borderWidth: 2.5,
               borderColor: '#34C759',
               shadowColor: '#34C759',
               shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.8,
-              shadowRadius: 12,
-              elevation: 8,
+              shadowOpacity: 0.9,
+              shadowRadius: 16,
+              elevation: 10,
             },
             glowStyle,
           ]}
@@ -169,42 +203,71 @@ export function GPSValidator({
           gap: 12,
         }}
       >
-        {/* Icon + halo ring */}
-        <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+        {/* Icon + double ripple ring */}
+        <View style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
           {isWithinRadius && (
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                {
-                  position: 'absolute',
-                  width: 32, height: 32, borderRadius: 16,
-                  backgroundColor: iconBg,
-                },
-                ringStyle,
-              ]}
-            />
+            <>
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  { position: 'absolute', width: 36, height: 36, borderRadius: 18, backgroundColor: iconBg },
+                  ring1Style,
+                ]}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  { position: 'absolute', width: 36, height: 36, borderRadius: 18, backgroundColor: iconBg },
+                  ring2Style,
+                ]}
+              />
+            </>
           )}
           <Animated.View
             style={[
               {
-                width: 32, height: 32, borderRadius: 16,
+                width: 36, height: 36, borderRadius: 18,
                 backgroundColor: iconBg,
                 alignItems: 'center',
                 justifyContent: 'center',
+                shadowColor: iconBg,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: isWithinRadius ? 0.5 : 0,
+                shadowRadius: 6,
+                elevation: isWithinRadius ? 4 : 0,
               },
-              isWithinRadius ? iconStyle : undefined,
+              iconStyle,
             ]}
           >
-            <IconEl size={18} strokeWidth={2.8} color="#FFFFFF" />
+            <IconEl size={20} strokeWidth={2.8} color="#FFFFFF" />
           </Animated.View>
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: textColor, marginBottom: 1 }}>
-            {isWithinRadius
-              ? `${officeName} · Dalam radius`
-              : `${distanceMeters}m dari ${officeName}`}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: textColor, flexShrink: 1 }}>
+              {isWithinRadius
+                ? `${officeName} · Dalam radius`
+                : `${distanceMeters}m dari ${officeName}`}
+            </Text>
+            {isWithinRadius && (
+              <Animated.View
+                style={[
+                  {
+                    backgroundColor: '#34C759',
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 6,
+                  },
+                  badgeStyle,
+                ]}
+              >
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 }}>
+                  AKTIF
+                </Text>
+              </Animated.View>
+            )}
+          </View>
           <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280' }}>
             {isWithinRadius
               ? `GPS aktif · ${accuracy ? `Akurasi ${Math.round(accuracy)}m · ` : ''}Siap check-in`
