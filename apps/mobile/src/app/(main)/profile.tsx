@@ -479,7 +479,6 @@ export default function ProfileScreen() {
               { label: 'Surat Tugas',  Icon: Briefcase,  color: C.indigo, route: '/(main)/business-trips', roles: null },
               { label: 'Pengumuman',   Icon: Megaphone,  color: C.blue,   route: '/(main)/announcements',  roles: ['admin', 'manager', 'super_admin'] },
               { label: 'SOS Darurat',  Icon: ShieldAlert, color: C.red,   route: '/(main)/sos', roles: null },
-              { label: 'Persetujuan Cuti', Icon: ClipboardList, color: C.green, route: null, roles: ['admin', 'manager', 'super_admin'] },
             ].filter((item) => !item.roles || item.roles.includes(user?.role?.name ?? ''))
             .map((item, idx, arr) => (
               <TouchableOpacity
@@ -504,6 +503,34 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
+
+        {/* ── Persetujuan Cuti (approver only) ──────────────────────── */}
+        {isApprover && (
+          <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
+            <TouchableOpacity
+              onPress={() => setShowApprovalModal(true)}
+              activeOpacity={0.75}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 12,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+                borderRadius: R.lg, borderWidth: B.default,
+                borderColor: isDark ? 'rgba(52,199,89,0.30)' : 'rgba(52,199,89,0.25)',
+                paddingHorizontal: 16, paddingVertical: 14,
+              }}
+            >
+              <View style={{ width: 34, height: 34, borderRadius: R.xs + 2, backgroundColor: C.green + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                <ClipboardList size={18} strokeWidth={1.8} color={C.green} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: lPrimary(isDark) }}>Persetujuan Cuti / Izin</Text>
+                <Text style={{ fontSize: 12, color: lSecondary(isDark), marginTop: 1 }}>
+                  {pendingData?.total ? `${pendingData.total} permintaan menunggu` : 'Kelola pengajuan karyawan'}
+                </Text>
+              </View>
+              <ChevronRight size={16} strokeWidth={1.8} color={lTertiary(isDark)} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Pengingat Check-in ─────────────────────────────────────── */}
         {reminder && (
