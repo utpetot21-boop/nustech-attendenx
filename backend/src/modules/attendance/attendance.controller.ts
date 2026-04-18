@@ -59,6 +59,13 @@ export class AttendanceController {
     return this.attendanceService.getCheckoutInfo(userId);
   }
 
+  // ── Koordinat kantor efektif untuk user (geofence display) ───
+  @Get('my-office')
+  @ApiOperation({ summary: 'Koordinat & radius kantor efektif user (personal > global)' })
+  getMyOffice(@CurrentUser('id') userId: string) {
+    return this.attendanceService.getMyOffice(userId);
+  }
+
   // ── Absensi hari ini user tertentu (admin/manager) ────────────
   @Get('today/:userId')
   @RequirePermission('attendance:manage')

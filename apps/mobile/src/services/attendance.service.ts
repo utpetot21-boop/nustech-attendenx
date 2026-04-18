@@ -1,24 +1,26 @@
 import api from './api';
+import type { CheckinMethod, CheckoutMethod, AttendanceStatus, ScheduleType } from '@nustech/shared';
 
 export interface AttendanceRecord {
   id: string;
   user_id: string;
   date: string;
-  schedule_type: 'shift' | 'office_hours';
+  schedule_type: ScheduleType;
   shift_start: string | null;
   shift_end: string | null;
   tolerance_minutes: number;
   check_in_at: string | null;
-  check_in_method: 'face_id' | 'fingerprint' | 'pin' | 'qr' | null;
+  check_in_method: CheckinMethod | null;
   check_in_lat: number | null;
   check_in_lng: number | null;
   check_out_at: string | null;
-  check_out_method: 'manual' | 'qr' | 'auto' | null;
+  check_out_method: CheckoutMethod | null;
   checkout_earliest: string | null;
-  status: 'hadir' | 'terlambat' | 'alfa' | 'izin' | 'sakit' | 'dinas';
+  status: AttendanceStatus;
   late_minutes: number;
   overtime_minutes: number;
   is_holiday_work: boolean;
+  gps_valid?: boolean | null;
 }
 
 export interface CheckoutInfo {
@@ -26,6 +28,13 @@ export interface CheckoutInfo {
   remainingSeconds: number;
   checkoutEarliest: string | null;
   checkedOut: boolean;
+}
+
+export interface OfficeGeofence {
+  lat: number | null;
+  lng: number | null;
+  radius_meter: number;
+  office_name: string;
 }
 
 export const attendanceService = {
@@ -43,6 +52,10 @@ export const attendanceService = {
 
   getCheckoutInfo() {
     return api.get<CheckoutInfo>('/attendance/checkout-info').then((r) => r.data);
+  },
+
+  getMyOffice() {
+    return api.get<OfficeGeofence>('/attendance/my-office').then((r) => r.data);
   },
 
   getHistory(params: { month?: string; from?: string; to?: string } = {}) {

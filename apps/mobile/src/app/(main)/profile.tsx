@@ -381,11 +381,12 @@ export default function ProfileScreen() {
             overflow: 'hidden',
           }}>
             {[
-              { label: 'Klaim Biaya',  Icon: Receipt,    color: C.orange, route: '/(main)/expense-claims', roles: null },
-              { label: 'Berita Acara', Icon: FileText,   color: C.teal,   route: '/(main)/service-reports', roles: null },
-              { label: 'Surat Tugas',  Icon: Briefcase,  color: C.indigo, route: '/(main)/business-trips', roles: null },
-              { label: 'Pengumuman',   Icon: Megaphone,  color: C.blue,   route: '/(main)/announcements',  roles: ['admin', 'manager', 'super_admin'] },
-              { label: 'SOS Darurat',  Icon: ShieldAlert, color: C.red,   route: '/(main)/sos', roles: null },
+              { label: 'Klaim Biaya',      Icon: Receipt,     color: C.orange, route: '/(main)/expense-claims', roles: null },
+              { label: 'Berita Acara',     Icon: FileText,    color: C.teal,   route: '/(main)/service-reports', roles: null },
+              { label: 'Surat Tugas',      Icon: Briefcase,   color: C.indigo, route: '/(main)/business-trips', roles: null },
+              { label: 'Surat Peringatan', Icon: ShieldAlert, color: C.red,    route: '/(main)/warning-letters', roles: null },
+              { label: 'Pengumuman',       Icon: Megaphone,   color: C.blue,   route: '/(main)/announcements',  roles: ['admin', 'manager', 'super_admin'] },
+              { label: 'SOS Darurat',      Icon: ShieldAlert, color: C.red,    route: '/(main)/sos', roles: null },
             ].filter((item) => !item.roles || item.roles.includes(user?.role?.name ?? ''))
             .map((item, idx, arr) => (
               <TouchableOpacity

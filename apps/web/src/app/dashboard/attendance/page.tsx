@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
@@ -12,10 +12,14 @@ import {
   MapPin, MapPinOff, ClipboardList,
   ChevronLeft, ChevronRight, Filter,
   AlertTriangle, ShieldAlert, FileWarning, Plus, X, ExternalLink, FileText,
-  AlarmClock, LogOut, Hourglass, MessageSquare, CheckCheck, Ban,
+  AlarmClock, LogOut, Hourglass, MessageSquare, CheckCheck, Ban, ChevronDown, Check,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+// Method enums dari shared (backend DTO): sama persis dengan yang disimpan di DB.
+type CheckinMethod  = 'face_id' | 'fingerprint' | 'pin' | 'qr' | 'gps';
+type CheckoutMethod = 'face_id' | 'fingerprint' | 'pin' | 'qr' | 'gps' | 'manual';
+
 type AttendanceRecord = {
   id: string;
   user_id: string;
@@ -23,8 +27,8 @@ type AttendanceRecord = {
   status: string;
   check_in_at: string | null;
   check_out_at: string | null;
-  check_in_method: string | null;
-  check_out_method: string | null;
+  check_in_method: CheckinMethod | null;
+  check_out_method: CheckoutMethod | null;
   late_minutes: number;
   overtime_minutes: number;
   gps_valid: boolean | null;
@@ -53,7 +57,12 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
 };
 
 const METHOD_LABEL: Record<string, string> = {
-  qr_code: 'QR Code', gps: 'GPS', manual: 'Manual', face: 'Face ID', biometric: 'Biometrik',
+  face_id: 'Face ID',
+  fingerprint: 'Fingerprint',
+  pin: 'PIN',
+  qr: 'QR Code',
+  manual: 'Manual',
+  gps: 'GPS',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -197,6 +206,131 @@ const vioLabelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-300 
 
 function fmtShortDate(d: string) {
   return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// ── Employee Combobox (untuk form Buat SP) ────────────────────────────────────
+interface EmployeeOption {
+  id: string;
+  full_name: string;
+  employee_id?: string;
+  department?: { name: string } | null;
+}
+
+function EmployeeCombobox({
+  value,
+  onChange,
+  placeholder = 'Cari nama atau NIK karyawan…',
+}: {
+  value: string;
+  onChange: (id: string, emp: EmployeeOption | null) => void;
+  placeholder?: string;
+}) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<EmployeeOption | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const { data: users = [], isLoading } = useQuery<EmployeeOption[]>({
+    queryKey: ['users-combobox', query],
+    queryFn: () =>
+      apiClient.get(`/users?search=${encodeURIComponent(query)}&limit=50`).then((r) => {
+        const d = r.data;
+        if (Array.isArray(d) && Array.isArray(d[0])) return d[0] as EmployeeOption[];
+        return (d?.items ?? d?.data ?? d ?? []) as EmployeeOption[];
+      }),
+    staleTime: 30_000,
+    enabled: open,
+  });
+
+  // Resolve label ketika value berubah dari luar (misal reset form)
+  useEffect(() => {
+    if (!value) setSelected(null);
+  }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const displayText = selected
+    ? `${selected.full_name}${selected.employee_id ? ` · ${selected.employee_id}` : ''}`
+    : '';
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`${vioInputCls} flex items-center justify-between text-left`}
+      >
+        <span className={displayText ? 'text-gray-900 dark:text-white' : 'text-gray-400'}>
+          {displayText || 'Pilih karyawan…'}
+        </span>
+        <ChevronDown size={14} className={`text-gray-400 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.1] rounded-xl shadow-xl max-h-72 overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-black/[0.05] dark:border-white/[0.08]">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                autoFocus
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={placeholder}
+                className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg bg-gray-50 dark:bg-[#2C2C2E] border border-transparent focus:border-[#007AFF]/30 focus:outline-none text-gray-900 dark:text-white placeholder:text-gray-400"
+              />
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {isLoading ? (
+              <p className="px-3 py-6 text-xs text-center text-gray-400">Memuat…</p>
+            ) : users.length === 0 ? (
+              <p className="px-3 py-6 text-xs text-center text-gray-400">
+                {query ? 'Tidak ada karyawan cocok' : 'Ketik untuk mencari'}
+              </p>
+            ) : (
+              users.map((u) => {
+                const active = u.id === value;
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(u.id, u);
+                      setSelected(u);
+                      setOpen(false);
+                      setQuery('');
+                    }}
+                    className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition ${
+                      active
+                        ? 'bg-[#007AFF]/10 text-[#007AFF]'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#2C2C2E]'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{u.full_name}</p>
+                      <p className="text-[11px] text-gray-400 truncate">
+                        {u.employee_id ?? '—'}
+                        {u.department?.name ? ` · ${u.department.name}` : ''}
+                      </p>
+                    </div>
+                    {active && <Check size={14} className="text-[#007AFF] flex-shrink-0" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function LevelBadge({ level }: { level: 'SP1' | 'SP2' | 'SP3' }) {
@@ -548,7 +682,13 @@ function PelanggaranSection() {
               <button onClick={() => setShowCreateModal(false)} className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] flex items-center justify-center"><X size={16} className="text-gray-500" /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-5 space-y-4">
-              <div><label className={vioLabelCls}>ID Karyawan</label><input type="text" placeholder="UUID karyawan" value={form.user_id} onChange={(e) => setForm((f) => ({ ...f, user_id: e.target.value }))} className={vioInputCls} /></div>
+              <div>
+                <label className={vioLabelCls}>Karyawan</label>
+                <EmployeeCombobox
+                  value={form.user_id}
+                  onChange={(id) => setForm((f) => ({ ...f, user_id: id }))}
+                />
+              </div>
               <div>
                 <label className={vioLabelCls}>Level SP</label>
                 <div className="flex gap-2">

@@ -40,6 +40,42 @@ export class AttendanceService {
     private attendanceRequestRepo: Repository<AttendanceRequestEntity>,
   ) {}
 
+  // ── Ambil titik geofence efektif untuk user (personal > global) ───────
+  async getMyOffice(userId: string): Promise<{
+    lat: number | null;
+    lng: number | null;
+    radius_meter: number;
+    office_name: string;
+  }> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ['location'],
+    });
+    const loc = (user as any)?.location;
+
+    if (loc?.lat != null && loc?.lng != null && loc?.radius_meter > 0) {
+      return {
+        lat: Number(loc.lat),
+        lng: Number(loc.lng),
+        radius_meter: loc.radius_meter,
+        office_name: loc.name ?? 'Kantor',
+      };
+    }
+
+    const cfgs = await this.configRepo.find({ order: { effective_date: 'DESC' }, take: 1 });
+    const cfg = cfgs[0];
+    if (cfg?.office_lat != null && cfg?.office_lng != null) {
+      return {
+        lat: Number(cfg.office_lat),
+        lng: Number(cfg.office_lng),
+        radius_meter: cfg.check_in_radius_meter ?? 100,
+        office_name: 'Kantor',
+      };
+    }
+
+    return { lat: null, lng: null, radius_meter: 100, office_name: 'Kantor' };
+  }
+
   // ── Check-In ──────────────────────────────────────────────────
   async checkIn(userId: string, dto: CheckInDto): Promise<AttendanceEntity> {
     const today = this.getTodayString();
