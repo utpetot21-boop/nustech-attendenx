@@ -7,11 +7,12 @@ import Animated, {
   withSequence,
   withTiming,
   withRepeat,
-  withDelay,
   cancelAnimation,
   ReduceMotion,
+  Easing,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Check, AlertCircle } from 'lucide-react-native';
 
 interface Props {
   isLoading: boolean;
@@ -34,56 +35,64 @@ export function GPSValidator({
   const isDark = scheme === 'dark';
 
   // Shared values (UI thread — tidak lewat JS bridge)
-  const dotScale    = useSharedValue(1);
+  const iconScale   = useSharedValue(1);
   const ringScale   = useSharedValue(1);
   const ringOpacity = useSharedValue(0);
+  const cardGlow    = useSharedValue(0);
 
   const prevInRadius = useRef<boolean | null>(null);
 
   useEffect(() => {
-    // Trigger hanya saat transisi ke valid (dari null/false → true)
     const enteringValid = isWithinRadius === true && prevInRadius.current !== true;
     prevInRadius.current = isWithinRadius;
 
     if (!enteringValid) return;
 
-    // Haptic tick ringan — affirmation sistem mendeteksi lokasi valid
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Dot: bounce spring sekali (~400ms)
-    dotScale.value = withSequence(
-      withSpring(1.3, { damping: 8,  stiffness: 220, reduceMotion: ReduceMotion.System }),
-      withSpring(1,   { damping: 12, stiffness: 180, reduceMotion: ReduceMotion.System }),
+    // Icon bounce
+    iconScale.value = withSequence(
+      withSpring(1.25, { damping: 7,  stiffness: 220, reduceMotion: ReduceMotion.System }),
+      withSpring(1,    { damping: 12, stiffness: 180, reduceMotion: ReduceMotion.System }),
     );
 
-    // Ring: pulse finite 3x lalu berhenti (fade + scale keluar)
+    // Halo ring pulse — finite 3x
     ringOpacity.value = 0.55;
     ringScale.value   = 1;
     ringOpacity.value = withRepeat(
-      withTiming(0, { duration: 1500, reduceMotion: ReduceMotion.System }),
+      withTiming(0, { duration: 1500, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }),
       PULSE_ITERATIONS,
       false,
     );
     ringScale.value = withRepeat(
-      withTiming(2.6, { duration: 1500, reduceMotion: ReduceMotion.System }),
+      withTiming(3.2, { duration: 1500, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }),
       PULSE_ITERATIONS,
       false,
     );
-  }, [isWithinRadius, dotScale, ringScale, ringOpacity]);
 
-  // Cleanup saat unmount — pastikan worklet berhenti
+    // Card glow sekali — fade in cepat, fade out 600ms
+    cardGlow.value = withSequence(
+      withTiming(1, { duration: 180, reduceMotion: ReduceMotion.System }),
+      withTiming(0, { duration: 800, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.System }),
+    );
+  }, [isWithinRadius, iconScale, ringScale, ringOpacity, cardGlow]);
+
   useEffect(() => {
     return () => {
-      cancelAnimation(dotScale);
+      cancelAnimation(iconScale);
       cancelAnimation(ringScale);
       cancelAnimation(ringOpacity);
+      cancelAnimation(cardGlow);
     };
-  }, [dotScale, ringScale, ringOpacity]);
+  }, [iconScale, ringScale, ringOpacity, cardGlow]);
 
-  const dotStyle  = useAnimatedStyle(() => ({ transform: [{ scale: dotScale.value  }] }));
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: iconScale.value }] }));
   const ringStyle = useAnimatedStyle(() => ({
     opacity: ringOpacity.value,
     transform: [{ scale: ringScale.value }],
+  }));
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: cardGlow.value,
   }));
 
   if (isLoading) {
@@ -117,33 +126,59 @@ export function GPSValidator({
   const borderColor = isWithinRadius
     ? isDark ? 'rgba(52,199,89,0.35)' : '#BBF7D0'
     : isDark ? 'rgba(255,159,10,0.35)' : '#FED7AA';
-  const dotColor = isWithinRadius ? '#34C759' : '#FF9F0A';
+  const iconBg = isWithinRadius ? '#34C759' : '#FF9F0A';
   const textColor = isWithinRadius
     ? isDark ? '#86EFAC' : '#15803D'
     : isDark ? '#FCD34D' : '#C2410C';
 
+  const IconEl = isWithinRadius ? Check : AlertCircle;
+
   return (
-    <View
-      style={{
-        backgroundColor: bgColor,
-        borderRadius: 14,
-        borderWidth: 0.5,
-        borderColor,
-        padding: 12,
-        marginHorizontal: 10,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-        {/* Dot container — relative supaya ring halo bisa absolute overlay */}
-        <View style={{ width: 8, height: 8, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ marginHorizontal: 10, position: 'relative' }}>
+      {/* Glow overlay — fade in/out saat masuk radius */}
+      {isWithinRadius && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: 'absolute',
+              top: -3, left: -3, right: -3, bottom: -3,
+              borderRadius: 17,
+              borderWidth: 2,
+              borderColor: '#34C759',
+              shadowColor: '#34C759',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.8,
+              shadowRadius: 12,
+              elevation: 8,
+            },
+            glowStyle,
+          ]}
+        />
+      )}
+
+      <View
+        style={{
+          backgroundColor: bgColor,
+          borderRadius: 14,
+          borderWidth: 0.5,
+          borderColor,
+          padding: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        {/* Icon + halo ring */}
+        <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
           {isWithinRadius && (
             <Animated.View
               pointerEvents="none"
               style={[
                 {
                   position: 'absolute',
-                  width: 8, height: 8, borderRadius: 4,
-                  backgroundColor: dotColor,
+                  width: 32, height: 32, borderRadius: 16,
+                  backgroundColor: iconBg,
                 },
                 ringStyle,
               ]}
@@ -151,23 +186,32 @@ export function GPSValidator({
           )}
           <Animated.View
             style={[
-              { width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor },
-              isWithinRadius ? dotStyle : undefined,
+              {
+                width: 32, height: 32, borderRadius: 16,
+                backgroundColor: iconBg,
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+              isWithinRadius ? iconStyle : undefined,
             ]}
-          />
+          >
+            <IconEl size={18} strokeWidth={2.8} color="#FFFFFF" />
+          </Animated.View>
         </View>
 
-        <Text style={{ fontSize: 13, fontWeight: '600', color: textColor }}>
-          {isWithinRadius
-            ? `${officeName} · Dalam radius`
-            : `${distanceMeters}m dari ${officeName}`}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: textColor, marginBottom: 1 }}>
+            {isWithinRadius
+              ? `${officeName} · Dalam radius`
+              : `${distanceMeters}m dari ${officeName}`}
+          </Text>
+          <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280' }}>
+            {isWithinRadius
+              ? `GPS aktif · ${accuracy ? `Akurasi ${Math.round(accuracy)}m · ` : ''}Siap check-in`
+              : 'Di luar radius. Scan QR atau konfirmasi alasan.'}
+          </Text>
+        </View>
       </View>
-      <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.50)' : '#6B7280', paddingLeft: 16 }}>
-        {isWithinRadius
-          ? `GPS aktif · ${accuracy ? `Akurasi ${Math.round(accuracy)}m · ` : ''}Siap check-in`
-          : 'Di luar radius. Scan QR atau konfirmasi alasan.'}
-      </Text>
     </View>
   );
 }
