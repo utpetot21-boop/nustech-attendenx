@@ -76,13 +76,15 @@ function fmtDayDate(dateStr: string) {
   };
 }
 
+const MONTH_SHORT_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
 function getMonthOptions(count = 6) {
   const now = new Date();
   const opts: { label: string; value: string }[] = [];
   for (let i = 0; i < count; i += 1) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+    const label = `${MONTH_SHORT_ID[d.getMonth()]} ${d.getFullYear()}`;
     opts.push({ label, value });
   }
   return opts;

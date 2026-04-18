@@ -173,6 +173,8 @@ export default function MainLayout() {
       <Tabs.Screen name="schedule-swap"         options={{ href: null, title: 'Tukar Jadwal' }} />
       <Tabs.Screen name="sos-alert"             options={{ href: null, title: 'SOS Alert', tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="announcements"         options={{ href: null, title: 'Pengumuman' }} />
+      <Tabs.Screen name="attendance-history"    options={{ href: null, title: 'Riwayat Absensi' }} />
+      <Tabs.Screen name="warning-letters"       options={{ href: null, title: 'Surat Peringatan' }} />
     </Tabs>
   );
 }

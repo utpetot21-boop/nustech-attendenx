@@ -43,6 +43,7 @@ import WeatherBanner, { getPeriodLabel } from '@/components/home/WeatherBanner';
 import { attendanceService, type AttendanceRecord } from '@/services/attendance.service';
 import { scheduleService, getCurrentWeekString } from '@/services/schedule.service';
 import { attendanceRequestsService, type AttendanceRequest } from '@/services/attendance-requests.service';
+import { leaveService, type LeaveBalance } from '@/services/leave.service';
 import { api } from '@/services/api';
 import { useMutation } from '@tanstack/react-query';
 import { currentMonth } from '@/utils/dateFormatter';
@@ -358,6 +359,12 @@ export default function BerandaScreen() {
     staleTime: 5 * 60_000,
   });
 
+  const { data: leaveBalance } = useQuery<LeaveBalance>({
+    queryKey: ['leave-balance', 'me'],
+    queryFn: () => leaveService.getMyBalance(),
+    staleTime: 5 * 60_000,
+  });
+
   const attendanceSummary = STATUS_SUMMARY.map(s => ({
     ...s,
     count: monthHistory.filter(r => r.status === s.key).length,
@@ -661,6 +668,63 @@ export default function BerandaScreen() {
                       <Text style={{ fontSize: 11, color: lSecondary(isDark) }}>{label}</Text>
                     </View>
                   ))}
+                </View>
+              </View>
+            )}
+
+            {/* ── Saldo Cuti ── */}
+            {leaveBalance && (
+              <View style={{
+                marginTop: 14,
+                paddingTop: 14,
+                borderTopWidth: B.default,
+                borderTopColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+              }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: lTertiary(isDark) }}>
+                    Cuti Tahun {leaveBalance.year}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>
+                    +{leaveBalance.accrued_monthly}/bulan
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{
+                    flex: 1,
+                    flexDirection: 'row', alignItems: 'center', gap: 8,
+                    backgroundColor: C.blue + '14',
+                    borderRadius: R.md, borderWidth: B.default,
+                    borderColor: C.blue + '28',
+                    paddingHorizontal: 10, paddingVertical: 8,
+                  }}>
+                    <Palmtree size={16} strokeWidth={2} color={C.blue} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, color: lTertiary(isDark), fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                        Saldo
+                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: C.blue, letterSpacing: -0.2 }}>
+                        {leaveBalance.balance_days} hari
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{
+                    flex: 1,
+                    flexDirection: 'row', alignItems: 'center', gap: 8,
+                    backgroundColor: C.purple + '14',
+                    borderRadius: R.md, borderWidth: B.default,
+                    borderColor: C.purple + '28',
+                    paddingHorizontal: 10, paddingVertical: 8,
+                  }}>
+                    <Coffee size={16} strokeWidth={2} color={C.purple} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, color: lTertiary(isDark), fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                        Terpakai
+                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: C.purple, letterSpacing: -0.2 }}>
+                        {leaveBalance.used_days} hari
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             )}

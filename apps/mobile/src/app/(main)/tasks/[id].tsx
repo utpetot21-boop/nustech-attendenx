@@ -15,12 +15,16 @@ import {
   ChevronLeft, AlertTriangle, Calendar, Clock, FileText,
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
+  Search, User, ChevronDown, Check, X as XIcon,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { C, pageBg, cardBg as tokenCardBg, lPrimary, lSecondary, gradients } from '@/constants/tokens';
+import { C, R, B, pageBg, cardBg as tokenCardBg, lPrimary, lSecondary, lTertiary, gradients } from '@/constants/tokens';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
+import { api } from '@/services/api';
+
+interface EmployeeOption { id: string; full_name: string; employee_id?: string; department?: { name?: string } | null }
 import { ConfirmCountdown } from '@/components/tasks/ConfirmCountdown';
 import NavigationButton from '@/components/tasks/NavigationButton';
 
@@ -68,8 +72,10 @@ export default function TaskDetailScreen() {
   const [rejectReason, setRejectReason] = useState('');
   const [holdReasonType, setHoldReasonType] = useState('client_absent');
   const [holdNotes, setHoldNotes] = useState('');
-  const [delegateToUserId, setDelegateToUserId] = useState('');
+  const [delegateEmployee, setDelegateEmployee] = useState<EmployeeOption | null>(null);
   const [delegateReason, setDelegateReason] = useState('');
+  const [delegatePickerOpen, setDelegatePickerOpen] = useState(false);
+  const [delegateSearch, setDelegateSearch] = useState('');
 
   const bg = pageBg(isDark);
   const cardBg = tokenCardBg(isDark);
@@ -145,19 +151,33 @@ export default function TaskDetailScreen() {
 
   const delegateMut = useMutation({
     mutationFn: () => tasksService.delegate(id!, {
-      to_user_id: delegateToUserId.trim(),
+      to_user_id: delegateEmployee?.id ?? '',
       reason: delegateReason.trim(),
     }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       invalidate();
       setShowDelegateModal(false);
+      setDelegateEmployee(null);
+      setDelegateReason('');
+      setDelegateSearch('');
+      setDelegatePickerOpen(false);
       Alert.alert('Delegasi Dikirim', 'Permintaan delegasi telah dikirim ke manajer untuk disetujui.');
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Gagal', err.message);
     },
+  });
+
+  const { data: colleagues = [], isFetching: loadingColleagues } = useQuery<EmployeeOption[]>({
+    queryKey: ['delegate-colleagues', delegateSearch],
+    queryFn: () =>
+      api
+        .get('/users/colleagues', { params: { search: delegateSearch || undefined } })
+        .then((r) => r.data?.items ?? r.data ?? []),
+    enabled: showDelegateModal && delegatePickerOpen,
+    staleTime: 30_000,
   });
 
   // ── Loading / Error ────────────────────────────────────────────────────────
@@ -525,14 +545,130 @@ export default function TaskDetailScreen() {
             <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, marginBottom: 4 }}>Limpahkan Tugas</Text>
             <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 18 }}>Manajer akan menyetujui permintaan ini.</Text>
 
-            <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>ID Karyawan Penerima</Text>
-            <TextInput
-              value={delegateToUserId}
-              onChangeText={setDelegateToUserId}
-              placeholder="UUID karyawan tujuan..."
-              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
-              style={{ backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5, borderColor: inputBorder, padding: 14, fontSize: 15, color: textPrimary, marginBottom: 14 }}
-            />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Karyawan Penerima *</Text>
+
+            {/* Selected employee trigger / search input */}
+            {!delegatePickerOpen && (
+              <TouchableOpacity
+                onPress={() => { setDelegatePickerOpen(true); setDelegateSearch(''); }}
+                activeOpacity={0.75}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 10,
+                  backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5,
+                  borderColor: inputBorder, paddingHorizontal: 14, paddingVertical: 14,
+                  marginBottom: 14,
+                }}
+              >
+                {delegateEmployee ? (
+                  <>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.purple + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                      <User size={16} strokeWidth={2} color={C.purple} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: textPrimary }} numberOfLines={1}>
+                        {delegateEmployee.full_name}
+                      </Text>
+                      {(delegateEmployee.employee_id || delegateEmployee.department?.name) && (
+                        <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 1 }} numberOfLines={1}>
+                          {[delegateEmployee.employee_id, delegateEmployee.department?.name].filter(Boolean).join(' · ')}
+                        </Text>
+                      )}
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Search size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                    <Text style={{ flex: 1, fontSize: 15, color: lTertiary(isDark) }}>
+                      Pilih karyawan...
+                    </Text>
+                  </>
+                )}
+                <ChevronDown size={18} strokeWidth={2} color={lTertiary(isDark)} />
+              </TouchableOpacity>
+            )}
+
+            {/* Expanded picker: search + list */}
+            {delegatePickerOpen && (
+              <View style={{ marginBottom: 14 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 10,
+                  backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5,
+                  borderColor: C.purple, paddingHorizontal: 14, paddingVertical: 12,
+                }}>
+                  <Search size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                  <TextInput
+                    value={delegateSearch}
+                    onChangeText={setDelegateSearch}
+                    placeholder="Cari nama atau NIK..."
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
+                    autoFocus
+                    style={{ flex: 1, fontSize: 15, color: textPrimary, padding: 0 }}
+                  />
+                  <TouchableOpacity
+                    onPress={() => { setDelegatePickerOpen(false); setDelegateSearch(''); }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <XIcon size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                  </TouchableOpacity>
+                </View>
+                <View style={{
+                  marginTop: 8,
+                  backgroundColor: inputBg,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: inputBorder,
+                  maxHeight: 220,
+                  overflow: 'hidden',
+                }}>
+                  {loadingColleagues ? (
+                    <ActivityIndicator color={C.purple} style={{ paddingVertical: 20 }} />
+                  ) : colleagues.length === 0 ? (
+                    <Text style={{ textAlign: 'center', color: lTertiary(isDark), padding: 16, fontSize: 14 }}>
+                      {delegateSearch ? 'Tidak ada hasil' : 'Tidak ada rekan kerja'}
+                    </Text>
+                  ) : (
+                    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                      {colleagues.map((emp) => {
+                        const active = delegateEmployee?.id === emp.id;
+                        return (
+                          <TouchableOpacity
+                            key={emp.id}
+                            onPress={() => {
+                              setDelegateEmployee(emp);
+                              setDelegatePickerOpen(false);
+                              setDelegateSearch('');
+                            }}
+                            activeOpacity={0.7}
+                            style={{
+                              flexDirection: 'row', alignItems: 'center', gap: 10,
+                              paddingHorizontal: 14, paddingVertical: 10,
+                              backgroundColor: active ? C.purple + '14' : 'transparent',
+                              borderBottomWidth: 0.5,
+                              borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                            }}
+                          >
+                            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.purple + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                              <User size={15} strokeWidth={2} color={C.purple} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 14, fontWeight: '600', color: textPrimary }} numberOfLines={1}>
+                                {emp.full_name}
+                              </Text>
+                              {(emp.employee_id || emp.department?.name) && (
+                                <Text style={{ fontSize: 11, color: lTertiary(isDark), marginTop: 1 }} numberOfLines={1}>
+                                  {[emp.employee_id, emp.department?.name].filter(Boolean).join(' · ')}
+                                </Text>
+                              )}
+                            </View>
+                            {active && <Check size={16} strokeWidth={2.5} color={C.purple} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+                </View>
+              </View>
+            )}
 
             <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Alasan Pendelegasian *</Text>
             <TextInput
@@ -550,17 +686,17 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
-                  if (!delegateToUserId.trim() || !delegateReason.trim()) {
-                    Alert.alert('Lengkapi Data', 'ID penerima dan alasan wajib diisi.');
+                  if (!delegateEmployee || !delegateReason.trim()) {
+                    Alert.alert('Lengkapi Data', 'Karyawan penerima dan alasan wajib diisi.');
                     return;
                   }
                   delegateMut.mutate();
                 }}
-                disabled={delegateMut.isPending || !delegateToUserId.trim() || !delegateReason.trim()}
-                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: (delegateToUserId.trim() && delegateReason.trim()) ? C.purple : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
+                disabled={delegateMut.isPending || !delegateEmployee || !delegateReason.trim()}
+                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: (delegateEmployee && delegateReason.trim()) ? C.purple : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
               >
                 {delegateMut.isPending ? <ActivityIndicator color="#FFF" /> : (
-                  <Text style={{ color: (delegateToUserId.trim() && delegateReason.trim()) ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'), fontWeight: '700', fontSize: 15 }}>Limpahkan</Text>
+                  <Text style={{ color: (delegateEmployee && delegateReason.trim()) ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'), fontWeight: '700', fontSize: 15 }}>Limpahkan</Text>
                 )}
               </TouchableOpacity>
             </View>
