@@ -22,7 +22,15 @@ import { HandoverTaskDto } from './dto/handover-task.dto';
 import { SwapRequestDto } from './dto/swap-request.dto';
 import { HoldTaskDto } from './dto/hold-task.dto';
 import { ApproveHoldDto, RejectHoldDto } from './dto/review-hold.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { RealtimeGateway } from '../realtime/realtime.gateway';
+
+const PRIORITY_LABEL: Record<string, string> = {
+  low: 'Rendah',
+  normal: 'Normal',
+  high: 'Tinggi',
+  urgent: 'Mendesak',
+};
 
 // Auto-approve deadline in minutes per priority
 const HOLD_AUTO_APPROVE_MINUTES: Record<string, number> = {
@@ -47,8 +55,47 @@ export class TasksService {
     @InjectRepository(VisitEntity)
     private readonly visitRepo: Repository<VisitEntity>,
     private readonly dispatch: DispatchService,
+    private readonly notifications: NotificationsService,
     @Optional() private readonly realtime?: RealtimeGateway,
   ) {}
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // NOTIFICATION HELPERS
+  // ────────────────────────────────────────────────────────────────────────────
+  private async notifyAssignee(taskId: string, assigneeId: string): Promise<void> {
+    const task = await this.taskRepo.findOne({
+      where: { id: taskId },
+      relations: ['client'],
+    });
+    if (!task) return;
+    const priorityLabel = PRIORITY_LABEL[task.priority] ?? task.priority;
+    const clientName = task.client?.name ? ` · ${task.client.name}` : '';
+    await this.notifications.send({
+      userId: assigneeId,
+      type: 'task_assigned',
+      title: `Tugas Baru — ${priorityLabel}`,
+      body: `${task.title}${clientName}`,
+      data: { task_id: task.id, priority: task.priority },
+    }).catch(() => null);
+  }
+
+  private async notifyBroadcastOffer(taskId: string, userIds: string[]): Promise<void> {
+    if (userIds.length === 0) return;
+    const task = await this.taskRepo.findOne({
+      where: { id: taskId },
+      relations: ['client'],
+    });
+    if (!task) return;
+    const priorityLabel = PRIORITY_LABEL[task.priority] ?? task.priority;
+    const clientName = task.client?.name ? ` · ${task.client.name}` : '';
+    await this.notifications.sendMany(
+      userIds,
+      'task_assigned',
+      `Tugas Tersedia — ${priorityLabel}`,
+      `${task.title}${clientName} (broadcast — siapa cepat dia dapat)`,
+      { task_id: task.id, priority: task.priority, dispatch: 'broadcast' },
+    ).catch(() => null);
+  }
 
   // ────────────────────────────────────────────────────────────────────────────
   // CREATE
@@ -82,6 +129,7 @@ export class TasksService {
     // Immediately dispatch
     if (dto.dispatch_type === 'direct' && dto.assigned_to) {
       await this.dispatch.offerTask(saved.id, dto.assigned_to);
+      await this.notifyAssignee(saved.id, dto.assigned_to);
     } else {
       // Broadcast: offer to all members in dept — simplified: keep unassigned, offer in batch
       if (dto.broadcast_dept_id) {
@@ -103,6 +151,7 @@ export class TasksService {
           );
         }
         await this.taskRepo.update(saved.id, { status: 'pending_confirmation' });
+        await this.notifyBroadcastOffer(saved.id, members.map((m) => m.id));
       }
     }
 
@@ -426,8 +475,11 @@ export class TasksService {
         this.taskRepo.update(d.task_id, { assigned_to: d.to_user_id }),
         this.taskRepo.update(d.swap_task_id, { assigned_to: d.from_user_id }),
       ]);
+      await this.notifyAssignee(d.task_id, d.to_user_id);
+      await this.notifyAssignee(d.swap_task_id, d.from_user_id);
     } else {
       await this.taskRepo.update(d.task_id, { assigned_to: d.to_user_id });
+      await this.notifyAssignee(d.task_id, d.to_user_id);
     }
 
     return this.delegationRepo.findOneOrFail({ where: { id: delegationId } });
@@ -481,6 +533,7 @@ export class TasksService {
 
     const result = await this.findOne(taskId);
     this.realtime?.emitTaskUpdated(taskId, { status: 'assigned', assigned_to: toUserId });
+    await this.notifyAssignee(taskId, toUserId);
     return result;
   }
 
@@ -597,6 +650,7 @@ export class TasksService {
       assigned_to: dto.to_user_id,
       handover_reason: dto.reason,
     });
+    await this.notifyAssignee(taskId, dto.to_user_id);
     return result;
   }
 }

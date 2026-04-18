@@ -70,12 +70,13 @@ export class AnnouncementsService {
     ann.rejection_reason = null;
     const saved = await this.annRepo.save(ann);
 
-    // Notifikasi ke semua manager & super_admin
+    // Notifikasi ke semua role yang punya hak approve
     const approvers = await this.userRepo
       .createQueryBuilder('u')
       .innerJoin('u.role', 'r')
-      .where("r.name IN ('manager','super_admin')")
+      .where('r.can_approve = true')
       .andWhere('u.is_active = true')
+      .andWhere('u.id != :uid', { uid: userId })
       .select(['u.id'])
       .getMany();
 

@@ -5,6 +5,7 @@ import { Repository, In } from 'typeorm';
 
 import { TaskEntity } from '../entities/task.entity';
 import { ClientEntity } from '../../clients/entities/client.entity';
+import { UserEntity } from '../../users/entities/user.entity';
 import { NotificationsService } from '../../notifications/notifications.service';
 
 /**
@@ -21,8 +22,21 @@ export class SlaMonitorJob {
     private taskRepo: Repository<TaskEntity>,
     @InjectRepository(ClientEntity)
     private clientRepo: Repository<ClientEntity>,
+    @InjectRepository(UserEntity)
+    private userRepo: Repository<UserEntity>,
     private notifications: NotificationsService,
   ) {}
+
+  private async getApproverIds(): Promise<string[]> {
+    const approvers = await this.userRepo
+      .createQueryBuilder('u')
+      .innerJoin('u.role', 'r')
+      .where('r.can_approve = true')
+      .andWhere('u.is_active = true')
+      .select(['u.id'])
+      .getMany();
+    return approvers.map((u) => u.id);
+  }
 
   @Cron('0 */15 * * * *', { timeZone: 'Asia/Makassar' })
   async run(): Promise<void> {
@@ -61,14 +75,24 @@ export class SlaMonitorJob {
 
           // Kirim notif hanya sekali per jam (cek apakah sudah ada notif 1 jam terakhir)
           if (overdueMinutes % 60 < 16) { // hanya saat menit ke-0-15 tiap jam
-            await this.notifications.send({
-              userId: task.assigned_to ?? '__admin__',
-              title: `⚠️ SLA Terlewat — ${task.client.name}`,
-              body: `Tugas "${task.title}" melewati SLA ${slaHours} jam. ` +
-                    `Terlambat: ${Math.floor(overdueMinutes / 60)}j ${overdueMinutes % 60}m.`,
-              type: 'sla_breach',
-              data: { task_id: task.id, client_id: task.client_id },
-            }).catch(() => {});
+            const title = `⚠️ SLA Terlewat — ${task.client.name}`;
+            const body = `Tugas "${task.title}" melewati SLA ${slaHours} jam. ` +
+              `Terlambat: ${Math.floor(overdueMinutes / 60)}j ${overdueMinutes % 60}m.`;
+            const data = { task_id: task.id, client_id: task.client_id };
+            if (task.assigned_to) {
+              await this.notifications.send({
+                userId: task.assigned_to, title, body, type: 'sla_breach', data,
+              }).catch(() => {});
+            }
+            // Selalu kirim ke approver (manager/admin) agar terpantau
+            const approverIds = (await this.getApproverIds()).filter(
+              (id) => id !== task.assigned_to,
+            );
+            if (approverIds.length > 0) {
+              await this.notifications.sendMany(
+                approverIds, 'sla_breach', title, body, data,
+              ).catch(() => {});
+            }
           }
         }
         // Peringatan: sisa < 30 menit
@@ -80,13 +104,22 @@ export class SlaMonitorJob {
           );
 
           if (remainingMinutes >= 14 && remainingMinutes <= 16) {
-            await this.notifications.send({
-              userId: task.assigned_to ?? '__admin__',
-              title: `⏰ SLA Hampir Habis — ${task.client.name}`,
-              body: `Tugas "${task.title}" memiliki sisa ~${remainingMinutes} menit sebelum SLA terlewat.`,
-              type: 'sla_warning',
-              data: { task_id: task.id, remaining_minutes: String(remainingMinutes) },
-            }).catch(() => {});
+            const title = `⏰ SLA Hampir Habis — ${task.client.name}`;
+            const body = `Tugas "${task.title}" memiliki sisa ~${remainingMinutes} menit sebelum SLA terlewat.`;
+            const data = { task_id: task.id, remaining_minutes: String(remainingMinutes) };
+            if (task.assigned_to) {
+              await this.notifications.send({
+                userId: task.assigned_to, title, body, type: 'sla_warning', data,
+              }).catch(() => {});
+            }
+            const approverIds = (await this.getApproverIds()).filter(
+              (id) => id !== task.assigned_to,
+            );
+            if (approverIds.length > 0) {
+              await this.notifications.sendMany(
+                approverIds, 'sla_warning', title, body, data,
+              ).catch(() => {});
+            }
           }
         }
       }

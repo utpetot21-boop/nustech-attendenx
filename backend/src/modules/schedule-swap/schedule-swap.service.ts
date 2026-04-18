@@ -343,23 +343,25 @@ export class ScheduleSwapService {
   }
 
   private async notifyAdmins(type: string, title: string, body: string, swapId: string): Promise<void> {
+    // Pakai flag role.can_approve (konsisten dengan Leave / Attendance-Request /
+    // Expense-Claim) supaya role kustom yg berhak approve juga dapat notif.
     const admins = await this.userRepo
       .createQueryBuilder('u')
       .leftJoin('u.role', 'r')
-      .where("r.name IN ('admin','super_admin','manager')")
+      .where('r.can_approve = true')
       .andWhere('u.is_active = true')
       .select(['u.id'])
       .getMany();
 
-    for (const admin of admins) {
-      await this.notif.send({
-        userId: admin.id,
-        type,
-        title,
-        body,
-        data: { swap_id: swapId, type },
-      });
-    }
+    if (admins.length === 0) return;
+
+    await this.notif.sendMany(
+      admins.map((a) => a.id),
+      type,
+      title,
+      body,
+      { swap_id: swapId, type },
+    );
   }
 
   private async findOne(id: string): Promise<ScheduleSwapRequestEntity> {
