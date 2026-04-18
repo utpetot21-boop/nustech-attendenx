@@ -38,10 +38,11 @@ COPY --from=builder /app/backend/dist ./backend/dist
 COPY --from=builder /app/shared/dist ./shared/dist
 
 # Copy Handlebars templates for BA PDF
-COPY backend/src/modules/service-reports/templates ./backend/dist/modules/service-reports/templates
+# Path harus sesuai __dirname runtime: dist/backend/src/modules/...
+COPY backend/src/modules/service-reports/templates ./backend/dist/backend/src/modules/service-reports/templates
 
 # Copy Handlebars templates for SP (Surat Peringatan) PDF
-COPY backend/src/modules/warning-letters/templates ./backend/dist/modules/warning-letters/templates
+COPY backend/src/modules/warning-letters/templates ./backend/dist/backend/src/modules/warning-letters/templates
 
 # Install postgresql-client untuk pg_dump (backup job)
 RUN apk add --no-cache postgresql-client
