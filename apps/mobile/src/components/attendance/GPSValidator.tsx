@@ -1,4 +1,17 @@
+import { useEffect, useRef } from 'react';
 import { View, Text, useColorScheme, ActivityIndicator } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withTiming,
+  withRepeat,
+  withDelay,
+  cancelAnimation,
+  ReduceMotion,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 interface Props {
   isLoading: boolean;
@@ -7,6 +20,8 @@ interface Props {
   officeName?: string;
   accuracy?: number | null;
 }
+
+const PULSE_ITERATIONS = 3; // ~4.5 detik lalu berhenti otomatis — hemat battery
 
 export function GPSValidator({
   isLoading,
@@ -17,6 +32,59 @@ export function GPSValidator({
 }: Props) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
+
+  // Shared values (UI thread — tidak lewat JS bridge)
+  const dotScale    = useSharedValue(1);
+  const ringScale   = useSharedValue(1);
+  const ringOpacity = useSharedValue(0);
+
+  const prevInRadius = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    // Trigger hanya saat transisi ke valid (dari null/false → true)
+    const enteringValid = isWithinRadius === true && prevInRadius.current !== true;
+    prevInRadius.current = isWithinRadius;
+
+    if (!enteringValid) return;
+
+    // Haptic tick ringan — affirmation sistem mendeteksi lokasi valid
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Dot: bounce spring sekali (~400ms)
+    dotScale.value = withSequence(
+      withSpring(1.3, { damping: 8,  stiffness: 220, reduceMotion: ReduceMotion.System }),
+      withSpring(1,   { damping: 12, stiffness: 180, reduceMotion: ReduceMotion.System }),
+    );
+
+    // Ring: pulse finite 3x lalu berhenti (fade + scale keluar)
+    ringOpacity.value = 0.55;
+    ringScale.value   = 1;
+    ringOpacity.value = withRepeat(
+      withTiming(0, { duration: 1500, reduceMotion: ReduceMotion.System }),
+      PULSE_ITERATIONS,
+      false,
+    );
+    ringScale.value = withRepeat(
+      withTiming(2.6, { duration: 1500, reduceMotion: ReduceMotion.System }),
+      PULSE_ITERATIONS,
+      false,
+    );
+  }, [isWithinRadius, dotScale, ringScale, ringOpacity]);
+
+  // Cleanup saat unmount — pastikan worklet berhenti
+  useEffect(() => {
+    return () => {
+      cancelAnimation(dotScale);
+      cancelAnimation(ringScale);
+      cancelAnimation(ringOpacity);
+    };
+  }, [dotScale, ringScale, ringOpacity]);
+
+  const dotStyle  = useAnimatedStyle(() => ({ transform: [{ scale: dotScale.value  }] }));
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: ringOpacity.value,
+    transform: [{ scale: ringScale.value }],
+  }));
 
   if (isLoading) {
     return (
@@ -66,7 +134,29 @@ export function GPSValidator({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor }} />
+        {/* Dot container — relative supaya ring halo bisa absolute overlay */}
+        <View style={{ width: 8, height: 8, alignItems: 'center', justifyContent: 'center' }}>
+          {isWithinRadius && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                {
+                  position: 'absolute',
+                  width: 8, height: 8, borderRadius: 4,
+                  backgroundColor: dotColor,
+                },
+                ringStyle,
+              ]}
+            />
+          )}
+          <Animated.View
+            style={[
+              { width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor },
+              isWithinRadius ? dotStyle : undefined,
+            ]}
+          />
+        </View>
+
         <Text style={{ fontSize: 13, fontWeight: '600', color: textColor }}>
           {isWithinRadius
             ? `${officeName} · Dalam radius`
