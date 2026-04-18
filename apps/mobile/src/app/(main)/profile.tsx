@@ -525,25 +525,50 @@ export default function ProfileScreen() {
             <Pressable
               onPress={() => setShowApprovalModal(true)}
               style={({ pressed }) => ({
-                flexDirection: 'row', alignItems: 'center', gap: 12,
+                flexDirection: 'row', alignItems: 'center', gap: 14,
                 backgroundColor: pressed
-                  ? (isDark ? 'rgba(52,199,89,0.15)' : 'rgba(52,199,89,0.08)')
-                  : (isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF'),
-                borderRadius: R.lg, borderWidth: B.default,
-                borderColor: isDark ? 'rgba(52,199,89,0.30)' : 'rgba(52,199,89,0.25)',
-                paddingHorizontal: 16, paddingVertical: 14,
+                  ? C.green + (isDark ? '40' : '28')
+                  : C.green + (isDark ? '24' : '18'),
+                borderRadius: R.xl,
+                borderWidth: 1,
+                borderColor: C.green + (isDark ? '66' : '4D'),
+                paddingHorizontal: 18, paddingVertical: 16,
+                shadowColor: C.green,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: isDark ? 0.25 : 0.18,
+                shadowRadius: 10,
+                elevation: 4,
               })}
             >
-              <View style={{ width: 34, height: 34, borderRadius: R.xs + 2, backgroundColor: C.green + '1F', alignItems: 'center', justifyContent: 'center' }}>
-                <ClipboardList size={18} strokeWidth={1.8} color={C.green} />
+              <View style={{
+                width: 44, height: 44, borderRadius: R.md,
+                backgroundColor: C.green,
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <ClipboardList size={22} strokeWidth={2} color="#FFF" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: lPrimary(isDark) }}>Persetujuan Cuti / Izin</Text>
-                <Text style={{ fontSize: 12, color: lSecondary(isDark), marginTop: 1 }}>
-                  {pendingData?.total ? `${pendingData.total} permintaan menunggu` : 'Kelola pengajuan karyawan'}
+                <Text style={{ fontSize: 16, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.2 }}>
+                  Persetujuan Cuti / Izin
+                </Text>
+                <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 2 }}>
+                  {pendingData?.total ? 'Tap untuk meninjau pengajuan' : 'Tidak ada pengajuan menunggu'}
                 </Text>
               </View>
-              <ChevronRight size={16} strokeWidth={1.8} color={lTertiary(isDark)} />
+              {!!pendingData?.total && pendingData.total > 0 && (
+                <View style={{
+                  minWidth: 28, height: 28, borderRadius: 14,
+                  backgroundColor: C.red,
+                  alignItems: 'center', justifyContent: 'center',
+                  paddingHorizontal: 8,
+                  marginRight: 4,
+                }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#FFF' }}>
+                    {pendingData.total}
+                  </Text>
+                </View>
+              )}
+              <ChevronRight size={18} strokeWidth={2} color={C.green} />
             </Pressable>
           </View>
         )}
