@@ -210,6 +210,20 @@ export default function LeaveScreen() {
           title="Cuti & Izin"
           subtitle="Kelola pengajuan cuti dan izin Anda"
           accentColor={C.green}
+          right={
+            <TouchableOpacity
+              onPress={() => setShowForm(true)}
+              activeOpacity={0.85}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 5,
+                paddingHorizontal: 12, paddingVertical: 8,
+                backgroundColor: C.blue, borderRadius: R.pill,
+              }}
+            >
+              <Plus size={15} color="#FFFFFF" strokeWidth={2.4} />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#FFFFFF' }}>Ajukan</Text>
+            </TouchableOpacity>
+          }
         />
 
           {/* Saldo Card */}
@@ -252,43 +266,31 @@ export default function LeaveScreen() {
             </View>
           )}
 
-        {/* ── Filter Tabs + New Button ── */}
-        <View style={{ paddingHorizontal: 20, marginTop: 14, marginBottom: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {FILTER_TABS.map(({ key, label }) => (
-                  <TouchableOpacity
-                    key={key}
-                    onPress={() => setFilterTab(key)}
-                    style={{
-                      paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill,
-                      backgroundColor: filterTab === key ? C.blue : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
-                      borderWidth: B.default,
-                      borderColor: filterTab === key ? C.blue : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
-                    }}
-                  >
-                    <Text style={{
-                      fontSize: 13, fontWeight: '600',
-                      color: filterTab === key ? '#FFFFFF' : lSecondary(isDark),
-                    }}>{label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            <TouchableOpacity
-              onPress={() => setShowForm(true)}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 6,
-                paddingHorizontal: 14, paddingVertical: 9,
-                backgroundColor: C.blue, borderRadius: R.md,
-              }}
-            >
-              <Plus size={18} color="#FFFFFF" />
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>Ajukan</Text>
-            </TouchableOpacity>
-          </View>
+        {/* ── Filter Tabs ── */}
+        <View style={{ marginTop: 14, marginBottom: 14 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+          >
+            {FILTER_TABS.map(({ key, label }) => (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setFilterTab(key)}
+                style={{
+                  paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill,
+                  backgroundColor: filterTab === key ? C.blue : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
+                  borderWidth: B.default,
+                  borderColor: filterTab === key ? C.blue : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
+                }}
+              >
+                <Text style={{
+                  fontSize: 13, fontWeight: '600',
+                  color: filterTab === key ? '#FFFFFF' : lSecondary(isDark),
+                }}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* ── List ── */}
