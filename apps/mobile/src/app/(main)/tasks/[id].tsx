@@ -351,7 +351,7 @@ export default function TaskDetailScreen() {
               <ArrowUpCircle size={18} strokeWidth={1.8} color={C.orange} />
               <Text style={{ fontSize: 14, color: C.orange, fontWeight: '600', flex: 1 }}>
                 Dieskalasi dari {task.escalated_from}
-                {task.escalated_at && ` · ${new Date(task.escalated_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}`}
+                {task.escalated_at && ` · ${new Date(task.escalated_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', timeZone: 'Asia/Makassar' })}`}
               </Text>
             </View>
           </View>

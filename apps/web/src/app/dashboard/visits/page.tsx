@@ -123,7 +123,7 @@ function VisitCard({ v, onClick }: { v: Visit; onClick: () => void }) {
         <div className="bg-gray-50 dark:bg-white/[0.04] rounded-xl p-2.5 text-center">
           <Clock size={12} className="text-gray-400 mx-auto mb-1" />
           <p className="text-xs font-semibold text-gray-700 dark:text-white/80">
-            {v.check_in_at ? new Date(v.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'}
+            {v.check_in_at ? new Date(v.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) : '—'}
           </p>
           <p className="text-[10px] text-gray-400 dark:text-white/30">Check-in</p>
         </div>
@@ -181,7 +181,7 @@ function BaCard({ ba }: { ba: ServiceReport }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 text-xs text-gray-400">
           <Calendar size={11} />
-          {new Date(ba.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+          {new Date(ba.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
         </div>
         {ba.pdf_url && (
           <a href={ba.pdf_url} target="_blank" rel="noreferrer"
@@ -233,7 +233,7 @@ function DetailModal({ visit, onClose }: { visit: Visit; onClose: () => void }) 
           {/* Meta grid */}
           <div className="grid grid-cols-2 gap-2.5">
             {[
-              { label: 'Check-in', value: visit.check_in_at ? new Date(visit.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—', Icon: Clock },
+              { label: 'Check-in', value: visit.check_in_at ? new Date(visit.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) : '—', Icon: Clock },
               { label: 'Durasi', value: durFmt(visit.duration_minutes), Icon: Clock },
               { label: 'Foto', value: `${photoCount}/16`, Icon: Camera, valueClass: photoCount >= 16 ? 'text-[#166534]' : 'text-[#9A3412]' },
               { label: 'GPS', value: visit.gps_valid ? 'Valid' : 'Alert', Icon: visit.gps_valid ? Navigation : NavigationOff, valueClass: visit.gps_valid ? 'text-[#166534]' : 'text-[#9A3412]' },
@@ -486,7 +486,7 @@ export default function VisitsPage() {
                           </td>
                           <td className="px-4 py-3 text-gray-600 dark:text-white/60 text-sm">{v.client?.name ?? '—'}</td>
                           <td className="px-4 py-3 text-gray-500 dark:text-white/50 text-xs">
-                            {v.check_in_at ? new Date(v.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            {v.check_in_at ? new Date(v.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) : '—'}
                           </td>
                           <td className="px-4 py-3 text-gray-500 dark:text-white/50 text-xs">{durFmt(v.duration_minutes)}</td>
                           <td className="px-4 py-3">
@@ -550,7 +550,7 @@ export default function VisitsPage() {
                         <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{ba.visit?.user?.full_name ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-600 dark:text-white/60">{ba.visit?.client?.name ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-500 dark:text-white/50 text-xs">
-                          {new Date(ba.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {new Date(ba.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
@@ -612,7 +612,7 @@ export default function VisitsPage() {
                         </td>
                         <td className="px-4 py-3 text-gray-600 dark:text-white/60">{v.client?.name ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-500 dark:text-white/50 text-xs">
-                          {v.check_in_at ? new Date(v.check_in_at).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '—'}
+                          {v.check_in_at ? new Date(v.check_in_at).toLocaleDateString('id-ID', { dateStyle: 'medium', timeZone: 'Asia/Makassar' }) : '—'}
                         </td>
                         <td className="px-4 py-3 text-gray-500 dark:text-white/50 text-xs">{durFmt(v.duration_minutes)}</td>
                         <td className="px-4 py-3"><StatusBadge status={v.status} /></td>

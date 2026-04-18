@@ -142,7 +142,7 @@ export function TaskCard({ task, onPress, userLat, userLng }: Props) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Calendar size={12} strokeWidth={1.8} color={lTertiary(isDark)} />
             <Text style={{ fontSize: 12, color: lTertiary(isDark) }}>
-              {new Date(task.scheduled_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              {new Date(task.scheduled_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}
             </Text>
           </View>
         )}

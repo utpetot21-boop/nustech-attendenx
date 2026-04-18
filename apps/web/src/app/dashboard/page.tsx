@@ -28,7 +28,7 @@ type ServiceReport = { id: string; report_number: string; created_at: string; vi
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function today() {
-  return new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' });
 }
 
 function getStoredUser() {
@@ -272,7 +272,7 @@ export default function DashboardPage() {
                 {activeSos.last_lng != null ? Number(activeSos.last_lng).toFixed(5) : '—'}
                 <span className="mx-1">·</span>
                 <Clock size={10} />
-                {new Date(activeSos.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WITA
+                {new Date(activeSos.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })} WITA
               </p>
             </div>
           </div>
@@ -638,7 +638,7 @@ export default function DashboardPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">{ann.title}</p>
                   <p className="text-[10px] text-gray-400">
-                    {ann.sent_at ? new Date(ann.sent_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '—'}
+                    {ann.sent_at ? new Date(ann.sent_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', timeZone: 'Asia/Makassar' }) : '—'}
                   </p>
                 </div>
               </div>
@@ -719,7 +719,7 @@ export default function DashboardPage() {
                         {r.report_number ?? 'Draft'}
                       </p>
                       <p className="text-[10px] text-gray-400 dark:text-white/35 truncate">
-                        {r.visit?.client?.name ?? '—'} · {new Date(r.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                        {r.visit?.client?.name ?? '—'} · {new Date(r.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', timeZone: 'Asia/Makassar' })}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">

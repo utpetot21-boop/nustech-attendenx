@@ -458,7 +458,7 @@ export default function ReportsPage() {
                   </div>
                   {r.description && <p className="text-xs text-gray-500 dark:text-white/40 mt-1">{r.description as string}</p>}
                   <p className="text-[11px] text-gray-400 dark:text-white/30 mt-2">
-                    {new Date(r.created_at as string).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {new Date(r.created_at as string).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                   </p>
                 </div>
               ))}
@@ -486,7 +486,7 @@ export default function ReportsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-400 dark:text-white/30 text-xs">
-                        {new Date(r.created_at as string).toLocaleDateString('id-ID')}
+                        {new Date(r.created_at as string).toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar' })}
                       </td>
                     </tr>
                   ))}
@@ -511,7 +511,7 @@ export default function ReportsPage() {
                     <p className="text-lg font-bold text-gray-900 dark:text-white">Rp {Number(r.amount).toLocaleString('id-ID')}</p>
                     {r.description && <p className="text-xs text-gray-500 dark:text-white/40 mt-1 truncate">{r.description as string}</p>}
                     <p className="text-[11px] text-gray-400 dark:text-white/30 mt-2">
-                      {new Date(r.created_at as string).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {new Date(r.created_at as string).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                     </p>
                   </div>
                 );
@@ -539,7 +539,7 @@ export default function ReportsPage() {
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${s.bg} ${s.text}`}>{s.label}</span>
                         </td>
                         <td className="px-4 py-3 text-gray-400 dark:text-white/30 text-xs">
-                          {new Date(r.created_at as string).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {new Date(r.created_at as string).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                         </td>
                       </tr>
                     );

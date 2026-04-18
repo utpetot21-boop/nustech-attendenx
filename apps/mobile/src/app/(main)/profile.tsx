@@ -752,8 +752,8 @@ export default function ProfileScreen() {
                     <Calendar size={13} strokeWidth={1.8} color={lTertiary(isDark)} />
                     <Text style={{ fontSize: 13, color: lSecondary(isDark) }}>
                       {req.start_date === req.end_date
-                        ? new Date(req.start_date + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-                        : `${new Date(req.start_date + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} — ${new Date(req.end_date + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                        ? new Date(req.start_date + 'T00:00:00+08:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })
+                        : `${new Date(req.start_date + 'T00:00:00+08:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', timeZone: 'Asia/Makassar' })} — ${new Date(req.end_date + 'T00:00:00+08:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}`
                       }
                       {req.total_days ? ` · ${req.total_days} hari` : ''}
                     </Text>

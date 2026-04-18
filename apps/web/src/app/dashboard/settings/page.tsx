@@ -342,7 +342,7 @@ function ProfilePanel() {
           <InfoRow label="Email"           value={profile?.email   || '—'} />
           <InfoRow label="Website"         value={profile?.website || '—'} />
           <div className="pt-2 border-t border-black/[0.05] dark:border-white/[0.06] text-xs text-gray-400 dark:text-white/25">
-            Terakhir diperbarui: {profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '—'}
+            Terakhir diperbarui: {profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString('id-ID', { dateStyle: 'medium', timeZone: 'Asia/Makassar' }) : '—'}
           </div>
         </div>
       )}
@@ -595,7 +595,7 @@ function LeaveBalancePanel() {
                     </p>
                     <p className="text-xs text-gray-500 dark:text-white/40 truncate">{log.notes ?? '—'}</p>
                     <p className="text-[11px] text-gray-400 dark:text-white/25 mt-0.5">
-                      {new Date(log.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {new Date(log.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                     </p>
                   </div>
                   {confirmDeleteId === log.id ? (
@@ -893,7 +893,7 @@ function BackupPanel() {
           <div>
             <p className="font-semibold text-[#34C759] text-sm">Backup Terakhir Berhasil</p>
             <p className="text-xs text-gray-600 dark:text-white/50 mt-0.5">
-              {new Date(lastSuccess.started_at).toLocaleDateString('id-ID', { dateStyle: 'long' })} · {fmtBytes(lastSuccess.size_bytes)}
+              {new Date(lastSuccess.started_at).toLocaleDateString('id-ID', { dateStyle: 'long', timeZone: 'Asia/Makassar' })} · {fmtBytes(lastSuccess.size_bytes)}
               {lastSuccess.checksum && <span className="ml-2 font-mono">{lastSuccess.checksum.substring(0, 12)}…</span>}
             </p>
           </div>
@@ -951,7 +951,7 @@ function BackupPanel() {
               {backups.map((b) => (
                 <tr key={b.id} className="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0 hover:bg-gray-50/60 dark:hover:bg-white/[0.03] transition-colors">
                   <td className="px-4 py-3 text-xs text-gray-600 dark:text-white/50">
-                    {new Date(b.started_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} {new Date(b.started_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(b.started_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', timeZone: 'Asia/Makassar' })} {new Date(b.started_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${b.type === 'full' ? 'bg-[#EFF6FF] text-[#007AFF] border-[#BFDBFE]' : 'bg-[#F5F3FF] text-[#5856D6] border-[#DDD6FE]'}`}>
@@ -989,7 +989,7 @@ function BackupPanel() {
               </div>
               <h3 className="text-base font-bold text-gray-900 dark:text-white">Konfirmasi Restore</h3>
               <p className="text-sm text-gray-500 dark:text-white/40 mt-2">
-                Memulihkan database ke backup tanggal <strong>{new Date(restoreConfirm.started_at).toLocaleDateString('id-ID')}</strong>. Semua data setelah tanggal ini akan hilang.
+                Memulihkan database ke backup tanggal <strong>{new Date(restoreConfirm.started_at).toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar' })}</strong>. Semua data setelah tanggal ini akan hilang.
               </p>
             </div>
             <div className="mb-4">

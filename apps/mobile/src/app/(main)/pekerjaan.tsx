@@ -756,7 +756,7 @@ function CreateTaskSheet({
   const openPicker = (mode: PickerMode) => { setSearch(''); setPickerMode(mode); };
 
   const formatDate = (d: Date) =>
-    d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' });
 
   // ── Picker ─────────────────────────────────────────────────────────────────
   const renderPicker = () => {

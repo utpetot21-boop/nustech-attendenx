@@ -7,6 +7,7 @@ export function fmtDateShort(iso: string | number | Date): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: 'Asia/Makassar',
   });
 }
 
@@ -25,6 +26,7 @@ export function fmtDateWeekday(iso: string | number | Date): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: 'Asia/Makassar',
   });
 }
 

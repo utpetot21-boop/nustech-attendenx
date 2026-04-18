@@ -237,7 +237,7 @@ export default function AnnouncementsScreen() {
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
                     <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>
-                      {new Date(ann.sent_at ?? ann.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {new Date(ann.sent_at ?? ann.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                     </Text>
                     <ChevronRight size={14} strokeWidth={1.8} color={lTertiary(isDark)} />
                   </View>
@@ -296,7 +296,7 @@ export default function AnnouncementsScreen() {
                 <View style={{ borderLeftWidth: 4, borderLeftColor: tm.color, paddingLeft: 14, marginBottom: 16 }}>
                   <Text style={{ fontSize: 20, fontWeight: '800', color: lPrimary(isDark), lineHeight: 28 }}>{selected.title}</Text>
                   <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 4 }}>
-                    {new Date(selected.sent_at ?? selected.created_at).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                    {new Date(selected.sent_at ?? selected.created_at).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' })}
                   </Text>
                 </View>
 

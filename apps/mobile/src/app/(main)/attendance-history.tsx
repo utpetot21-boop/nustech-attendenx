@@ -65,14 +65,15 @@ function fmtTime(iso: string | null) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: 'Asia/Makassar',
   });
 }
 
 function fmtDayDate(dateStr: string) {
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = new Date(dateStr + 'T00:00:00+08:00');
   return {
-    weekday: d.toLocaleDateString('id-ID', { weekday: 'long' }),
-    date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+    weekday: d.toLocaleDateString('id-ID', { weekday: 'long', timeZone: 'Asia/Makassar' }),
+    date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' }),
   };
 }
 

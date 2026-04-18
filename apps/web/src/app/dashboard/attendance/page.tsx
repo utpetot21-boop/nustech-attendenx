@@ -74,7 +74,7 @@ function today()        { return new Date().toISOString().split('T')[0]; }
 function currentMonth() { return new Date().toISOString().slice(0, 7); }
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short' });
+  return new Date(d).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'Asia/Makassar' });
 }
 
 function initials(name: string) {
@@ -205,7 +205,7 @@ const vioInputCls = 'w-full rounded-xl border border-black/[0.08] dark:border-wh
 const vioLabelCls = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5';
 
 function fmtShortDate(d: string) {
-  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' });
 }
 
 // ── Employee Combobox (untuk form Buat SP) ────────────────────────────────────

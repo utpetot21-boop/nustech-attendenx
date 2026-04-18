@@ -69,7 +69,7 @@ function blankPhotoReq(): PhotoRequirement {
 // ── Template Preview Modal ────────────────────────────────────────────────────
 const DUMMY = {
   report_number: 'BA-2026/04/001',
-  printed_at: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }),
+  printed_at: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' }),
   technician: 'Ahmad Fauzi',
   client: 'PT. Maju Bersama',
   pic: 'Budi Santoso',

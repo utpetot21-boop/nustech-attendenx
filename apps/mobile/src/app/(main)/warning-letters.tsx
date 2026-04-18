@@ -45,10 +45,11 @@ import {
 
 function fmtDate(iso: string | null) {
   if (!iso) return '—';
-  return new Date(iso + (iso.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('id-ID', {
+  return new Date(iso + (iso.length === 10 ? 'T00:00:00+08:00' : '')).toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'Asia/Makassar',
   });
 }
 
@@ -60,6 +61,7 @@ function fmtDateTime(iso: string | null) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Asia/Makassar',
   });
 }
 

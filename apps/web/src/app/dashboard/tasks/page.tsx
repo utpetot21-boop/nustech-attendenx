@@ -104,7 +104,7 @@ function KanbanCard({ task }: { task: Task }) {
         {task.confirm_deadline && (
           <div className={`flex items-center gap-0.5 flex-shrink-0 text-[10px] ${isOverdue ? 'text-[#FF3B30] font-semibold' : 'text-gray-400 dark:text-white/30'}`}>
             <Clock size={9} />
-            {new Date(task.confirm_deadline).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+            {new Date(task.confirm_deadline).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}
           </div>
         )}
       </div>
@@ -174,7 +174,7 @@ function TaskListCard({ task }: { task: Task }) {
               : 'bg-gray-50 dark:bg-white/[0.05] text-gray-500 dark:text-white/40 border-gray-200 dark:border-white/[0.08]'
           }`}>
             <Clock size={9} />
-            {new Date(task.confirm_deadline).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            {new Date(task.confirm_deadline).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}
           </span>
         )}
 

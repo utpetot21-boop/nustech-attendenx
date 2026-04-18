@@ -472,6 +472,7 @@ export default function BerandaScreen() {
 
   const todayStr = new Date().toLocaleDateString('id-ID', {
     weekday: 'long', day: 'numeric', month: 'long',
+    timeZone: 'Asia/Makassar',
   });
 
   const alreadyCheckedIn  = !!attendance?.check_in_at;

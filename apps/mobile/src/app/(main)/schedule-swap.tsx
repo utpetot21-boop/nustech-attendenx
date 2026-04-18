@@ -234,7 +234,7 @@ function SwapCard({
               {item.type === 'with_person' ? 'Tukar dengan Rekan' : 'Tukar dengan Hari Libur'}
             </Text>
             <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 1 }}>
-              {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
             </Text>
           </View>
         </View>
@@ -372,7 +372,7 @@ function DateRow({
       <Text style={{ fontSize: 14, color: lSecondary(isDark) }}>{label}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <Text style={{ fontSize: 14, fontWeight: '600', color: lPrimary(isDark) }}>
-          {date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+          {date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
         </Text>
         <ChevronDown size={14} strokeWidth={2} color={lTertiary(isDark)} />
       </View>

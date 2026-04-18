@@ -103,7 +103,7 @@ const labelCls = 'block text-xs font-semibold text-gray-500 dark:text-white/50 u
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' });
 }
 function fmtCurrency(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
@@ -261,7 +261,7 @@ function ClaimCard({ c, onDetail, onApprove, onPaid }: {
         <CategoryBadge category={c.category} />
         <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-50 dark:bg-white/[0.04] px-2.5 py-1 rounded-full border border-gray-200 dark:border-white/[0.08]">
           <Calendar size={10} />
-          {new Date(c.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+          {new Date(c.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
         </span>
       </div>
       <p className="text-xl font-bold text-gray-900 dark:text-white mb-1">{fmtAmount(c.amount)}</p>
@@ -871,7 +871,7 @@ function KlaimBiayaSection() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-400 dark:text-white/30 text-xs">
-                        {new Date(c.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                        {new Date(c.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', timeZone: 'Asia/Makassar' })}
                       </td>
                       <td className="px-4 py-3"><CategoryBadge category={c.category} /></td>
                       <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white">{fmtAmount(c.amount)}</td>
@@ -934,7 +934,7 @@ function KlaimBiayaSection() {
                 {[
                   { label: 'Kategori',    value: <CategoryBadge category={detail.category} /> },
                   { label: 'Nominal',     value: <span className="text-sm font-bold text-gray-900 dark:text-white">{fmtAmount(detail.amount)}</span> },
-                  { label: 'Tanggal',     value: new Date(detail.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) },
+                  { label: 'Tanggal',     value: new Date(detail.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' }) },
                   { label: 'Terkait Visit', value: detail.visit_id ? 'Ya' : 'Tidak' },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-gray-50 dark:bg-white/[0.04] rounded-xl p-3">

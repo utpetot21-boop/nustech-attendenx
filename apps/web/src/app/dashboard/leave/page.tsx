@@ -137,7 +137,7 @@ function RequestCard({ req, onApprove, onReject }: {
           <div>
             <p className="font-semibold text-sm text-gray-900 dark:text-white">{req.user?.full_name ?? '—'}</p>
             <p className="text-[11px] text-gray-400 dark:text-white/30 mt-0.5">
-              {new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+              {new Date(req.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
             </p>
           </div>
         </div>
@@ -192,7 +192,7 @@ function ObjectionCard({ obj, onApprove, onReject }: {
           <div>
             <p className="font-semibold text-sm text-gray-900 dark:text-white">{obj.user?.full_name ?? '—'}</p>
             <p className="text-[11px] text-gray-400 dark:text-white/30 mt-0.5">
-              {new Date(obj.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+              {new Date(obj.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
             </p>
           </div>
         </div>
@@ -488,7 +488,7 @@ export default function LeavePage() {
                             <div>
                               <p className="font-medium text-gray-900 dark:text-white">{obj.user?.full_name ?? '—'}</p>
                               <p className="text-[11px] text-gray-400 dark:text-white/30">
-                                {new Date(obj.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                {new Date(obj.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                               </p>
                             </div>
                           </div>
@@ -538,7 +538,7 @@ export default function LeavePage() {
                 <EmptyState icon={ArrowLeftRight} label="Belum ada permintaan tukar jadwal" />
               ) : swaps.map((swap) => {
                 const isPendingAdmin = swap.status === 'pending_admin';
-                const fmtDate = (d: string) => new Date(d).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+                const fmtDate = (d: string) => new Date(d).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' });
                 return (
                   <div key={swap.id} className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-4">
                     {/* Header */}
@@ -552,7 +552,7 @@ export default function LeavePage() {
                             {swap.type === 'with_person' ? 'Tukar dengan Rekan' : 'Tukar dengan Hari Libur'}
                           </p>
                           <p className="text-[11px] text-gray-400 dark:text-white/40">
-                            {new Date(swap.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {new Date(swap.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                           </p>
                         </div>
                       </div>

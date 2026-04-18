@@ -435,6 +435,7 @@ export default function AttendanceScreen() {
   // ── Render helpers ────────────────────────────────────────────
   const today = new Date().toLocaleDateString('id-ID', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    timeZone: 'Asia/Makassar',
   });
 
   const statusColor = !attendance?.check_in_at
