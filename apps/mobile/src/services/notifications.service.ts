@@ -37,7 +37,7 @@ const PUSH_TOKEN_KEY = 'expo_push_token';
 export async function registerForPushNotifications(): Promise<string | null> {
   // Push notifications only work on physical devices
   if (!Device.isDevice) {
-    console.log('[Push] Skipping — not a physical device');
+    if (__DEV__) console.log('[Push] Skipping — not a physical device');
     return null;
   }
 
@@ -51,7 +51,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   if (finalStatus !== 'granted') {
-    console.log('[Push] Permission not granted');
+    if (__DEV__) console.log('[Push] Permission not granted');
     return null;
   }
 
@@ -88,10 +88,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
     }
     if (!token) return null;
     await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
-    console.log('[Push] Token registered:', token.slice(0, 30) + '…');
+    if (__DEV__) console.log('[Push] Token registered:', token.slice(0, 30) + '…');
     return token;
   } catch (err) {
-    console.warn('[Push] Failed to get token:', err);
+    if (__DEV__) console.warn('[Push] Failed to get token:', err);
     return null;
   }
 }

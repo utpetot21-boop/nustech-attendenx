@@ -2,8 +2,23 @@ import axios, { type AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '@/stores/auth.store';
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const ENV_API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+// Production build WAJIB HTTPS. Dev build boleh HTTP ke localhost untuk testing.
+// Kalau env var tidak di-set di production → hard-fail supaya bug tidak lolos.
+if (!ENV_API_URL && !__DEV__) {
+  throw new Error(
+    'EXPO_PUBLIC_API_URL tidak di-set di production build. ' +
+      'Tambahkan EXPO_PUBLIC_API_URL=https://... ke environment EAS build.',
+  );
+}
+if (ENV_API_URL && !__DEV__ && !ENV_API_URL.startsWith('https://')) {
+  throw new Error(
+    'EXPO_PUBLIC_API_URL di production wajib HTTPS. Current: ' + ENV_API_URL,
+  );
+}
+
+const API_BASE_URL = ENV_API_URL || 'http://localhost:3001/api/v1';
 
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

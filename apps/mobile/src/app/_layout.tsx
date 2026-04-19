@@ -3,7 +3,8 @@ import { View, ActivityIndicator, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, useRouter, useSegments, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/services/query-client';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -20,14 +21,88 @@ import { api } from '@/services/api';
 
 const POSTED_FCM_TOKEN_KEY = 'posted_fcm_token';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 1000 * 60 * 5,
-    },
-  },
-});
+// ── Route whitelist untuk deep link dari push notification ──────────────────
+// Semua routing dari FCM/local notif WAJIB resolve ke salah satu route di sini.
+// Kalau backend kirim `data.route` arbitrary, hanya route yang match prefix
+// whitelist yang akan dipush — mencegah attacker/hardcoded bug buka halaman
+// di luar app shell.
+const NOTIF_ROUTE_MAP: Record<string, string> = {
+  // Tukar Jadwal
+  swap_request_received:          '/(main)/schedule-swap',
+  swap_request_accepted_by_target:'/(main)/schedule-swap',
+  swap_request_approved:          '/(main)/schedule-swap',
+  swap_request_rejected:          '/(main)/schedule-swap',
+  swap_request_admin:             '/(main)/schedule-swap',
+  // Cuti & Izin
+  leave_request:                  '/(main)/profile',
+  leave_approved:                 '/(main)/leave',
+  leave_rejected:                 '/(main)/leave',
+  leave_expiry_reminder:          '/(main)/leave',
+  collective_leave_deduction:     '/(main)/leave',
+  // Absensi izin terlambat / pulang awal
+  late_arrival_approved:          '/(main)/attendance',
+  late_arrival_rejected:          '/(main)/attendance',
+  early_departure_approved:       '/(main)/attendance',
+  early_departure_rejected:       '/(main)/attendance',
+  attendance_request_submitted:   '/(main)/attendance',
+  attendance_request_approved:    '/(main)/attendance',
+  attendance_request_rejected:    '/(main)/attendance',
+  // Absensi / SP
+  sp_reminder:                    '/(main)/attendance',
+  alfa_detected:                  '/(main)/attendance',
+  // SOS aktivasi (pengirim)
+  sos:                            '/(main)/sos',
+  // Tugas
+  task_assigned:                  '/(main)/tasks',
+  sla_breach:                     '/(main)/tasks',
+  // Berita Acara
+  ba_generated:                   '/(main)/service-reports',
+  // Klaim Biaya
+  expense_claim_submitted:        '/(main)/expense-claims',
+  expense_claim_approved:         '/(main)/expense-claims',
+  expense_claim_rejected:         '/(main)/expense-claims',
+  expense_claim_paid:             '/(main)/expense-claims',
+};
+
+const ALLOWED_NOTIF_ROUTES = new Set<string>([
+  ...Object.values(NOTIF_ROUTE_MAP),
+  '/(main)/sos-alert',
+  '/(main)/notifications',
+]);
+
+function isAllowedNotifRoute(route: string): boolean {
+  // Accept exact match, atau route yang dimulai dengan salah satu prefix
+  // yang diizinkan (mis. '/(main)/tasks?foo=bar' tetap OK karena prefix match).
+  if (ALLOWED_NOTIF_ROUTES.has(route)) return true;
+  for (const allowed of ALLOWED_NOTIF_ROUTES) {
+    if (route.startsWith(allowed + '/') || route.startsWith(allowed + '?')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ── Sanitasi params SOS dari push notification ──────────────────────────────
+// Kalau ada pihak yang berhasil inject FCM, minimal lat/lng/userName tidak
+// bisa dijadikan vektor (NaN crash, extreme value, kontrol char di display).
+function sanitizeSosParams(data: Record<string, string>): {
+  alertId: string;
+  lat: string;
+  lng: string;
+  userName: string;
+} {
+  const lat = Number(data.lat);
+  const lng = Number(data.lng);
+  const latOk = Number.isFinite(lat) && lat >= -90 && lat <= 90;
+  const lngOk = Number.isFinite(lng) && lng >= -180 && lng <= 180;
+  const rawName = typeof data.userName === 'string' ? data.userName : '';
+  return {
+    alertId:  (data.alertId ?? '').slice(0, 64),
+    lat:      latOk ? String(lat) : '',
+    lng:      lngOk ? String(lng) : '',
+    userName: rawName.replace(/[\x00-\x1F\x7F]/g, '').slice(0, 80) || 'Rekan Anda',
+  };
+}
 
 // ── Auth guard — redirect berdasarkan status login ──────────────────────────
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -121,64 +196,22 @@ export default function RootLayout() {
       const data = response.notification.request.content.data as Record<string, string> | undefined;
       if (!data) return;
 
-      // Jika backend sudah kirim route langsung, pakai itu
-      if (data.route) {
+      // Backend boleh kirim route langsung, tapi HARUS match whitelist.
+      // Kalau tidak, fall-through ke mapping by type supaya tidak buka halaman
+      // sembarangan dari FCM payload yang tidak ter-validasi.
+      if (data.route && isAllowedNotifRoute(data.route)) {
         router.push(data.route as Href);
         return;
       }
 
-      // SOS alert untuk penerima — buka layar peta SOS dengan params
+      // SOS alert untuk penerima — buka layar peta SOS dengan params sanitized
       if (data.type === 'sos_alert') {
         router.push({
           pathname: '/(main)/sos-alert',
-          params: {
-            alertId:  data.alertId  ?? '',
-            lat:      data.lat      ?? '',
-            lng:      data.lng      ?? '',
-            userName: data.userName ?? 'Rekan Anda',
-          },
+          params: sanitizeSosParams(data),
         });
         return;
       }
-
-      // Mapping type → route
-      const ROUTE_MAP: Record<string, string> = {
-        // Tukar Jadwal
-        swap_request_received:          '/(main)/schedule-swap',
-        swap_request_accepted_by_target:'/(main)/schedule-swap',
-        swap_request_approved:          '/(main)/schedule-swap',
-        swap_request_rejected:          '/(main)/schedule-swap',
-        swap_request_admin:             '/(main)/schedule-swap',
-        // Cuti & Izin
-        leave_request:                  '/(main)/profile',
-        leave_approved:                 '/(main)/leave',
-        leave_rejected:                 '/(main)/leave',
-        leave_expiry_reminder:          '/(main)/leave',
-        collective_leave_deduction:     '/(main)/leave',
-        // Absensi izin terlambat / pulang awal
-        late_arrival_approved:          '/(main)/attendance',
-        late_arrival_rejected:          '/(main)/attendance',
-        early_departure_approved:       '/(main)/attendance',
-        early_departure_rejected:       '/(main)/attendance',
-        attendance_request_submitted:   '/(main)/attendance',
-        attendance_request_approved:    '/(main)/attendance',
-        attendance_request_rejected:    '/(main)/attendance',
-        // Absensi / SP
-        sp_reminder:                    '/(main)/attendance',
-        alfa_detected:                  '/(main)/attendance',
-        // SOS aktivasi (pengirim)
-        sos:                            '/(main)/sos',
-        // Tugas
-        task_assigned:                  '/(main)/tasks',
-        sla_breach:                     '/(main)/tasks',
-        // Berita Acara
-        ba_generated:                   '/(main)/service-reports/index',
-        // Klaim Biaya
-        expense_claim_submitted:        '/(main)/expense-claims',
-        expense_claim_approved:         '/(main)/expense-claims',
-        expense_claim_rejected:         '/(main)/expense-claims',
-        expense_claim_paid:             '/(main)/expense-claims',
-      };
 
       // Pengumuman — buka tab Pengumuman di halaman notifikasi
       if (data.type === 'announcement_approved' || data.type === 'announcement_rejected' || data.type === 'announcement_pending') {
@@ -186,7 +219,7 @@ export default function RootLayout() {
         return;
       }
 
-      const route = ROUTE_MAP[data.type];
+      const route = NOTIF_ROUTE_MAP[data.type];
       if (route) router.push(route as Href);
     });
 
@@ -199,15 +232,15 @@ export default function RootLayout() {
         if (data.type === 'sos_alert') {
           router.push({
             pathname: '/(main)/sos-alert',
-            params: {
-              alertId:  data.alertId  ?? '',
-              lat:      data.lat      ?? '',
-              lng:      data.lng      ?? '',
-              userName: data.userName ?? 'Rekan Anda',
-            },
+            params: sanitizeSosParams(data),
           });
         } else if (data.type === 'announcement_approved' || data.type === 'announcement_rejected' || data.type === 'announcement_pending') {
           router.push({ pathname: '/(main)/notifications', params: { tab: 'ann' } });
+        } else if (data.route && isAllowedNotifRoute(data.route)) {
+          router.push(data.route as Href);
+        } else {
+          const route = NOTIF_ROUTE_MAP[data.type];
+          if (route) router.push(route as Href);
         }
       }, 500); // delay kecil agar router sudah siap
     }).catch(() => null);

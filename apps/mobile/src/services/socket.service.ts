@@ -9,7 +9,21 @@
 import { io, type Socket } from 'socket.io-client';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
+const ENV_API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+// Production build WAJIB WSS (HTTPS origin). Dev build boleh HTTP/WS ke localhost.
+if (!ENV_API_URL && !__DEV__) {
+  throw new Error(
+    'EXPO_PUBLIC_API_URL tidak di-set di production build (socket).',
+  );
+}
+if (ENV_API_URL && !__DEV__ && !ENV_API_URL.startsWith('https://')) {
+  throw new Error(
+    'EXPO_PUBLIC_API_URL di production wajib HTTPS (socket). Current: ' + ENV_API_URL,
+  );
+}
+
+const API_BASE_URL = ENV_API_URL || 'http://localhost:3001';
 
 export interface LocationPayload {
   task_id?: string;
@@ -43,15 +57,15 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('[Socket] Connected to /realtime', this.socket?.id);
+      if (__DEV__) console.log('[Socket] Connected to /realtime', this.socket?.id);
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('[Socket] Disconnected:', reason);
+      if (__DEV__) console.log('[Socket] Disconnected:', reason);
     });
 
     this.socket.on('connect_error', (err) => {
-      console.warn('[Socket] Connection error:', err.message);
+      if (__DEV__) console.warn('[Socket] Connection error:', err.message);
     });
 
     return this.socket;
@@ -104,7 +118,7 @@ class SocketService {
         this.socket.emit('technician:location', payload);
       }
     } catch (err) {
-      console.warn('[Socket] Failed to send location:', err);
+      if (__DEV__) console.warn('[Socket] Failed to send location:', err);
     }
   }
 

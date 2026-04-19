@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import * as FileSystem from 'expo-file-system/legacy';
+import { queryClient } from '@/services/query-client';
 
 export interface AuthUser {
   id: string;
@@ -41,11 +43,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // 1) Hapus credential + token cache di SecureStore
     await Promise.all([
       SecureStore.deleteItemAsync('access_token'),
       SecureStore.deleteItemAsync('refresh_token'),
       SecureStore.deleteItemAsync('user'),
+      SecureStore.deleteItemAsync('posted_fcm_token'),
+      SecureStore.deleteItemAsync('expo_push_token'),
     ]);
+
+    // 2) Clear React Query cache — jangan sampai data user sebelumnya
+    // (tasks, leave balance, notifications, dll.) bocor ke user berikutnya
+    // di device yang sama.
+    queryClient.clear();
+
+    // 3) Bersihkan foto/signature/attachment di cache directory (best-effort).
+    // expo-file-system menyimpan foto kunjungan di cacheDirectory sebagai
+    // temp file sebelum upload. Kalau logout sebelum upload tuntas, file
+    // bisa tertinggal — hapus agar tidak bocor ke user berikut.
+    try {
+      const cacheDir = FileSystem.cacheDirectory;
+      if (cacheDir) {
+        const entries = await FileSystem.readDirectoryAsync(cacheDir).catch(() => [] as string[]);
+        await Promise.all(
+          entries.map((name) =>
+            FileSystem.deleteAsync(cacheDir + name, { idempotent: true }).catch(() => null),
+          ),
+        );
+      }
+    } catch {
+      // Gagal bersih-bersih cache tidak boleh block logout
+    }
+
     set({ user: null });
   },
 }));
