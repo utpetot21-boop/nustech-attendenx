@@ -1150,14 +1150,16 @@ export default function AttendancePage() {
     return true;
   });
 
+  // "Hadir" = benar-benar check-in hari itu (termasuk yang terlambat / pulang awal),
+  // "Terlambat" adalah subset dari yang hadir.
   const stats = {
-    hadir:     records.filter((r) => r.status === 'hadir').length,
+    hadir:     records.filter((r) => !!r.check_in_at).length,
     terlambat: records.filter((r) => r.status === 'terlambat').length,
     alfa:      records.filter((r) => r.status === 'alfa').length,
   };
 
   const hadirPct = summary?.total_aktif
-    ? Math.round(((summary.hadir + summary.terlambat) / summary.total_aktif) * 100) : 0;
+    ? Math.round((summary.hadir / summary.total_aktif) * 100) : 0;
 
   // Navigate date
   const shiftDate = (n: number) => {

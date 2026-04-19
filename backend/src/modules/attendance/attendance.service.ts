@@ -338,8 +338,10 @@ export class AttendanceService {
       this.userRepo.count({ where: { is_active: true } }),
     ]);
 
+    // "hadir" = semua yang check-in hari ini (termasuk yang terlambat / pulang awal).
+    // "terlambat" adalah subset dari hadir, bukan kategori terpisah.
     return {
-      hadir: rows.filter((r) => r.status === 'hadir').length,
+      hadir: rows.filter((r) => !!r.check_in_at).length,
       terlambat: rows.filter((r) => r.status === 'terlambat').length,
       alfa: rows.filter((r) => r.status === 'alfa').length,
       total_aktif: totalAktif,
