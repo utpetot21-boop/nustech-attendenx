@@ -1,6 +1,5 @@
 // Shared date/ISO formatting helpers untuk mobile app.
-// Semua tampilan tanggal berbahasa Indonesia (id-ID).
-// Jika butuh zona waktu eksplisit, pakai varian WIT (Asia/Makassar) / WIB (Asia/Jakarta).
+// Semua tampilan tanggal berbahasa Indonesia (id-ID), zona WITA (Asia/Makassar).
 
 export function fmtDateShort(iso: string | number | Date): string {
   return new Date(iso).toLocaleDateString('id-ID', {

@@ -174,7 +174,7 @@ export function AssignmentGrid({ weekDates, rows, shiftTypes, onAssign, onRemove
               style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
             >
               <p className="text-[11px] font-semibold text-gray-400 dark:text-white/50 px-1 py-1 uppercase tracking-wider mb-1">
-                {parseLocalDate(activeCell.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}
+                {parseLocalDate(activeCell.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' })}
               </p>
 
               {/* Current shift info */}

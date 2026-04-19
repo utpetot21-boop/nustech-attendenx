@@ -248,7 +248,7 @@ export default function SchedulePage() {
   const formatWeekLabel = () => {
     const d0 = parseLocalDate(weekDates[0]);
     const d6 = parseLocalDate(weekDates[6]);
-    const fmt = (d: Date) => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    const fmt = (d: Date) => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' });
     return `${fmt(d0)} – ${fmt(d6)} ${d6.getFullYear()}`;
   };
 
@@ -373,7 +373,7 @@ export default function SchedulePage() {
     onSuccess: ({ total, month }: { total: number; month: Date }) => {
       // Invalidate semua minggu yang mungkin terpengaruh
       qc.invalidateQueries({ queryKey: ['team-schedule'] });
-      const label = month.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+      const label = month.toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' });
       toast.success(total > 0 ? `Jadwal ${label} di-generate: ${total} entri baru` : `Jadwal ${label} sudah ter-generate`);
     },
     onError: () => toast.error('Gagal generate jadwal bulanan'),
@@ -953,7 +953,7 @@ export default function SchedulePage() {
                   <div className="flex items-center gap-4">
                     <div className="text-center min-w-[44px]">
                       <p className="text-[11px] font-semibold uppercase text-gray-400 dark:text-white/40">
-                        {parseLocalDate(h.date).toLocaleDateString('id-ID', { month: 'short' })}
+                        {parseLocalDate(h.date).toLocaleDateString('id-ID', { month: 'short', timeZone: 'Asia/Makassar' })}
                       </p>
                       <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
                         {parseLocalDate(h.date).getDate()}
@@ -962,7 +962,7 @@ export default function SchedulePage() {
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{h.name}</p>
                       <p className="text-xs text-gray-400 dark:text-white/40">
-                        {parseLocalDate(h.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        {parseLocalDate(h.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Makassar' })}
                       </p>
                     </div>
                   </div>
@@ -1017,6 +1017,7 @@ export default function SchedulePage() {
               <p className="text-xs text-gray-500 dark:text-white/50 mt-0.5">
                 {parseLocalDate(ohActiveCell.date).toLocaleDateString('id-ID', {
                   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+                  timeZone: 'Asia/Makassar',
                 })}
               </p>
               <p className="text-xs mt-2">

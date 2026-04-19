@@ -47,8 +47,7 @@ function formatDayLabel(dateStr: string): string {
   if (diff === 1) return 'Besok';
   if (diff === -1) return 'Kemarin';
   return d.toLocaleDateString('id-ID', {
-    weekday: 'long', day: 'numeric', month: 'long',
-    timeZone: 'Asia/Makassar',
+    weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Makassar',
   });
 }
 
