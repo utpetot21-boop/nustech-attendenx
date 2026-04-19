@@ -287,7 +287,7 @@ export default function LoginScreen() {
 
             {/* ── Lupa password ─────────────────────────────────── */}
             <TouchableOpacity
-              onPress={() => router.push('/(auth)/forgot-password' as never)}
+              onPress={() => router.push('/(auth)/forgot-password')}
               style={{ alignSelf: 'flex-end', marginBottom: 28, paddingVertical: 4 }}
             >
               <Text style={{ fontSize: 14, fontWeight: '600', color: '#007AFF' }}>Lupa Password?</Text>
