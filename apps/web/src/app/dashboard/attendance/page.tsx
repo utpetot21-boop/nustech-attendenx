@@ -37,6 +37,8 @@ type AttendanceRecord = {
   early_departure_approved?: boolean;
   shift_start?: string | null;
   shift_end?: string | null;
+  check_in_lat?: number | string | null;
+  check_in_lng?: number | string | null;
   user: {
     id: string;
     full_name: string;
@@ -88,6 +90,32 @@ function fmtShiftTime(t?: string | null) {
   if (!t) return '';
   // schedule time diformat HH:MM:SS atau HH:MM → ambil HH:MM
   return t.slice(0, 5);
+}
+
+function fmtCoord(v?: number | string | null): string | null {
+  if (v == null || v === '') return null;
+  const n = typeof v === 'string' ? parseFloat(v) : v;
+  if (!Number.isFinite(n)) return null;
+  return n.toFixed(5);
+}
+
+function CheckInLocation({ r }: { r: AttendanceRecord }) {
+  const lat = fmtCoord(r.check_in_lat);
+  const lng = fmtCoord(r.check_in_lng);
+  if (!lat || !lng) return null;
+  const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+  return (
+    <a
+      href={mapsUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-[10px] text-[#007AFF] dark:text-[#0A84FF] hover:underline mt-0.5"
+      title="Buka di Google Maps"
+    >
+      <MapPin size={9} />
+      <span className="font-mono">{lat}, {lng}</span>
+    </a>
+  );
 }
 function today()        { return new Date().toISOString().split('T')[0]; }
 function currentMonth() { return new Date().toISOString().slice(0, 7); }
@@ -152,6 +180,7 @@ function RecordCard({ r, showDate }: { r: AttendanceRecord; showDate?: boolean }
               {r.check_in_method && (
                 <p className="text-[9px] text-gray-400 dark:text-white/30 mt-0.5">{METHOD_LABEL[r.check_in_method] ?? r.check_in_method}</p>
               )}
+              <CheckInLocation r={r} />
             </>
           )}
         </div>
@@ -1428,6 +1457,7 @@ export default function AttendancePage() {
                           {r.check_in_method && (
                             <p className="text-[9px] text-gray-400 dark:text-white/30 mt-0.5">{METHOD_LABEL[r.check_in_method] ?? r.check_in_method}</p>
                           )}
+                          <CheckInLocation r={r} />
                         </>
                       )}
                     </td>
