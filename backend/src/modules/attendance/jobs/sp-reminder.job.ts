@@ -63,13 +63,11 @@ export class SpReminderJob {
         }
       }
 
-      // Ambil semua admin/HR untuk di-notif
+      // Ambil semua approver (role.can_approve=true) — konsisten dengan
+      // leave / attendance-request / announcements / sos. Role custom apa pun
+      // yang diberi hak approve akan menerima reminder SP.
       const hrUsers = await this.userRepo.find({
-        where: [
-          { role: { name: 'admin' } as any },
-          { role: { name: 'hr' } as any },
-          { role: { name: 'manager' } as any },
-        ],
+        where: { is_active: true, role: { can_approve: true } as any },
         relations: ['role'],
         select: { id: true, full_name: true },
       });

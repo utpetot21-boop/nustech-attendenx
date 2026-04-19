@@ -209,10 +209,13 @@ export class SosService {
   }
 
   private async getAdminManagerIds(): Promise<string[]> {
+    // Pakai flag role.can_approve (konsisten dengan leave / attendance-request /
+    // announcements / schedule-swap). Siapa pun yang diberi hak approve akan
+    // menerima notif SOS — admin, super_admin, manager, atau role custom HR.
     const result = await this.alertRepo.manager.query(
       `SELECT u.id FROM users u
        JOIN roles r ON r.id = u.role_id
-       WHERE r.name IN ('admin','super_admin','manager') AND u.is_active = true`,
+       WHERE r.can_approve = true AND u.is_active = true`,
     );
     return result.map((r: any) => r.id);
   }
