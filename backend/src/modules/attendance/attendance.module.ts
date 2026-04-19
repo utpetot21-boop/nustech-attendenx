@@ -10,6 +10,7 @@ import { UserEntity } from '../users/entities/user.entity';
 import { AttendanceRequestEntity } from '../attendance-requests/entities/attendance-request.entity';
 import { BusinessTripEntity } from '../business-trips/entities/business-trip.entity';
 import { CompanyAttendanceConfigEntity } from '../settings/entities/company-attendance-config.entity';
+import { LeaveRequestEntity } from '../leave/entities/leave-request.entity';
 import { AttendanceService } from './attendance.service';
 import { AttendanceController } from './attendance.controller';
 import { AutoCheckoutJob } from './auto-checkout.job';
@@ -29,6 +30,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       UserEntity,
       BusinessTripEntity,
       CompanyAttendanceConfigEntity,
+      LeaveRequestEntity,
     ]),
     NotificationsModule,
   ],
