@@ -21,7 +21,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -54,6 +54,8 @@ import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, separator, gradients } from '@/constants/tokens';
 import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
+import { Toast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -473,7 +475,7 @@ export default function PekerjaanScreen() {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => isManager ? setShowCreate(true) : router.push('/(main)/visits' as never)}
+              onPress={() => isManager ? setShowCreate(true) : router.push('/(main)/visits' as Href)}
               activeOpacity={0.8}
               style={{
                 width: 48, height: 48, borderRadius: R.md,
@@ -597,7 +599,7 @@ export default function PekerjaanScreen() {
             <View style={{ marginHorizontal: 16, marginTop: 20, gap: 10 }}>
               {/* Lihat semua tugas */}
               <TouchableOpacity
-                onPress={() => router.push('/(main)/tasks' as never)}
+                onPress={() => router.push('/(main)/tasks' as Href)}
                 activeOpacity={0.8}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -622,7 +624,7 @@ export default function PekerjaanScreen() {
 
               {/* Lihat semua kunjungan */}
               <TouchableOpacity
-                onPress={() => router.push('/(main)/visits' as never)}
+                onPress={() => router.push('/(main)/visits' as Href)}
                 activeOpacity={0.8}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -675,6 +677,7 @@ function CreateTaskSheet({
 }) {
   const isDark  = useColorScheme() === 'dark';
   const insets  = useSafeAreaInsets();
+  const { toast, success: toastSuccess, error: toastError, hide: hideToast } = useToast();
 
   const [pickerMode, setPickerMode]     = useState<PickerMode>(null);
   const [search, setSearch]             = useState('');
@@ -738,12 +741,20 @@ function CreateTaskSheet({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       resetForm();
       onSuccess();
-      Alert.alert('Berhasil', 'Tugas berhasil dibuat dan dikirim.');
+      toastSuccess('Tugas berhasil dibuat dan dikirim.');
     },
     onError: (err: any) => {
-      Alert.alert('Gagal', err?.response?.data?.message ?? 'Terjadi kesalahan.');
+      toastError(err?.response?.data?.message ?? 'Terjadi kesalahan.');
     },
   });
+
+  // Alasan kenapa tombol submit disabled — ditampilkan di bawah form
+  const disabledReason = (() => {
+    if (!title.trim()) return 'Judul tugas wajib diisi';
+    if (dispatchType === 'direct' && !employee) return 'Pilih teknisi tujuan';
+    if (dispatchType === 'broadcast' && !department) return 'Pilih departemen tujuan';
+    return null;
+  })();
 
   const resetForm = () => {
     setPickerMode(null); setSearch(''); setTitle(''); setTaskType('visit');
@@ -762,7 +773,8 @@ function CreateTaskSheet({
   const renderPicker = () => {
     const isEmp  = pickerMode === 'employee';
     const isDept = pickerMode === 'department';
-    const items  = isEmp ? employees : isDept ? departments : clients;
+    type PickerItem = EmployeeItem | DepartmentItem | ClientItem;
+    const items: PickerItem[] = isEmp ? employees : isDept ? departments : clients;
     const loading = isEmp ? loadingEmp : isDept ? loadingDept : loadingCli;
     const label  = isEmp ? 'Pilih Teknisi' : isDept ? 'Pilih Departemen' : 'Pilih Klien';
 
@@ -782,20 +794,20 @@ function CreateTaskSheet({
           </View>
         )}
         {loading ? <ActivityIndicator color={C.blue} style={{ marginTop: 32 }} /> : (
-          <FlatList
-            data={items as any[]}
+          <FlatList<PickerItem>
+            data={items}
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: isDept ? 12 : 0, paddingBottom: 24 }}
             ListEmptyComponent={<Text style={{ textAlign: 'center', color: ter, marginTop: 32, fontSize: 14 }}>{search ? 'Tidak ada hasil' : 'Belum ada data'}</Text>}
             renderItem={({ item }) => {
-              const name = isEmp ? item.full_name : item.name;
-              const sub  = isEmp ? item.employee_id : item.address;
+              const name = isEmp ? (item as EmployeeItem).full_name : (item as ClientItem | DepartmentItem).name;
+              const sub  = isEmp ? (item as EmployeeItem).employee_id : (item as ClientItem).address;
               return (
                 <TouchableOpacity
                   onPress={() => {
-                    if (isEmp) setEmployee(item);
-                    else if (isDept) setDepartment(item);
-                    else setClient(item);
+                    if (isEmp) setEmployee(item as EmployeeItem);
+                    else if (isDept) setDepartment(item as DepartmentItem);
+                    else setClient(item as ClientItem);
                     setPickerMode(null); setSearch('');
                   }}
                   activeOpacity={0.75}
@@ -943,16 +955,33 @@ function CreateTaskSheet({
       </TouchableOpacity>
 
       {showDatePicker && (
-        <DateTimePicker
-          value={scheduledAt ?? new Date()}
-          mode="datetime"
-          display={Platform.OS === 'ios' ? 'inline' : 'default'}
-          onChange={(_, date) => {
-            setShowDatePicker(Platform.OS === 'ios');
-            if (date) setScheduledAt(date);
-          }}
-          style={{ marginBottom: 12 }}
-        />
+        <>
+          <DateTimePicker
+            value={scheduledAt ?? new Date()}
+            mode="datetime"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            onChange={(event, date) => {
+              // Android: picker dismiss sendiri (event.type = 'set'/'dismissed')
+              // iOS inline: picker tetap open, tutup via tombol "Selesai" di bawah
+              if (Platform.OS === 'android') {
+                setShowDatePicker(false);
+                if (event.type === 'set' && date) setScheduledAt(date);
+              } else if (date) {
+                setScheduledAt(date);
+              }
+            }}
+            style={{ marginBottom: 8 }}
+          />
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(false)}
+              activeOpacity={0.8}
+              style={{ alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.sm, backgroundColor: C.blue + '18', marginBottom: 12 }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: C.blue }}>Selesai</Text>
+            </TouchableOpacity>
+          )}
+        </>
       )}
 
       {/* Darurat */}
@@ -985,6 +1014,11 @@ function CreateTaskSheet({
           {createMut.isPending ? 'Membuat Tugas…' : 'Buat & Kirim Tugas'}
         </Text>
       </TouchableOpacity>
+      {disabledReason && !createMut.isPending && (
+        <Text style={{ fontSize: 12, color: C.orange, textAlign: 'center', marginTop: 10, fontWeight: '500' }}>
+          {disabledReason}
+        </Text>
+      )}
     </ScrollView>
   );
 
@@ -1009,6 +1043,7 @@ function CreateTaskSheet({
           </View>
         )}
         {pickerMode ? renderPicker() : renderForm()}
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
       </KeyboardAvoidingView>
     </Modal>
   );

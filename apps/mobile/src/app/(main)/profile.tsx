@@ -45,7 +45,7 @@ import {
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
@@ -380,18 +380,18 @@ export default function ProfileScreen() {
             borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.10)',
             overflow: 'hidden',
           }}>
-            {[
-              { label: 'Klaim Biaya',      Icon: Receipt,     color: C.orange, route: '/(main)/expense-claims', roles: null },
-              { label: 'Berita Acara',     Icon: FileText,    color: C.teal,   route: '/(main)/service-reports', roles: null },
-              { label: 'Surat Tugas',      Icon: Briefcase,   color: C.indigo, route: '/(main)/business-trips', roles: null },
-              { label: 'Surat Peringatan', Icon: ShieldAlert, color: C.red,    route: '/(main)/warning-letters', roles: null },
-              { label: 'Pengumuman',       Icon: Megaphone,   color: C.blue,   route: '/(main)/announcements',  roles: ['admin', 'manager', 'super_admin'] },
-              { label: 'SOS Darurat',      Icon: ShieldAlert, color: C.red,    route: '/(main)/sos', roles: null },
-            ].filter((item) => !item.roles || item.roles.includes(user?.role?.name ?? ''))
+            {([
+              { label: 'Klaim Biaya',      Icon: Receipt,     color: C.orange, route: '/(main)/expense-claims' as Href, roles: null as string[] | null },
+              { label: 'Berita Acara',     Icon: FileText,    color: C.teal,   route: '/(main)/service-reports' as Href, roles: null as string[] | null },
+              { label: 'Surat Tugas',      Icon: Briefcase,   color: C.indigo, route: '/(main)/business-trips' as Href, roles: null as string[] | null },
+              { label: 'Surat Peringatan', Icon: ShieldAlert, color: C.red,    route: '/(main)/warning-letters' as Href, roles: null as string[] | null },
+              { label: 'Pengumuman',       Icon: Megaphone,   color: C.blue,   route: '/(main)/announcements' as Href,  roles: ['admin', 'manager', 'super_admin'] as string[] },
+              { label: 'SOS Darurat',      Icon: ShieldAlert, color: C.red,    route: '/(main)/sos' as Href, roles: null as string[] | null },
+            ]).filter((item) => !item.roles || item.roles.includes(user?.role?.name ?? ''))
             .map((item, idx, arr) => (
               <TouchableOpacity
                 key={item.label}
-                onPress={() => item.route ? router.push(item.route as never) : setShowApprovalModal(true)}
+                onPress={() => item.route ? router.push(item.route) : setShowApprovalModal(true)}
                 activeOpacity={0.7}
                 style={{
                   flexDirection: 'row',

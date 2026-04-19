@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import {
   registerForPushNotifications,
   getCachedPushToken,
@@ -16,6 +17,8 @@ import {
 import { rescheduleCheckInReminders } from '@/services/check-in-reminder.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api';
+
+const POSTED_FCM_TOKEN_KEY = 'posted_fcm_token';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,14 +42,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadUser().then(async () => {
       // Setelah user ter-load, kirim ulang FCM token ke backend
-      // (penting saat app dibuka ulang tanpa login ulang)
+      // (penting saat app dibuka ulang tanpa login ulang).
+      // Dedup: hanya POST jika token berbeda dari yang pernah di-post.
       try {
         const token = await getCachedPushToken();
         if (token) {
-          await api.post('/auth/fcm-token', {
-            fcm_token: token,
-            platform: Platform.OS,
-          });
+          const posted = await SecureStore.getItemAsync(POSTED_FCM_TOKEN_KEY);
+          if (posted !== token) {
+            await api.post('/auth/fcm-token', {
+              fcm_token: token,
+              platform: Platform.OS,
+            });
+            await SecureStore.setItemAsync(POSTED_FCM_TOKEN_KEY, token);
+          }
         }
       } catch {
         // Gagal register FCM tidak boleh block loading
@@ -105,9 +113,9 @@ export default function RootLayout() {
   const receivedListenerRef = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
-    registerForPushNotifications().catch((e) =>
-      console.warn('[Push] Registration error:', e),
-    );
+    registerForPushNotifications().catch((e) => {
+      if (__DEV__) console.warn('[Push] Registration error:', e);
+    });
 
     responseListenerRef.current = addNotificationResponseListener((response) => {
       const data = response.notification.request.content.data as Record<string, string> | undefined;

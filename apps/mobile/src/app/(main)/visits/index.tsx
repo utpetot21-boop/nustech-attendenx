@@ -14,7 +14,7 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -191,7 +191,7 @@ export default function VisitsListScreen() {
         {/* Ongoing banner */}
         {ongoingVisit && (
           <TouchableOpacity
-            onPress={() => router.push(`/(main)/visits/${ongoingVisit.id}` as never)}
+            onPress={() => router.push(`/(main)/visits/${ongoingVisit.id}` as Href)}
             activeOpacity={0.88}
             style={{
               marginHorizontal: 16, marginBottom: 12,
@@ -232,7 +232,7 @@ export default function VisitsListScreen() {
             <VisitCard
               key={visit.id}
               visit={visit}
-              onPress={() => router.push(`/(main)/visits/${visit.id}` as never)}
+              onPress={() => router.push(`/(main)/visits/${visit.id}` as Href)}
             />
           ))
         )}

@@ -89,7 +89,9 @@ export default function SosScreen() {
         () => {},
         () => {},
         () => setResponded(true),
-      ).catch((e) => console.warn('[SOS] Socket error:', e));
+      ).catch((e) => {
+        if (__DEV__) console.warn('[SOS] Socket error:', e);
+      });
 
       // Track interval
       trackInterval.current = setInterval(async () => {

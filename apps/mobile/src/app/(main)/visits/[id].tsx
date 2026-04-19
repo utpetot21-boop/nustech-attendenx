@@ -18,7 +18,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
@@ -748,7 +748,7 @@ export default function VisitDetailScreen() {
             {!isOngoing && (
               <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
                 <TouchableOpacity
-                  onPress={() => router.push({ pathname: '/(main)/service-reports/index', params: { visit_id: visitId } } as never)}
+                  onPress={() => router.push({ pathname: '/(main)/service-reports', params: { visit_id: visitId } } as Href)}
                   style={{
                     backgroundColor: '#1D4ED8',
                     borderRadius: 16,
