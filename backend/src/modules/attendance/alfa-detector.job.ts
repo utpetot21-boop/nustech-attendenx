@@ -68,6 +68,25 @@ export class AlfaDetectorJob {
         where: { date: today, is_day_off: false, is_holiday: false },
       });
 
+      // Cleanup: record alfa hari ini yang ternyata shift-nya belum selesai
+      // (kemungkinan dibuat oleh versi lama detector yang salah timezone)
+      const todayAlfa = await this.attendanceRepo.find({
+        where: { date: today, status: 'alfa' as any },
+      });
+      for (const rec of todayAlfa) {
+        if (!rec.shift_end || !rec.shift_start) continue;
+        const endCrossesMidnight = rec.shift_end < rec.shift_start;
+        let end = witaTime(today, rec.shift_end);
+        if (endCrossesMidnight) end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+        const endPlus30 = new Date(end.getTime() + 30 * 60 * 1000);
+        if (now < endPlus30) {
+          await this.attendanceRepo.delete(rec.id);
+          this.logger.log(
+            `Alfa prematur dihapus: user=${rec.user_id} tanggal=${today}`,
+          );
+        }
+      }
+
       for (const schedule of schedules) {
         if (!schedule.start_time || !schedule.end_time) continue;
 

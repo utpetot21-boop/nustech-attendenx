@@ -319,9 +319,58 @@ export class AttendanceService {
       qb.andWhere('a.date BETWEEN :start AND :end', { start, end });
     }
 
-    if (filters.status) qb.andWhere('a.status = :status', { status: filters.status });
+    if (filters.status && filters.status !== 'terjadwal') {
+      qb.andWhere('a.status = :status', { status: filters.status });
+    }
 
-    return qb.getMany();
+    const attendances = await qb.getMany();
+
+    // Mode daily: tambahkan baris virtual "terjadwal" untuk karyawan yang
+    // punya jadwal hari itu tapi belum ada record absensi (belum check-in,
+    // shift belum lewat + 30 menit). Mode monthly tidak di-augment.
+    if (!filters.date) return attendances;
+
+    const schedules = await this.scheduleRepo
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.user', 'u')
+      .leftJoinAndMapOne('u.department', 'u.department', 'dept')
+      .where('s.date = :date', { date: filters.date })
+      .andWhere('s.is_day_off = false')
+      .andWhere('s.is_holiday = false')
+      .getMany();
+
+    const attUserIds = new Set(attendances.map((a) => a.user_id));
+    const virtuals = schedules
+      .filter((s) => !attUserIds.has(s.user_id) && !!s.user)
+      .map(
+        (s) =>
+          ({
+            id: `sched_${s.id}`,
+            user_id: s.user_id,
+            date: filters.date!,
+            status: 'terjadwal',
+            check_in_at: null,
+            check_out_at: null,
+            check_in_method: null,
+            check_out_method: null,
+            late_minutes: 0,
+            overtime_minutes: 0,
+            gps_valid: null,
+            tolerance_minutes: s.tolerance_minutes,
+            shift_start: s.start_time,
+            shift_end: s.end_time,
+            schedule_type: s.schedule_type,
+            is_holiday_work: false,
+            notes: null,
+            late_approved: false,
+            early_departure_approved: false,
+            user: s.user,
+            created_at: s.created_at,
+          }) as any,
+      );
+
+    if (filters.status === 'terjadwal') return virtuals;
+    return [...attendances, ...virtuals];
   }
 
   // ── Ringkasan hari ini (untuk web dashboard) ──────────────────
@@ -329,14 +378,21 @@ export class AttendanceService {
     hadir: number;
     terlambat: number;
     alfa: number;
+    terjadwal: number;
     total_aktif: number;
     date: string;
   }> {
     const today = this.getTodayString();
-    const [rows, totalAktif] = await Promise.all([
+    const [rows, schedules, totalAktif] = await Promise.all([
       this.attendanceRepo.find({ where: { date: today } }),
+      this.scheduleRepo.find({
+        where: { date: today, is_day_off: false, is_holiday: false },
+      }),
       this.userRepo.count({ where: { is_active: true } }),
     ]);
+
+    const attUserIds = new Set(rows.map((r) => r.user_id));
+    const terjadwal = schedules.filter((s) => !attUserIds.has(s.user_id)).length;
 
     // "hadir" = semua yang check-in hari ini (termasuk yang terlambat / pulang awal).
     // "terlambat" adalah subset dari hadir, bukan kategori terpisah.
@@ -344,6 +400,7 @@ export class AttendanceService {
       hadir: rows.filter((r) => !!r.check_in_at).length,
       terlambat: rows.filter((r) => r.status === 'terlambat').length,
       alfa: rows.filter((r) => r.status === 'alfa').length,
+      terjadwal,
       total_aktif: totalAktif,
       date: today,
     };

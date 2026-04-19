@@ -35,6 +35,8 @@ type AttendanceRecord = {
   tolerance_minutes: number;
   late_approved?: boolean;
   early_departure_approved?: boolean;
+  shift_start?: string | null;
+  shift_end?: string | null;
   user: {
     id: string;
     full_name: string;
@@ -44,7 +46,7 @@ type AttendanceRecord = {
   };
 };
 
-type Summary = { hadir: number; terlambat: number; alfa: number; total_aktif: number; date: string };
+type Summary = { hadir: number; terlambat: number; alfa: number; terjadwal?: number; total_aktif: number; date: string };
 type ViewMode = 'daily' | 'monthly';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
   izin:            { label: 'Izin',              bg: 'bg-blue-50 dark:bg-blue-900/20',      text: 'text-blue-700 dark:text-blue-400',      dot: 'bg-blue-400',    border: 'border-blue-200 dark:border-blue-800'     },
   izin_pulang_awal:{ label: 'Izin Pulang Awal',  bg: 'bg-teal-50 dark:bg-teal-900/20',      text: 'text-teal-700 dark:text-teal-300',      dot: 'bg-teal-400',    border: 'border-teal-200 dark:border-teal-800'     },
   izin_terlambat:  { label: 'Izin Terlambat',    bg: 'bg-indigo-50 dark:bg-indigo-900/20',  text: 'text-indigo-700 dark:text-indigo-300',  dot: 'bg-indigo-400',  border: 'border-indigo-200 dark:border-indigo-800' },
+  terjadwal:       { label: 'Terjadwal',         bg: 'bg-slate-50 dark:bg-white/[0.06]',    text: 'text-slate-600 dark:text-white/70',     dot: 'bg-slate-400',   border: 'border-slate-200 dark:border-white/10'    },
   sakit:           { label: 'Sakit',             bg: 'bg-purple-50 dark:bg-purple-900/20',  text: 'text-purple-700 dark:text-purple-400',  dot: 'bg-purple-400',  border: 'border-purple-200 dark:border-purple-800' },
   cuti:            { label: 'Cuti',              bg: 'bg-teal-50 dark:bg-teal-900/20',      text: 'text-teal-700 dark:text-teal-400',      dot: 'bg-teal-400',    border: 'border-teal-200 dark:border-teal-800'     },
   libur:           { label: 'Libur',             bg: 'bg-gray-100 dark:bg-white/10',        text: 'text-gray-500 dark:text-white/50',      dot: 'bg-gray-400',    border: 'border-gray-200 dark:border-white/10'     },
@@ -79,6 +82,12 @@ const METHOD_LABEL: Record<string, string> = {
 function toWITA(d: string | null) {
   if (!d) return '—';
   return new Date(d).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' });
+}
+
+function fmtShiftTime(t?: string | null) {
+  if (!t) return '';
+  // schedule time diformat HH:MM:SS atau HH:MM → ambil HH:MM
+  return t.slice(0, 5);
 }
 function today()        { return new Date().toISOString().split('T')[0]; }
 function currentMonth() { return new Date().toISOString().slice(0, 7); }
@@ -135,9 +144,15 @@ function RecordCard({ r, showDate }: { r: AttendanceRecord; showDate?: boolean }
       <div className="mt-3 grid grid-cols-2 gap-2">
         <div className="bg-gray-50 dark:bg-white/[0.04] rounded-xl px-3 py-2">
           <p className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-white/30 font-semibold mb-0.5">Check-in</p>
-          <p className="text-[13px] font-mono font-semibold text-gray-800 dark:text-white">{toWITA(r.check_in_at)}</p>
-          {r.check_in_method && (
-            <p className="text-[9px] text-gray-400 dark:text-white/30 mt-0.5">{METHOD_LABEL[r.check_in_method] ?? r.check_in_method}</p>
+          {r.status === 'terjadwal' && !r.check_in_at ? (
+            <p className="text-[12px] text-slate-500 dark:text-white/50">Terjadwal pukul <span className="font-mono font-semibold">{fmtShiftTime(r.shift_start)}</span></p>
+          ) : (
+            <>
+              <p className="text-[13px] font-mono font-semibold text-gray-800 dark:text-white">{toWITA(r.check_in_at)}</p>
+              {r.check_in_method && (
+                <p className="text-[9px] text-gray-400 dark:text-white/30 mt-0.5">{METHOD_LABEL[r.check_in_method] ?? r.check_in_method}</p>
+              )}
+            </>
           )}
         </div>
         <div className="bg-gray-50 dark:bg-white/[0.04] rounded-xl px-3 py-2">
@@ -1156,6 +1171,7 @@ export default function AttendancePage() {
     hadir:     records.filter((r) => !!r.check_in_at).length,
     terlambat: records.filter((r) => r.status === 'terlambat').length,
     alfa:      records.filter((r) => r.status === 'alfa').length,
+    terjadwal: records.filter((r) => r.status === 'terjadwal').length,
   };
 
   const hadirPct = summary?.total_aktif
@@ -1334,6 +1350,11 @@ export default function AttendancePage() {
             <span className="flex items-center gap-1 text-[11px] font-medium text-red-500">
               <XCircle size={11} /> {stats.alfa} alfa
             </span>
+            {stats.terjadwal > 0 && (
+              <span className="flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-white/60">
+                <Clock size={11} /> {stats.terjadwal} terjadwal
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -1399,9 +1420,15 @@ export default function AttendancePage() {
                       {r.user?.department?.name ?? '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-[12px] font-mono text-gray-700 dark:text-white/80">{toWITA(r.check_in_at)}</p>
-                      {r.check_in_method && (
-                        <p className="text-[9px] text-gray-400 dark:text-white/30 mt-0.5">{METHOD_LABEL[r.check_in_method] ?? r.check_in_method}</p>
+                      {r.status === 'terjadwal' && !r.check_in_at ? (
+                        <p className="text-[11px] text-slate-500 dark:text-white/50">Terjadwal <span className="font-mono font-semibold">{fmtShiftTime(r.shift_start)}</span></p>
+                      ) : (
+                        <>
+                          <p className="text-[12px] font-mono text-gray-700 dark:text-white/80">{toWITA(r.check_in_at)}</p>
+                          {r.check_in_method && (
+                            <p className="text-[9px] text-gray-400 dark:text-white/30 mt-0.5">{METHOD_LABEL[r.check_in_method] ?? r.check_in_method}</p>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="px-4 py-3">
