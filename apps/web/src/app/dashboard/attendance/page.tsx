@@ -33,6 +33,8 @@ type AttendanceRecord = {
   overtime_minutes: number;
   gps_valid: boolean | null;
   tolerance_minutes: number;
+  late_approved?: boolean;
+  early_departure_approved?: boolean;
   user: {
     id: string;
     full_name: string;
@@ -47,14 +49,22 @@ type ViewMode = 'daily' | 'monthly';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string; border: string }> = {
-  hadir:     { label: 'Hadir',     bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500', border: 'border-emerald-200 dark:border-emerald-800' },
-  terlambat: { label: 'Terlambat', bg: 'bg-amber-50 dark:bg-amber-900/20',    text: 'text-amber-700 dark:text-amber-400',    dot: 'bg-amber-400',   border: 'border-amber-200 dark:border-amber-800'   },
-  alfa:      { label: 'Alfa',      bg: 'bg-red-50 dark:bg-red-900/20',        text: 'text-red-600 dark:text-red-400',        dot: 'bg-red-500',     border: 'border-red-200 dark:border-red-800'       },
-  izin:      { label: 'Izin',      bg: 'bg-blue-50 dark:bg-blue-900/20',      text: 'text-blue-700 dark:text-blue-400',      dot: 'bg-blue-400',    border: 'border-blue-200 dark:border-blue-800'     },
-  sakit:     { label: 'Sakit',     bg: 'bg-purple-50 dark:bg-purple-900/20',  text: 'text-purple-700 dark:text-purple-400',  dot: 'bg-purple-400',  border: 'border-purple-200 dark:border-purple-800' },
-  cuti:      { label: 'Cuti',      bg: 'bg-teal-50 dark:bg-teal-900/20',      text: 'text-teal-700 dark:text-teal-400',      dot: 'bg-teal-400',    border: 'border-teal-200 dark:border-teal-800'     },
-  libur:     { label: 'Libur',     bg: 'bg-gray-100 dark:bg-white/10',        text: 'text-gray-500 dark:text-white/50',      dot: 'bg-gray-400',    border: 'border-gray-200 dark:border-white/10'     },
+  hadir:           { label: 'Hadir',             bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500', border: 'border-emerald-200 dark:border-emerald-800' },
+  terlambat:       { label: 'Terlambat',         bg: 'bg-amber-50 dark:bg-amber-900/20',    text: 'text-amber-700 dark:text-amber-400',    dot: 'bg-amber-400',   border: 'border-amber-200 dark:border-amber-800'   },
+  alfa:            { label: 'Alfa',              bg: 'bg-red-50 dark:bg-red-900/20',        text: 'text-red-600 dark:text-red-400',        dot: 'bg-red-500',     border: 'border-red-200 dark:border-red-800'       },
+  izin:            { label: 'Izin',              bg: 'bg-blue-50 dark:bg-blue-900/20',      text: 'text-blue-700 dark:text-blue-400',      dot: 'bg-blue-400',    border: 'border-blue-200 dark:border-blue-800'     },
+  izin_pulang_awal:{ label: 'Izin Pulang Awal',  bg: 'bg-teal-50 dark:bg-teal-900/20',      text: 'text-teal-700 dark:text-teal-300',      dot: 'bg-teal-400',    border: 'border-teal-200 dark:border-teal-800'     },
+  izin_terlambat:  { label: 'Izin Terlambat',    bg: 'bg-indigo-50 dark:bg-indigo-900/20',  text: 'text-indigo-700 dark:text-indigo-300',  dot: 'bg-indigo-400',  border: 'border-indigo-200 dark:border-indigo-800' },
+  sakit:           { label: 'Sakit',             bg: 'bg-purple-50 dark:bg-purple-900/20',  text: 'text-purple-700 dark:text-purple-400',  dot: 'bg-purple-400',  border: 'border-purple-200 dark:border-purple-800' },
+  cuti:            { label: 'Cuti',              bg: 'bg-teal-50 dark:bg-teal-900/20',      text: 'text-teal-700 dark:text-teal-400',      dot: 'bg-teal-400',    border: 'border-teal-200 dark:border-teal-800'     },
+  libur:           { label: 'Libur',             bg: 'bg-gray-100 dark:bg-white/10',        text: 'text-gray-500 dark:text-white/50',      dot: 'bg-gray-400',    border: 'border-gray-200 dark:border-white/10'     },
 };
+
+function displayStatus(r: { status: string; late_approved?: boolean; early_departure_approved?: boolean }): string {
+  if (r.early_departure_approved) return 'izin_pulang_awal';
+  if (r.late_approved) return 'izin_terlambat';
+  return r.status;
+}
 
 const METHOD_LABEL: Record<string, string> = {
   face_id: 'Face ID',
@@ -110,7 +120,7 @@ function RecordCard({ r, showDate }: { r: AttendanceRecord; showDate?: boolean }
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-0.5">
             <p className="text-[13px] font-semibold text-gray-900 dark:text-white truncate">{r.user?.full_name ?? '—'}</p>
-            <StatusBadge status={r.status} />
+            <StatusBadge status={displayStatus(r)} />
           </div>
           <p className="text-[11px] text-gray-400 dark:text-white/35">
             {r.user?.employee_id}{r.user?.department?.name ? ` · ${r.user.department.name}` : ''}
@@ -1115,12 +1125,16 @@ export default function AttendancePage() {
     { key: 'pelanggaran',  label: 'Pelanggaran & SP' },
   ];
 
+  // Derived statuses difilter client-side karena kolom DB tetap 'hadir'/'terlambat'
+  const isDerivedFilter = statusFilter === 'izin_pulang_awal' || statusFilter === 'izin_terlambat';
+  const serverStatus = statusFilter && !isDerivedFilter ? statusFilter : undefined;
+
   const params = viewMode === 'daily'
-    ? { date, status: statusFilter || undefined }
-    : { month, status: statusFilter || undefined };
+    ? { date, status: serverStatus }
+    : { month, status: serverStatus };
 
   const { data: records = [], isLoading } = useQuery<AttendanceRecord[]>({
-    queryKey: ['admin-attendance', viewMode, date, month, statusFilter],
+    queryKey: ['admin-attendance', viewMode, date, month, serverStatus],
     queryFn: () => apiClient.get('/attendance/admin/list', { params }).then((r) => r.data),
   });
 
@@ -1130,9 +1144,11 @@ export default function AttendancePage() {
     refetchInterval: 60_000,
   });
 
-  const filtered = records.filter((r) =>
-    !search || r.user?.full_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = records.filter((r) => {
+    if (search && !r.user?.full_name?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (isDerivedFilter && displayStatus(r) !== statusFilter) return false;
+    return true;
+  });
 
   const stats = {
     hadir:     records.filter((r) => r.status === 'hadir').length,
@@ -1408,7 +1424,7 @@ export default function AttendancePage() {
                       ? <td className="px-4 py-3"><GpsBadge valid={r.gps_valid} /></td>
                       : <td className="px-4 py-3 text-[11px] text-gray-400 dark:text-white/35 capitalize">{r.check_in_method ? (METHOD_LABEL[r.check_in_method] ?? r.check_in_method) : '—'}</td>
                     }
-                    <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
+                    <td className="px-4 py-3"><StatusBadge status={displayStatus(r)} /></td>
                   </tr>
                 ))}
               </tbody>
