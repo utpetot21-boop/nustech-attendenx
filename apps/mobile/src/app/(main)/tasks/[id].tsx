@@ -16,6 +16,7 @@ import {
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
   Search, User, ChevronDown, Check, X as XIcon, Ban, Trash2,
+  UserPlus, Target, Radio,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -74,6 +75,12 @@ export default function TaskDetailScreen() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignMode, setAssignMode] = useState<'direct' | 'broadcast'>('direct');
+  const [assignUser, setAssignUser] = useState<EmployeeOption | null>(null);
+  const [assignUserPickerOpen, setAssignUserPickerOpen] = useState(false);
+  const [assignUserSearch, setAssignUserSearch] = useState('');
+  const [assignDeptId, setAssignDeptId] = useState<string>('');
   const [rejectReason, setRejectReason] = useState('');
   const [holdReasonType, setHoldReasonType] = useState('client_absent');
   const [holdNotes, setHoldNotes] = useState('');
@@ -86,6 +93,7 @@ export default function TaskDetailScreen() {
   const userRole = useAuthStore((s) => s.user?.role?.name);
   const canCancelTask = userRole === 'admin' || userRole === 'super_admin';
   const canDeleteTask = userRole === 'super_admin';
+  const canAssignTask = userRole === 'admin' || userRole === 'super_admin' || userRole === 'manager';
 
   const bg = pageBg(isDark);
   const cardBg = tokenCardBg(isDark);
@@ -191,6 +199,47 @@ export default function TaskDetailScreen() {
     },
   });
 
+  const assignMut = useMutation({
+    mutationFn: (body: { user_id?: string; dept_id?: string }) =>
+      tasksService.assignTask(id!, body),
+    onSuccess: (_, body) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      invalidate();
+      setShowAssignModal(false);
+      setAssignUser(null);
+      setAssignUserSearch('');
+      setAssignUserPickerOpen(false);
+      setAssignDeptId('');
+      Alert.alert(
+        body.dept_id ? 'Broadcast Terkirim' : 'Tugas Ditugaskan',
+        body.dept_id
+          ? 'Semua anggota departemen akan menerima notifikasi.'
+          : 'Teknisi akan menerima notifikasi untuk mengkonfirmasi tugas.',
+      );
+    },
+    onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err?.response?.data?.message ?? err?.message ?? 'Terjadi kesalahan.');
+    },
+  });
+
+  const { data: assignUsers = [], isFetching: loadingAssignUsers } = useQuery<EmployeeOption[]>({
+    queryKey: ['assign-users', assignUserSearch],
+    queryFn: () =>
+      api
+        .get('/users/colleagues', { params: { search: assignUserSearch || undefined } })
+        .then((r) => r.data?.items ?? r.data ?? []),
+    enabled: showAssignModal && assignMode === 'direct' && assignUserPickerOpen,
+    staleTime: 30_000,
+  });
+
+  const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['departments'],
+    queryFn: () => api.get('/departments').then((r) => r.data?.items ?? r.data ?? []),
+    enabled: showAssignModal && assignMode === 'broadcast',
+    staleTime: 60_000,
+  });
+
   const delegateMut = useMutation({
     mutationFn: () => tasksService.delegate(id!, {
       to_user_id: delegateEmployee?.id ?? '',
@@ -242,6 +291,7 @@ export default function TaskDetailScreen() {
   const isCompleted = task.status === 'completed';
   const isCancelled = task.status === 'cancelled';
   const cancellable = canCancelTask && !isCompleted && !isCancelled;
+  const assignable = canAssignTask && task.status === 'unassigned';
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
@@ -522,6 +572,30 @@ export default function TaskDetailScreen() {
           </View>
         )}
 
+        {/* ── Admin: Tugaskan ───────────────────────── */}
+        {assignable && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setAssignMode('direct');
+                setAssignUser(null);
+                setAssignUserSearch('');
+                setAssignUserPickerOpen(false);
+                setAssignDeptId('');
+                setShowAssignModal(true);
+              }}
+              style={{ backgroundColor: C.blue, borderRadius: 18, paddingVertical: 17, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, shadowColor: C.blue, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 }}
+            >
+              <UserPlus size={20} strokeWidth={2} color="#FFF" />
+              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>Tugaskan</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 11, color: textSecondary, textAlign: 'center', marginTop: 8 }}>
+              Pilih individu atau departemen untuk menerima tugas.
+            </Text>
+          </View>
+        )}
+
         {/* ── Admin: Batalkan Tugas ─────────────────── */}
         {cancellable && (
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
@@ -741,6 +815,222 @@ export default function TaskDetailScreen() {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Assign Modal (admin / super_admin / manager) ─────────────────── */}
+      <Modal visible={showAssignModal} transparent animationType="slide" onRequestClose={() => setShowAssignModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+          <View style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, paddingBottom: insets.bottom + 24, maxHeight: '85%' }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 18 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: C.blue + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                <UserPlus size={18} strokeWidth={2} color={C.blue} />
+              </View>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary }}>Tugaskan</Text>
+            </View>
+            <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 16 }}>
+              Tentukan siapa yang akan menerima tugas ini.
+            </Text>
+
+            {/* Mode toggle */}
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+              {([
+                { val: 'direct' as const,    label: 'Individu',  Icon: Target },
+                { val: 'broadcast' as const, label: 'Departemen', Icon: Radio  },
+              ]).map(({ val, label, Icon }) => {
+                const active = assignMode === val;
+                return (
+                  <TouchableOpacity
+                    key={val}
+                    onPress={() => {
+                      setAssignMode(val);
+                      if (val === 'direct') setAssignDeptId('');
+                      else { setAssignUser(null); setAssignUserPickerOpen(false); }
+                    }}
+                    style={{
+                      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      paddingVertical: 12, borderRadius: 14, borderWidth: 1.5,
+                      borderColor: active ? C.blue : inputBorder,
+                      backgroundColor: active ? (isDark ? C.blue + '26' : C.blue + '14') : inputBg,
+                    }}
+                  >
+                    <Icon size={14} strokeWidth={2} color={active ? C.blue : (textSecondary as string)} />
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: active ? C.blue : textSecondary }}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {assignMode === 'direct' ? (
+                <>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Pilih Teknisi *</Text>
+                  {!assignUserPickerOpen && (
+                    <TouchableOpacity
+                      onPress={() => { setAssignUserPickerOpen(true); setAssignUserSearch(''); }}
+                      activeOpacity={0.75}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5, borderColor: inputBorder, paddingHorizontal: 14, paddingVertical: 14, marginBottom: 14 }}
+                    >
+                      {assignUser ? (
+                        <>
+                          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.blue + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                            <User size={16} strokeWidth={2} color={C.blue} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: textPrimary }} numberOfLines={1}>
+                              {assignUser.full_name}
+                            </Text>
+                            {(assignUser.employee_id || assignUser.department?.name) && (
+                              <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 1 }} numberOfLines={1}>
+                                {[assignUser.employee_id, assignUser.department?.name].filter(Boolean).join(' · ')}
+                              </Text>
+                            )}
+                          </View>
+                        </>
+                      ) : (
+                        <>
+                          <Search size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                          <Text style={{ flex: 1, fontSize: 15, color: lTertiary(isDark) }}>Pilih teknisi...</Text>
+                        </>
+                      )}
+                      <ChevronDown size={18} strokeWidth={2} color={lTertiary(isDark)} />
+                    </TouchableOpacity>
+                  )}
+
+                  {assignUserPickerOpen && (
+                    <View style={{ marginBottom: 14 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5, borderColor: C.blue, paddingHorizontal: 14, paddingVertical: 12 }}>
+                        <Search size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                        <TextInput
+                          value={assignUserSearch}
+                          onChangeText={setAssignUserSearch}
+                          placeholder="Cari nama atau NIK..."
+                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
+                          autoFocus
+                          style={{ flex: 1, fontSize: 15, color: textPrimary, padding: 0 }}
+                        />
+                        <TouchableOpacity
+                          onPress={() => { setAssignUserPickerOpen(false); setAssignUserSearch(''); }}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <XIcon size={16} strokeWidth={2} color={lTertiary(isDark)} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={{ marginTop: 8, backgroundColor: inputBg, borderRadius: 14, borderWidth: 1, borderColor: inputBorder, maxHeight: 220, overflow: 'hidden' }}>
+                        {loadingAssignUsers ? (
+                          <ActivityIndicator color={C.blue} style={{ paddingVertical: 20 }} />
+                        ) : assignUsers.length === 0 ? (
+                          <Text style={{ textAlign: 'center', color: lTertiary(isDark), padding: 16, fontSize: 14 }}>
+                            {assignUserSearch ? 'Tidak ada hasil' : 'Tidak ada teknisi'}
+                          </Text>
+                        ) : (
+                          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                            {assignUsers.map((emp) => {
+                              const active = assignUser?.id === emp.id;
+                              return (
+                                <TouchableOpacity
+                                  key={emp.id}
+                                  onPress={() => { setAssignUser(emp); setAssignUserPickerOpen(false); setAssignUserSearch(''); }}
+                                  activeOpacity={0.7}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: active ? C.blue + '14' : 'transparent', borderBottomWidth: 0.5, borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}
+                                >
+                                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.blue + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                                    <User size={15} strokeWidth={2} color={C.blue} />
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: textPrimary }} numberOfLines={1}>
+                                      {emp.full_name}
+                                    </Text>
+                                    {(emp.employee_id || emp.department?.name) && (
+                                      <Text style={{ fontSize: 11, color: lTertiary(isDark), marginTop: 1 }} numberOfLines={1}>
+                                        {[emp.employee_id, emp.department?.name].filter(Boolean).join(' · ')}
+                                      </Text>
+                                    )}
+                                  </View>
+                                  {active && <Check size={16} strokeWidth={2.5} color={C.blue} />}
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </ScrollView>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Pilih Departemen *</Text>
+                  <View style={{ backgroundColor: inputBg, borderRadius: 14, borderWidth: 1, borderColor: inputBorder, overflow: 'hidden', marginBottom: 14 }}>
+                    {departments.length === 0 ? (
+                      <Text style={{ textAlign: 'center', color: lTertiary(isDark), padding: 16, fontSize: 14 }}>
+                        Tidak ada departemen
+                      </Text>
+                    ) : (
+                      departments.map((d, i) => {
+                        const active = assignDeptId === d.id;
+                        return (
+                          <TouchableOpacity
+                            key={d.id}
+                            onPress={() => setAssignDeptId(d.id)}
+                            activeOpacity={0.7}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: active ? C.blue + '14' : 'transparent', borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}
+                          >
+                            <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: C.blue + '1F', alignItems: 'center', justifyContent: 'center' }}>
+                              <Building2 size={15} strokeWidth={2} color={C.blue} />
+                            </View>
+                            <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: textPrimary }}>{d.name}</Text>
+                            {active && <Check size={16} strokeWidth={2.5} color={C.blue} />}
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </View>
+                </>
+              )}
+
+              <View style={{ backgroundColor: isDark ? C.blue + '1A' : C.blue + '0D', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: C.blue + '4D' }}>
+                <Text style={{ fontSize: 12, color: C.blue, lineHeight: 18 }}>
+                  {assignMode === 'direct'
+                    ? 'Teknisi menerima notifikasi untuk konfirmasi.'
+                    : 'Semua anggota aktif departemen menerima notifikasi — siapa cepat dia dapat.'}
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setShowAssignModal(false)}
+                  style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', alignItems: 'center' }}
+                >
+                  <Text style={{ color: textPrimary, fontWeight: '600', fontSize: 15 }}>Batal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (assignMode === 'direct' && !assignUser) { Alert.alert('Pilih Teknisi', 'Pilih teknisi tujuan.'); return; }
+                    if (assignMode === 'broadcast' && !assignDeptId) { Alert.alert('Pilih Departemen', 'Pilih departemen tujuan.'); return; }
+                    assignMut.mutate(assignMode === 'direct' ? { user_id: assignUser!.id } : { dept_id: assignDeptId });
+                  }}
+                  disabled={
+                    assignMut.isPending ||
+                    (assignMode === 'direct' ? !assignUser : !assignDeptId)
+                  }
+                  style={{
+                    flex: 1, paddingVertical: 15, borderRadius: 16,
+                    backgroundColor: (assignMode === 'direct' ? assignUser : assignDeptId)
+                      ? C.blue
+                      : (isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0'),
+                    alignItems: 'center',
+                  }}
+                >
+                  {assignMut.isPending ? <ActivityIndicator color="#FFF" /> : (
+                    <Text style={{ color: (assignMode === 'direct' ? assignUser : assignDeptId) ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'), fontWeight: '700', fontSize: 15 }}>
+                      Tugaskan
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
