@@ -8,7 +8,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.r2.dev' },
-      { protocol: 'https', hostname: 'storage.atenndensx.com' },
+      { protocol: 'https', hostname: 'storage.appnustech.cloud' },
       { protocol: 'http', hostname: 'localhost' },
     ],
     formats: ['image/avif', 'image/webp'],
