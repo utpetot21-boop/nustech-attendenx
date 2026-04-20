@@ -22,6 +22,7 @@ import { OsrmService } from '../../services/osrm.service';
 import { CheckInVisitDto } from './dto/check-in-visit.dto';
 import { AddPhotoDto } from './dto/add-photo.dto';
 import { CheckOutVisitDto } from './dto/check-out-visit.dto';
+import { ReviewVisitDto } from './dto/review-visit.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('visits')
@@ -151,6 +152,17 @@ export class VisitsController {
   @Get(':id/form-responses')
   getFormResponses(@Param('id', ParseUUIDPipe) visitId: string) {
     return this.visitsService.getFormResponses(visitId);
+  }
+
+  // POST /visits/:id/review — evaluasi kunjungan selesai (admin/manager)
+  @Post(':id/review')
+  @RequirePermission('task:assign')
+  reviewVisit(
+    @CurrentUser('id') adminId: string,
+    @Param('id', ParseUUIDPipe) visitId: string,
+    @Body() dto: ReviewVisitDto,
+  ) {
+    return this.visitsService.reviewVisit(adminId, visitId, dto);
   }
 
   // GET /visits/sla-breaches — daftar pelanggaran SLA (admin)

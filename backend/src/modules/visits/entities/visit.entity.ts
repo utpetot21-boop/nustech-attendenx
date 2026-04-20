@@ -94,6 +94,26 @@ export class VisitEntity {
   @OneToOne(() => ServiceReportEntity, (report) => report.visit)
   service_report: ServiceReportEntity;
 
+  // ── Review / Evaluasi (diisi admin/manager setelah kunjungan selesai) ─────────
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  review_status: string | null; // 'approved' | 'revision_needed'
+
+  @Column({ type: 'integer', nullable: true })
+  review_rating: number | null; // 1-5
+
+  @Column({ type: 'text', nullable: true })
+  review_notes: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  reviewed_by: string | null;
+
+  @ManyToOne(() => UserEntity, { nullable: true })
+  @JoinColumn({ name: 'reviewed_by' })
+  reviewer: UserEntity | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  reviewed_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

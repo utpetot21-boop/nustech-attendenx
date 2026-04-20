@@ -34,6 +34,11 @@ export interface VisitSummary {
   gps_deviation_meter: number | null;
   duration_minutes: number | null;
   created_at: string;
+  review_status: 'approved' | 'revision_needed' | null;
+  review_rating: number | null;
+  review_notes: string | null;
+  reviewed_at: string | null;
+  reviewer: { id: string; full_name: string } | null;
 }
 
 export interface PhotoCount {

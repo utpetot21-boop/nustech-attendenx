@@ -20,6 +20,8 @@ import { PhotoWatermarkService } from './photo-watermark.service';
 import { ClientEntity } from '../clients/entities/client.entity';
 import { VisitFormResponseEntity } from '../templates/entities/visit-form-response.entity';
 import { TaskEntity } from '../tasks/entities/task.entity';
+import { ReviewVisitDto } from './dto/review-visit.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // Photo phase limits (min / max)
 const PHOTO_LIMITS: Record<string, { min: number; max: number }> = {
@@ -44,6 +46,7 @@ export class VisitsService {
     @InjectRepository(TaskEntity)
     private readonly taskRepo: Repository<TaskEntity>,
     private readonly nominatim: NominatimService,
+    private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
     private readonly watermark: PhotoWatermarkService,
   ) {}
@@ -325,10 +328,47 @@ export class VisitsService {
   async getAdminDetail(visitId: string): Promise<VisitEntity> {
     const visit = await this.visitRepo.findOne({
       where: { id: visitId },
-      relations: ['client', 'photos', 'user', 'service_report'],
+      relations: ['client', 'photos', 'user', 'service_report', 'reviewer'],
     });
     if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
     return visit;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // REVIEW / EVALUASI
+  // ────────────────────────────────────────────────────────────────────────────
+  async reviewVisit(adminId: string, visitId: string, dto: ReviewVisitDto): Promise<VisitEntity> {
+    const visit = await this.visitRepo.findOne({
+      where: { id: visitId },
+      relations: ['user'],
+    });
+    if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
+    if (visit.status !== 'completed') {
+      throw new BadRequestException('Hanya kunjungan berstatus "Selesai" yang dapat direview.');
+    }
+
+    visit.review_status = dto.review_status;
+    visit.review_rating = dto.review_rating;
+    visit.review_notes = dto.review_notes ?? null;
+    visit.reviewed_by = adminId;
+    visit.reviewed_at = new Date();
+
+    const saved = await this.visitRepo.save(visit);
+
+    const isApproved = dto.review_status === 'approved';
+    const ratingStr = '⭐'.repeat(dto.review_rating);
+    await this.notifications.send({
+      userId: visit.user_id,
+      type: 'visit_reviewed',
+      title: isApproved ? '✅ Laporan Kunjungan Disetujui' : '⚠️ Laporan Kunjungan Perlu Revisi',
+      body: dto.review_notes
+        ? `${ratingStr} — ${dto.review_notes}`
+        : `${ratingStr} — Laporan kunjungan Anda telah dievaluasi.`,
+      data: { visit_id: visitId, type: 'visit_reviewed', review_status: dto.review_status },
+      channels: ['push'],
+    });
+
+    return saved;
   }
 
   // ────────────────────────────────────────────────────────────────────────────

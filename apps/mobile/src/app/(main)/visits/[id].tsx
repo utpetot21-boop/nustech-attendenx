@@ -637,6 +637,68 @@ export default function VisitDetailScreen() {
               </View>
             )}
 
+            {/* ── Hasil Evaluasi (jika sudah direview admin) ── */}
+            {!isOngoing && visit.review_status && (
+              <View
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 16,
+                  backgroundColor: visit.review_status === 'approved'
+                    ? isDark ? 'rgba(52,199,89,0.12)' : '#F0FDF4'
+                    : isDark ? 'rgba(255,149,0,0.12)' : '#FFF7ED',
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: visit.review_status === 'approved'
+                    ? isDark ? 'rgba(52,199,89,0.3)' : 'rgba(52,199,89,0.25)'
+                    : isDark ? 'rgba(255,149,0,0.3)' : 'rgba(255,149,0,0.25)',
+                  padding: 14,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                  Hasil Evaluasi
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  {/* Stars */}
+                  <View style={{ flexDirection: 'row', gap: 3 }}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Text key={s} style={{ fontSize: 18, opacity: s <= (visit.review_rating ?? 0) ? 1 : 0.25 }}>⭐</Text>
+                    ))}
+                  </View>
+                  <View style={{
+                    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+                    backgroundColor: visit.review_status === 'approved' ? 'rgba(52,199,89,0.2)' : 'rgba(255,149,0,0.2)',
+                  }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: visit.review_status === 'approved' ? '#34C759' : '#FF9500' }}>
+                      {visit.review_status === 'approved' ? '✓ Disetujui' : '⚠ Perlu Revisi'}
+                    </Text>
+                  </View>
+                </View>
+                {visit.review_notes ? (
+                  <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.7)' : '#374151', lineHeight: 20 }}>
+                    {visit.review_notes}
+                  </Text>
+                ) : null}
+                {visit.reviewer && (
+                  <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF', marginTop: 6 }}>
+                    Oleh {visit.reviewer.full_name}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {/* Belum direview — info ringan */}
+            {!isOngoing && !visit.review_status && (
+              <View style={{
+                marginHorizontal: 16, marginBottom: 16,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                borderRadius: 12, padding: 12, alignItems: 'center',
+              }}>
+                <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>
+                  Laporan ini belum dievaluasi oleh admin
+                </Text>
+              </View>
+            )}
+
             {/* Template checklist form */}
             {template && template.sections.length > 0 && (
               <View style={{ marginHorizontal: 16, marginBottom: 16 }}>

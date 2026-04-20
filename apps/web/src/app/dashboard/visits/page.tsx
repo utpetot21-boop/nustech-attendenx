@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   MapPin, Clock, Camera, Navigation, NavigationOff, FileText,
   Activity, CheckCircle2, Pause, RefreshCw, XCircle, X,
-  Search, Calendar, ChevronRight, Users, Building2,
-  ExternalLink, Image as ImageIcon, ClipboardList,
+  Calendar, ChevronRight, Building2,
+  ExternalLink, Image as ImageIcon, Star, ThumbsUp, AlertCircle,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
@@ -27,6 +27,12 @@ type Visit = {
   client: { id: string; name: string };
   photos: { id: string; phase: string; watermarked_url: string | null; original_url: string }[];
   service_report: { id: string; report_number: string; status?: string; pdf_url: string | null } | null;
+  review_status: string | null;
+  review_rating: number | null;
+  review_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  reviewer: { id: string; full_name: string } | null;
 };
 
 type ServiceReport = {
@@ -76,6 +82,42 @@ function StatusBadge({ status }: { status: string }) {
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
       {s.label}
     </span>
+  );
+}
+
+const REVIEW_STATUS_MAP: Record<string, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
+  approved:        { label: 'Disetujui',    color: 'text-[#166534]', bg: 'bg-[#F0FDF4] border-[#34C759]/30', Icon: ThumbsUp },
+  revision_needed: { label: 'Perlu Revisi', color: 'text-[#9A3412]', bg: 'bg-[#FFF7ED] border-[#FF9500]/30', Icon: AlertCircle },
+};
+
+function ReviewBadge({ status }: { status: string | null }) {
+  if (!status) return null;
+  const r = REVIEW_STATUS_MAP[status];
+  if (!r) return null;
+  const { Icon } = r;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${r.bg} ${r.color}`}>
+      <Icon size={10} strokeWidth={2.5} /> {r.label}
+    </span>
+  );
+}
+
+function StarRating({ rating, onChange }: { rating: number; onChange?: (r: number) => void }) {
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <button key={s} type="button" onClick={() => onChange?.(s)}
+          className={onChange ? 'cursor-pointer' : 'cursor-default'}
+          disabled={!onChange}
+        >
+          <Star
+            size={20}
+            strokeWidth={1.5}
+            className={s <= rating ? 'text-[#FF9500] fill-[#FF9500]' : 'text-gray-300 dark:text-white/20'}
+          />
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -140,7 +182,7 @@ function VisitCard({ v, onClick }: { v: Visit; onClick: () => void }) {
       </div>
 
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-black/[0.04] dark:border-white/[0.06]">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {v.gps_valid
             ? <span className="flex items-center gap-1 text-[11px] text-[#166534] bg-[#F0FDF4] px-2 py-0.5 rounded-full"><Navigation size={10} /> GPS Valid</span>
             : <span className="flex items-center gap-1 text-[11px] text-[#9A3412] bg-[#FFF7ED] px-2 py-0.5 rounded-full"><NavigationOff size={10} /> GPS Alert</span>
@@ -150,6 +192,10 @@ function VisitCard({ v, onClick }: { v: Visit; onClick: () => void }) {
               <FileText size={10} /> BA
             </span>
           )}
+          {v.status === 'completed' && !v.review_status && (
+            <span className="text-[11px] text-gray-400 bg-gray-100 dark:bg-white/[0.06] px-2 py-0.5 rounded-full">Belum Direview</span>
+          )}
+          <ReviewBadge status={v.review_status} />
         </div>
         <ChevronRight size={14} className="text-gray-300 dark:text-white/20" />
       </div>
@@ -195,9 +241,25 @@ function BaCard({ ba }: { ba: ServiceReport }) {
 }
 
 // ── Detail Modal ───────────────────────────────────────────────────────────────
-function DetailModal({ visit, onClose }: { visit: Visit; onClose: () => void }) {
+function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: () => void; onReviewed: (updated: Visit) => void }) {
   const [photoTab, setPhotoTab] = useState<'before' | 'during' | 'after'>('before');
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(visit.review_rating ?? 5);
+  const [reviewStatus, setReviewStatus] = useState(visit.review_status ?? 'approved');
+  const [reviewNotes, setReviewNotes] = useState(visit.review_notes ?? '');
+  const qc = useQueryClient();
+
+  const reviewMut = useMutation({
+    mutationFn: () => apiClient.post(`/visits/${visit.id}/review`, {
+      review_status: reviewStatus,
+      review_rating: reviewRating,
+      review_notes: reviewNotes.trim() || undefined,
+    }).then((r) => r.data),
+    onSuccess: (updated: Visit) => {
+      qc.invalidateQueries({ queryKey: ['admin-visits'] });
+      onReviewed(updated);
+    },
+  });
 
   const photosByPhase = {
     before: visit.photos?.filter((p) => p.phase === 'before') ?? [],
@@ -318,6 +380,91 @@ function DetailModal({ visit, onClose }: { visit: Visit; onClose: () => void }) 
               )}
             </div>
           )}
+
+          {/* ── Review / Evaluasi (hanya untuk kunjungan selesai) ── */}
+          {visit.status === 'completed' && (
+            <div className="border-t border-black/[0.06] dark:border-white/[0.08] pt-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wide">
+                  Evaluasi Kunjungan
+                </p>
+                {visit.review_status && (
+                  <ReviewBadge status={visit.review_status} />
+                )}
+              </div>
+
+              {visit.review_status ? (
+                /* Sudah direview — tampilkan read-only */
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 bg-gray-50 dark:bg-white/[0.04] rounded-xl p-3">
+                    <StarRating rating={visit.review_rating ?? 0} />
+                    <span className="text-sm font-semibold text-gray-700 dark:text-white/80">
+                      {visit.review_rating}/5
+                    </span>
+                  </div>
+                  {visit.review_notes && (
+                    <div className="bg-gray-50 dark:bg-white/[0.04] rounded-xl p-3">
+                      <p className="text-[11px] text-gray-400 dark:text-white/30 mb-1">Catatan</p>
+                      <p className="text-xs text-gray-700 dark:text-white/70 leading-relaxed">{visit.review_notes}</p>
+                    </div>
+                  )}
+                  {visit.reviewer && (
+                    <p className="text-[11px] text-gray-400 dark:text-white/30 text-right">
+                      Oleh {visit.reviewer.full_name} · {visit.reviewed_at ? new Date(visit.reviewed_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                /* Belum direview — tampilkan form */
+                <div className="space-y-3">
+                  {/* Rating */}
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-white/40 mb-2">Rating Kualitas Kerja</p>
+                    <StarRating rating={reviewRating} onChange={setReviewRating} />
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-white/40 mb-2">Keputusan</p>
+                    <div className="flex gap-2">
+                      {[
+                        { value: 'approved', label: 'Setujui', icon: ThumbsUp, activeClass: 'bg-[#F0FDF4] border-[#34C759] text-[#166534]' },
+                        { value: 'revision_needed', label: 'Perlu Revisi', icon: AlertCircle, activeClass: 'bg-[#FFF7ED] border-[#FF9500] text-[#9A3412]' },
+                      ].map(({ value, label, icon: Icon, activeClass }) => (
+                        <button key={value} type="button"
+                          onClick={() => setReviewStatus(value)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold border-2 transition ${
+                            reviewStatus === value ? activeClass : 'border-gray-200 dark:border-white/10 text-gray-400 dark:text-white/30 hover:border-gray-300'
+                          }`}>
+                          <Icon size={13} strokeWidth={2} /> {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <textarea
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    placeholder="Catatan untuk teknisi (opsional)…"
+                    rows={3}
+                    className="w-full bg-gray-50 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-gray-700 dark:text-white/80 placeholder:text-gray-400 dark:placeholder:text-white/25 resize-none outline-none focus:border-[#007AFF] dark:focus:border-[#007AFF] transition"
+                  />
+
+                  <button
+                    onClick={() => reviewMut.mutate()}
+                    disabled={reviewMut.isPending}
+                    className="w-full py-3 bg-[#007AFF] hover:bg-[#0063CC] disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
+                  >
+                    {reviewMut.isPending ? 'Menyimpan…' : 'Simpan Evaluasi'}
+                  </button>
+                  {reviewMut.isError && (
+                    <p className="text-xs text-[#FF3B30] text-center">Gagal menyimpan evaluasi. Coba lagi.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -338,6 +485,7 @@ export default function VisitsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [detail, setDetail] = useState<Visit | null>(null);
+  const handleReviewed = (updated: Visit) => setDetail(updated);
 
   const { data: result, isLoading } = useQuery({
     queryKey: ['admin-visits', statusFilter, dateFilter],
@@ -466,7 +614,7 @@ export default function VisitsPage() {
                 <table className="w-full text-sm min-w-[700px]">
                   <thead>
                     <tr className="border-b border-black/[0.05] dark:border-white/[0.06]">
-                      {['Teknisi', 'Klien', 'Check-in', 'Durasi', 'Foto', 'GPS', 'Status', ''].map((h) => (
+                      {['Teknisi', 'Klien', 'Check-in', 'Durasi', 'Foto', 'GPS', 'Status', 'Review', ''].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
@@ -502,6 +650,13 @@ export default function VisitsPage() {
                             }
                           </td>
                           <td className="px-4 py-3"><StatusBadge status={v.status} /></td>
+                          <td className="px-4 py-3">
+                            {v.status === 'completed' ? (
+                              v.review_status ? <ReviewBadge status={v.review_status} /> : (
+                                <span className="text-[11px] text-gray-400 bg-gray-100 dark:bg-white/[0.06] px-2 py-0.5 rounded-full">Belum</span>
+                              )
+                            ) : <span className="text-gray-300 dark:text-white/20">—</span>}
+                          </td>
                           <td className="px-4 py-3">
                             <button onClick={() => setDetail(v)}
                               className="px-3 py-1.5 bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] rounded-xl text-xs font-semibold transition">
@@ -633,7 +788,7 @@ export default function VisitsPage() {
       </div>
 
       {/* Detail Modal */}
-      {detail && <DetailModal visit={detail} onClose={() => setDetail(null)} />}
+      {detail && <DetailModal visit={detail} onClose={() => setDetail(null)} onReviewed={handleReviewed} />}
     </div>
   );
 }

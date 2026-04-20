@@ -14,9 +14,11 @@ import { PhotoWatermarkService } from './photo-watermark.service';
 import { StorageService } from '../../services/storage.service';
 import { NominatimService } from '../../services/nominatim.service';
 import { OsrmService } from '../../services/osrm.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
+    NotificationsModule,
     TypeOrmModule.forFeature([
       VisitEntity,
       VisitPhotoEntity,
