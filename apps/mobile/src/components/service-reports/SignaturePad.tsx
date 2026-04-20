@@ -43,6 +43,8 @@ export function SignaturePad({ title = 'Tanda Tangan', onSave, onCancel }: Signa
     }
     .m-signature-pad--footer { display: none; }
     body { margin: 0; background: transparent; }
+    * { -webkit-user-select: none !important; user-select: none !important; }
+    input, textarea, [contenteditable] { display: none !important; }
   `;
 
   return (
@@ -70,6 +72,9 @@ export function SignaturePad({ title = 'Tanda Tangan', onSave, onCancel }: Signa
           penColor="#1a1a1a"
           minWidth={2}
           maxWidth={4}
+          scrollEnabled={false}
+          androidHardwareAccelerationDisabled
+          dataDetectorTypes="none"
         />
       </View>
 
