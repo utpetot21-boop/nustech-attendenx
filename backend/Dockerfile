@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Skip Puppeteer bundled-Chromium download — not needed at compile time
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 # Copy monorepo root + workspace manifests
 COPY package.json package-lock.json* tsconfig.base.json ./
 COPY backend/package.json ./backend/
@@ -25,8 +28,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV TZ=Asia/Makassar
+# Use system Chromium (installed below) instead of Puppeteer's bundled binary
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Production-only deps
+# Production-only deps (skip Chromium download via PUPPETEER_SKIP_DOWNLOAD above)
 COPY package.json package-lock.json* ./
 COPY backend/package.json ./backend/
 COPY shared/package.json ./shared/
@@ -44,8 +50,15 @@ COPY backend/src/modules/service-reports/templates ./backend/dist/backend/src/mo
 # Copy Handlebars templates for SP (Surat Peringatan) PDF
 COPY backend/src/modules/warning-letters/templates ./backend/dist/backend/src/modules/warning-letters/templates
 
-# Install postgresql-client untuk pg_dump (backup job)
-RUN apk add --no-cache postgresql-client
+# Install system Chromium (for Puppeteer PDF generation) + postgresql-client (backup)
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    postgresql-client
 
 # Non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup

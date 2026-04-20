@@ -59,9 +59,8 @@ export default function ServiceReportDetailScreen() {
     if (!report?.is_locked) return;
     try {
       setDownloading(true);
-      const path = `${FileSystem.cacheDirectory}${report.report_number ?? id}.pdf`;
+      const filePath = `${FileSystem.cacheDirectory}${report.report_number ?? id}.pdf`;
 
-      // C2: baca token dari SecureStore — lebih andal dari axios.defaults.headers
       const token = await SecureStore.getItemAsync('access_token');
       if (!token) {
         Alert.alert('Sesi Berakhir', 'Silakan login ulang untuk mengunduh PDF.');
@@ -71,17 +70,24 @@ export default function ServiceReportDetailScreen() {
 
       const dl = await FileSystem.downloadAsync(
         `${baseUrl}${getPdfUrl(id)}`,
-        path,
+        filePath,
         { headers: { Authorization: `Bearer ${token}` } },
       );
+
+      if (dl.status !== 200) {
+        Alert.alert('Gagal', `Server mengembalikan error ${dl.status}. Coba beberapa saat lagi.`);
+        return;
+      }
+
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(dl.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
       } else {
         Alert.alert('Info', `PDF tersimpan di: ${dl.uri}`);
       }
-    } catch {
-      Alert.alert('Gagal', 'Gagal mengunduh PDF');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Gagal', `Gagal mengunduh PDF: ${msg}`);
     } finally {
       setDownloading(false);
     }
