@@ -9,7 +9,7 @@ import {
   ListTodo, Plus, LayoutGrid, List, AlertTriangle, MapPin,
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
   PauseCircle, RefreshCw, Radio, Target, Check, X,
-  ChevronDown, Calendar, Zap, Ban, Trash2,
+  ChevronDown, Calendar, Zap, Ban, Trash2, UserPlus,
 } from 'lucide-react';
 import { getAuthUser } from '@/lib/auth';
 
@@ -127,10 +127,12 @@ function KanbanCard({ task }: { task: Task }) {
 // ── TaskListCard (mobile / table-mode card) ───────────────────────────────────
 function TaskListCard({
   task,
+  onAssign,
   onCancel,
   onDelete,
 }: {
   task: Task;
+  onAssign?: (t: Task) => void;
   onCancel?: (t: Task) => void;
   onDelete?: (t: Task) => void;
 }) {
@@ -138,6 +140,7 @@ function TaskListCard({
   const s = STATUS_MAP[task.status]     ?? STATUS_MAP.unassigned;
   const SIcon = s.Icon;
   const isOverdue = task.confirm_deadline && new Date(task.confirm_deadline) < new Date();
+  const assignable = onAssign && task.status === 'unassigned';
   const cancellable = onCancel && task.status !== 'cancelled' && task.status !== 'completed';
   const deletable = !!onDelete;
 
@@ -211,8 +214,17 @@ function TaskListCard({
         )}
       </div>
 
-      {(cancellable || deletable) && (
+      {(assignable || cancellable || deletable) && (
         <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-black/[0.04] dark:border-white/[0.06]">
+          {assignable && (
+            <button
+              onClick={() => onAssign!(task)}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-[#007AFF] hover:bg-[#0066CC] border border-[#0066CC] px-3 py-1.5 rounded-lg transition shadow-sm"
+            >
+              <UserPlus size={12} />
+              Tugaskan
+            </button>
+          )}
           {cancellable && (
             <button
               onClick={() => onCancel!(task)}
@@ -247,6 +259,8 @@ export default function TasksPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [assignTarget, setAssignTarget] = useState<Task | null>(null);
+  const [assignUserId, setAssignUserId] = useState('');
 
   const [userRole, setUserRole] = useState<string | undefined>(undefined);
   useEffect(() => {
@@ -254,6 +268,7 @@ export default function TasksPage() {
   }, []);
   const canCancel = userRole === 'admin' || userRole === 'super_admin';
   const canDelete = userRole === 'super_admin';
+  const canAssign = userRole === 'admin' || userRole === 'super_admin' || userRole === 'manager';
 
   const [form, setForm] = useState({
     title: '', description: '', type: 'visit', priority: 'normal' as TaskPriority,
@@ -344,6 +359,22 @@ export default function TasksPage() {
 
   const onDeleteHandler = canDelete
     ? (t: Task) => { setDeleteTarget(t); setDeleteConfirm(''); }
+    : undefined;
+
+  const assignMut = useMutation({
+    mutationFn: ({ id, user_id }: { id: string; user_id: string }) =>
+      apiClient.post(`/tasks/${id}/assign`, { user_id }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks-web'] });
+      setAssignTarget(null);
+      setAssignUserId('');
+      toast.success('Tugas berhasil ditugaskan');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menugaskan tugas')),
+  });
+
+  const onAssignHandler = canAssign
+    ? (t: Task) => { setAssignTarget(t); setAssignUserId(''); }
     : undefined;
 
   const tasks: Task[] = tasksData?.items ?? [];
@@ -533,13 +564,13 @@ export default function TasksPage() {
 
             {/* Mobile list cards */}
             <div className="md:hidden space-y-3">
-              {tasks.map((t) => <TaskListCard key={t.id} task={t} onCancel={onCancelHandler} onDelete={onDeleteHandler} />)}
+              {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} />)}
             </div>
           </>
         ) : (
           /* ── LIST VIEW ── */
           <div className="space-y-3">
-            {tasks.map((t) => <TaskListCard key={t.id} task={t} onCancel={onCancelHandler} onDelete={onDeleteHandler} />)}
+            {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} />)}
           </div>
         )}
       </div>
@@ -717,6 +748,78 @@ export default function TasksPage() {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>Buat & Kirim <ArrowUpRight size={14} /></>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Assign Task Modal ──────────────────────────────────────────────── */}
+      {assignTarget && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl w-full max-w-md shadow-2xl border border-black/[0.06] dark:border-white/[0.10] overflow-hidden">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-[10px] bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)] flex items-center justify-center">
+                  <UserPlus size={16} className="text-[#007AFF]" />
+                </div>
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">Tugaskan ke Teknisi</h2>
+              </div>
+              <button
+                onClick={() => { setAssignTarget(null); setAssignUserId(''); }}
+                className="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.08]">
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wider mb-1">Tugas</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{assignTarget.title}</p>
+                {assignTarget.client && (
+                  <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">Klien: {assignTarget.client.name}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">
+                  Pilih Teknisi *
+                </label>
+                <select
+                  value={assignUserId}
+                  onChange={(e) => setAssignUserId(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 transition"
+                >
+                  <option value="">— Pilih teknisi —</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                </select>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.08)] border border-[#BFDBFE] dark:border-[rgba(0,122,255,0.25)]">
+                <p className="text-[11px] text-[#007AFF] leading-relaxed">
+                  Teknisi akan menerima notifikasi untuk mengkonfirmasi tugas ini.
+                </p>
+              </div>
+            </div>
+
+            <div className="px-5 pb-5 pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex gap-3">
+              <button
+                onClick={() => { setAssignTarget(null); setAssignUserId(''); }}
+                className="flex-1 py-3 border border-black/[0.08] dark:border-white/[0.10] rounded-xl text-sm font-semibold text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => assignMut.mutate({ id: assignTarget.id, user_id: assignUserId })}
+                disabled={assignMut.isPending || !assignUserId}
+                className="flex-1 py-3 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.30)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {assignMut.isPending ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <><UserPlus size={14} /> Tugaskan</>
                 )}
               </button>
             </div>
