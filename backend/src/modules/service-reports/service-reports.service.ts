@@ -117,6 +117,16 @@ export class ServiceReportsService {
       throw new ForbiddenException('Bukan laporan Anda');
     }
 
+    // Kalau sudah pernah digenerate, ambil langsung dari R2 — tidak perlu Puppeteer lagi
+    if (report.pdf_url) {
+      try {
+        const res = await fetch(report.pdf_url, { signal: AbortSignal.timeout(15_000) });
+        if (res.ok) return Buffer.from(await res.arrayBuffer());
+      } catch {
+        // R2 fetch gagal → fallthrough ke regenerate
+      }
+    }
+
     return this.generateAndStorePdf(reportId);
   }
 
