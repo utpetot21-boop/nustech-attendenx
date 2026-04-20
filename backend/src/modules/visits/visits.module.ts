@@ -7,6 +7,7 @@ import { ServiceReportEntity } from './entities/service-report.entity';
 import { SlaBreachEntity } from './entities/sla-breach.entity';
 import { ClientEntity } from '../clients/entities/client.entity';
 import { VisitFormResponseEntity } from '../templates/entities/visit-form-response.entity';
+import { TaskEntity } from '../tasks/entities/task.entity';
 import { VisitsService } from './visits.service';
 import { VisitsController } from './visits.controller';
 import { PhotoWatermarkService } from './photo-watermark.service';
@@ -23,6 +24,7 @@ import { OsrmService } from '../../services/osrm.service';
       SlaBreachEntity,
       ClientEntity,
       VisitFormResponseEntity,
+      TaskEntity,
     ]),
   ],
   controllers: [VisitsController],

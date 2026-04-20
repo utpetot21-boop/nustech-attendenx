@@ -204,10 +204,16 @@ export default function VisitDetailScreen() {
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['visits-ongoing'] });
       qc.invalidateQueries({ queryKey: ['visits'] });
       qc.invalidateQueries({ queryKey: ['visit', visitId] });
+      qc.invalidateQueries({ queryKey: ['tasks-all'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['task-detail'] });
       setShowCheckoutForm(false);
-      router.back();
+      Alert.alert('Kunjungan Selesai', 'Laporan telah tersimpan.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
     },
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

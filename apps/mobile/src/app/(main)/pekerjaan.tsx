@@ -430,10 +430,16 @@ export default function PekerjaanScreen() {
   const allTasks = tasksData?.items ?? [];
   const activeVisit = (visitsData?.items ?? []).find((v) => v.status === 'ongoing') ?? null;
 
-  const urgentPending  = allTasks.filter((t) => t.status === 'pending_confirmation' && t.is_emergency);
-  const normalPending  = allTasks.filter((t) => t.status === 'pending_confirmation' && !t.is_emergency);
-  const assignedTasks  = allTasks.filter((t) => t.status === 'assigned');
-  const onHoldTasks    = allTasks.filter((t) => t.status === 'on_hold');
+  // Sembunyikan tugas yang sedang dikunjungi agar tidak dobel dengan kartu "Kunjungan Berlangsung".
+  const activeVisitTaskId = activeVisit?.task_id ?? null;
+  const visibleTasks = activeVisitTaskId
+    ? allTasks.filter((t) => t.id !== activeVisitTaskId)
+    : allTasks;
+
+  const urgentPending  = visibleTasks.filter((t) => t.status === 'pending_confirmation' && t.is_emergency);
+  const normalPending  = visibleTasks.filter((t) => t.status === 'pending_confirmation' && !t.is_emergency);
+  const assignedTasks  = visibleTasks.filter((t) => t.status === 'assigned');
+  const onHoldTasks    = visibleTasks.filter((t) => t.status === 'on_hold');
 
   const pendingAll = [...urgentPending, ...normalPending];
   const totalActive = pendingAll.length + assignedTasks.length + onHoldTasks.length + (activeVisit ? 1 : 0);

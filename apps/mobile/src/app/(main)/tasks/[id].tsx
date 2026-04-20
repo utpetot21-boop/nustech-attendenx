@@ -117,6 +117,15 @@ export default function TaskDetailScreen() {
     enabled: !!id && (task?.status === 'on_hold' || task?.status === 'assigned'),
   });
 
+  // Cek apakah task ini sedang dalam kunjungan berlangsung — tombol "Mulai Kunjungan"
+  // diganti "Lanjutkan Kunjungan" agar tidak dobel check-in.
+  const { data: ongoingVisitsData } = useQuery({
+    queryKey: ['visits-ongoing'],
+    queryFn: () => visitsService.getMyVisits({ status: 'ongoing' }),
+    enabled: !!id,
+  });
+  const activeVisitForTask = (ongoingVisitsData?.items ?? []).find((v) => v.task_id === id) ?? null;
+
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['task-detail', id] });
     qc.invalidateQueries({ queryKey: ['tasks'] });
@@ -569,27 +578,48 @@ export default function TaskDetailScreen() {
 
         {isAssigned && (
           <View style={{ paddingHorizontal: 20, gap: 12, marginBottom: 14 }}>
-            {/* Primary: Mulai Kunjungan (Check-in) */}
-            <TouchableOpacity
-              onPress={handleStartVisit}
-              disabled={checkInMut.isPending}
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: C.green, borderRadius: 18, paddingVertical: 17,
-                alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
-                shadowColor: C.green, shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
-                opacity: checkInMut.isPending ? 0.7 : 1,
-              }}
-            >
-              {checkInMut.isPending
-                ? <ActivityIndicator size="small" color="#FFF" />
-                : <Play size={20} strokeWidth={2.2} color="#FFF" />
-              }
-              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>
-                {checkInMut.isPending ? 'Mengambil lokasi…' : 'Mulai Kunjungan'}
-              </Text>
-            </TouchableOpacity>
+            {/* Primary: Mulai Kunjungan ATAU Lanjutkan (jika sudah ada kunjungan aktif) */}
+            {activeVisitForTask ? (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.replace(`/(main)/visits/${activeVisitForTask.id}` as never);
+                }}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: C.blue, borderRadius: 18, paddingVertical: 17,
+                  alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+                  shadowColor: C.blue, shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+                }}
+              >
+                <Play size={20} strokeWidth={2.2} color="#FFF" />
+                <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>
+                  Lanjutkan Kunjungan
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleStartVisit}
+                disabled={checkInMut.isPending}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: C.green, borderRadius: 18, paddingVertical: 17,
+                  alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+                  shadowColor: C.green, shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+                  opacity: checkInMut.isPending ? 0.7 : 1,
+                }}
+              >
+                {checkInMut.isPending
+                  ? <ActivityIndicator size="small" color="#FFF" />
+                  : <Play size={20} strokeWidth={2.2} color="#FFF" />
+                }
+                <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>
+                  {checkInMut.isPending ? 'Mengambil lokasi…' : 'Mulai Kunjungan'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Secondary actions */}
             <TouchableOpacity

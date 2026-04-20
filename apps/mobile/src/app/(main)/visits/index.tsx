@@ -147,6 +147,11 @@ export default function VisitsListScreen() {
   const handleRefresh = useCallback(() => { refetch(); }, [refetch]);
 
   const ongoingVisit = data?.items.find((v) => v.status === 'ongoing');
+  // Kunjungan berlangsung sudah ditampilkan sebagai banner biru di atas —
+  // keluarkan dari daftar agar tidak dobel (hanya saat filter "Semua" atau "Berlangsung").
+  const listItems = ongoingVisit
+    ? (data?.items ?? []).filter((v) => v.id !== ongoingVisit.id)
+    : (data?.items ?? []);
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
@@ -220,15 +225,17 @@ export default function VisitsListScreen() {
           <View style={{ paddingTop: 8 }}>
             {[0, 1, 2, 3].map((i) => <VisitCardSkeleton key={i} isDark={isDark} />)}
           </View>
-        ) : (data?.items.length ?? 0) === 0 ? (
-          <EmptyState
-            icon={MapPin}
-            iconColor={C.blue}
-            title="Belum ada kunjungan"
-            message="Kunjungan lapangan akan muncul di sini setelah check-in dimulai dari halaman Pekerjaan."
-          />
+        ) : listItems.length === 0 ? (
+          ongoingVisit ? null : (
+            <EmptyState
+              icon={MapPin}
+              iconColor={C.blue}
+              title="Belum ada kunjungan"
+              message="Kunjungan lapangan akan muncul di sini setelah check-in dimulai dari halaman Pekerjaan."
+            />
+          )
         ) : (
-          data?.items.map((visit) => (
+          listItems.map((visit) => (
             <VisitCard
               key={visit.id}
               visit={visit}

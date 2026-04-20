@@ -19,6 +19,7 @@ import { StorageService } from '../../services/storage.service';
 import { PhotoWatermarkService } from './photo-watermark.service';
 import { ClientEntity } from '../clients/entities/client.entity';
 import { VisitFormResponseEntity } from '../templates/entities/visit-form-response.entity';
+import { TaskEntity } from '../tasks/entities/task.entity';
 
 // Photo phase limits (min / max)
 const PHOTO_LIMITS: Record<string, { min: number; max: number }> = {
@@ -40,6 +41,8 @@ export class VisitsService {
     private readonly clientRepo: Repository<ClientEntity>,
     @InjectRepository(VisitFormResponseEntity)
     private readonly formResponseRepo: Repository<VisitFormResponseEntity>,
+    @InjectRepository(TaskEntity)
+    private readonly taskRepo: Repository<TaskEntity>,
     private readonly nominatim: NominatimService,
     private readonly storage: StorageService,
     private readonly watermark: PhotoWatermarkService,
@@ -95,7 +98,16 @@ export class VisitsService {
       status: 'ongoing',
     });
 
-    return this.visitRepo.save(visit);
+    const saved = await this.visitRepo.save(visit);
+
+    // Sinkronkan status task: assigned → in_progress agar task tidak lagi muncul
+    // sebagai "Siap Dikerjakan" di mobile Pekerjaan.
+    await this.taskRepo.update(
+      { id: dto.task_id, status: 'assigned' },
+      { status: 'in_progress' },
+    );
+
+    return saved;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -210,6 +222,15 @@ export class VisitsService {
     visit.status = 'completed';
 
     const saved = await this.visitRepo.save(visit);
+
+    // Sinkronkan task: status → completed + completed_at agar pekerjaan hilang
+    // dari daftar aktif dan pindah ke riwayat "Selesai".
+    if (saved.task_id) {
+      await this.taskRepo.update(
+        { id: saved.task_id },
+        { status: 'completed', completed_at: checkOutAt },
+      );
+    }
 
     // SLA breach detection
     await this.checkSlaBreaches(saved);
