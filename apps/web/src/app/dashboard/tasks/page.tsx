@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
@@ -248,7 +248,10 @@ export default function TasksPage() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
 
-  const userRole = getAuthUser()?.role.name;
+  const [userRole, setUserRole] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setUserRole(getAuthUser()?.role?.name);
+  }, []);
   const canCancel = userRole === 'admin' || userRole === 'super_admin';
   const canDelete = userRole === 'super_admin';
 
@@ -536,7 +539,7 @@ export default function TasksPage() {
         ) : (
           /* ── LIST VIEW ── */
           <div className="space-y-3">
-            {tasks.map((t) => <TaskListCard key={t.id} task={t} />)}
+            {tasks.map((t) => <TaskListCard key={t.id} task={t} onCancel={onCancelHandler} onDelete={onDeleteHandler} />)}
           </div>
         )}
       </div>
