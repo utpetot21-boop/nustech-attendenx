@@ -22,6 +22,7 @@ import { HandoverTaskDto } from './dto/handover-task.dto';
 import { SwapRequestDto } from './dto/swap-request.dto';
 import { HoldTaskDto } from './dto/hold-task.dto';
 import { ApproveHoldDto, RejectHoldDto } from './dto/review-hold.dto';
+import { CancelTaskDto } from './dto/cancel-task.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { RealtimeGateway } from '../realtime/realtime.gateway';
 
@@ -196,7 +197,7 @@ export class TasksService {
   async findOne(id: string): Promise<TaskEntity> {
     const task = await this.taskRepo.findOne({
       where: { id },
-      relations: ['client', 'assignee', 'creator', 'assignments', 'delegations'],
+      relations: ['client', 'assignee', 'creator', 'canceller', 'assignments', 'delegations'],
     });
     if (!task) throw new NotFoundException('Tugas tidak ditemukan.');
     return task;
@@ -579,6 +580,78 @@ export class TasksService {
     });
 
     return this.delegationRepo.save(delegation);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // CANCEL (admin / super_admin — pembatalan tugas, soft)
+  // ────────────────────────────────────────────────────────────────────────────
+  async cancel(taskId: string, userId: string, dto: CancelTaskDto): Promise<TaskEntity> {
+    const task = await this.findOne(taskId);
+
+    if (task.status === 'cancelled') {
+      throw new BadRequestException('Tugas sudah dibatalkan.');
+    }
+    if (task.status === 'completed') {
+      throw new BadRequestException('Tugas yang sudah selesai tidak dapat dibatalkan.');
+    }
+
+    const previousAssignee = task.assigned_to;
+
+    await this.taskRepo.update(taskId, {
+      status: 'cancelled',
+      cancelled_at: new Date(),
+      cancelled_by: userId,
+      cancel_reason: dto.reason,
+    });
+
+    // Tutup semua penugasan aktif — tidak ada lagi offered/accepted yang current
+    await this.assignRepo.update(
+      { task_id: taskId, is_current: true },
+      { is_current: false },
+    );
+
+    // Batalkan visit yang masih berjalan (jika ada) supaya teknisi tidak bisa check-out lagi
+    await this.visitRepo.update(
+      { task_id: taskId, status: 'ongoing' },
+      { status: 'cancelled' },
+    );
+    await this.visitRepo.update(
+      { task_id: taskId, status: 'on_hold' },
+      { status: 'cancelled' },
+    );
+
+    // Notif ke assignee kalau ada
+    if (previousAssignee) {
+      await this.notifications.send({
+        userId: previousAssignee,
+        type: 'task_cancelled',
+        title: 'Tugas Dibatalkan',
+        body: `${task.title} dibatalkan oleh admin. Alasan: ${dto.reason}`,
+        data: { task_id: taskId },
+      }).catch(() => null);
+    }
+
+    // Notif ke creator kalau beda dari yang cancel dan beda dari assignee
+    if (
+      task.created_by &&
+      task.created_by !== userId &&
+      task.created_by !== previousAssignee
+    ) {
+      await this.notifications.send({
+        userId: task.created_by,
+        type: 'task_cancelled',
+        title: 'Tugas Anda Dibatalkan',
+        body: `${task.title} dibatalkan oleh admin. Alasan: ${dto.reason}`,
+        data: { task_id: taskId },
+      }).catch(() => null);
+    }
+
+    this.realtime?.emitTaskUpdated(taskId, {
+      status: 'cancelled',
+      cancel_reason: dto.reason,
+    });
+
+    return this.findOne(taskId);
   }
 
   // ────────────────────────────────────────────────────────────────────────────

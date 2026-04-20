@@ -15,7 +15,7 @@ import {
   ChevronLeft, AlertTriangle, Calendar, Clock, FileText,
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
-  Search, User, ChevronDown, Check, X as XIcon,
+  Search, User, ChevronDown, Check, X as XIcon, Ban,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import { C, R, B, pageBg, cardBg as tokenCardBg, lPrimary, lSecondary, lTertiary, gradients } from '@/constants/tokens';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface EmployeeOption { id: string; full_name: string; employee_id?: string; department?: { name?: string } | null }
 import { ConfirmCountdown } from '@/components/tasks/ConfirmCountdown';
@@ -42,6 +43,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; bg
   on_hold:    { label: 'Ditunda',       color: C.orange, bg: C.orange + '15', bgDark: C.orange + '26' },
   rescheduled:{ label: 'Dijadwal Ulang',color: C.purple, bg: C.purple + '15', bgDark: C.purple + '26' },
   completed:  { label: 'Selesai',       color: C.green,  bg: C.green + '15',  bgDark: C.green + '26' },
+  cancelled:  { label: 'Dibatalkan',    color: C.red,    bg: C.red + '15',    bgDark: C.red + '26' },
   unassigned: { label: 'Belum Ditugaskan', color: '#8E8E93', bg: '#8E8E93' + '15', bgDark: '#8E8E93' + '26' },
 };
 
@@ -69,6 +71,7 @@ export default function TaskDetailScreen() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [showDelegateModal, setShowDelegateModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [holdReasonType, setHoldReasonType] = useState('client_absent');
   const [holdNotes, setHoldNotes] = useState('');
@@ -76,6 +79,10 @@ export default function TaskDetailScreen() {
   const [delegateReason, setDelegateReason] = useState('');
   const [delegatePickerOpen, setDelegatePickerOpen] = useState(false);
   const [delegateSearch, setDelegateSearch] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+
+  const userRole = useAuthStore((s) => s.user?.role?.name);
+  const canCancelTask = userRole === 'admin' || userRole === 'super_admin';
 
   const bg = pageBg(isDark);
   const cardBg = tokenCardBg(isDark);
@@ -149,6 +156,21 @@ export default function TaskDetailScreen() {
     },
   });
 
+  const cancelMut = useMutation({
+    mutationFn: () => tasksService.cancelTask(id!, cancelReason.trim()),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      invalidate();
+      setShowCancelModal(false);
+      setCancelReason('');
+      Alert.alert('Tugas Dibatalkan', 'Tugas telah dibatalkan dan teknisi telah dinotifikasi.');
+    },
+    onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err?.response?.data?.message ?? err?.message ?? 'Terjadi kesalahan.');
+    },
+  });
+
   const delegateMut = useMutation({
     mutationFn: () => tasksService.delegate(id!, {
       to_user_id: delegateEmployee?.id ?? '',
@@ -198,6 +220,8 @@ export default function TaskDetailScreen() {
   const isAssigned = task.status === 'assigned';
   const isOnHold = task.status === 'on_hold';
   const isCompleted = task.status === 'completed';
+  const isCancelled = task.status === 'cancelled';
+  const cancellable = canCancelTask && !isCompleted && !isCancelled;
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
@@ -451,6 +475,48 @@ export default function TaskDetailScreen() {
             </View>
           </View>
         )}
+
+        {/* ── Cancelled banner ──────────────────────── */}
+        {isCancelled && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+            <View style={{ backgroundColor: isDark ? C.red + '1A' : C.red + '12', borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: C.red + '4D' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: task.cancel_reason ? 8 : 0 }}>
+                <Ban size={20} strokeWidth={2} color={C.red} />
+                <Text style={{ color: C.red, fontWeight: '700', fontSize: 16 }}>Tugas Dibatalkan</Text>
+              </View>
+              {task.cancel_reason && (
+                <Text style={{ fontSize: 14, color: textPrimary, lineHeight: 20, marginBottom: 4 }}>
+                  {task.cancel_reason}
+                </Text>
+              )}
+              {task.cancelled_at && (
+                <Text style={{ fontSize: 12, color: textSecondary }}>
+                  {task.canceller?.full_name ? `Oleh ${task.canceller.full_name} · ` : ''}
+                  {new Date(task.cancelled_at).toLocaleString('id-ID', {
+                    timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit',
+                  })} WITA
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* ── Admin: Batalkan Tugas ─────────────────── */}
+        {cancellable && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowCancelModal(true); }}
+              style={{ backgroundColor: isDark ? C.red + '1F' : C.red + '0D', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.red + '59' }}
+            >
+              <Ban size={20} strokeWidth={2} color={C.red} />
+              <Text style={{ color: C.red, fontWeight: '700', fontSize: 16 }}>Batalkan Tugas</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 11, color: textSecondary, textAlign: 'center', marginTop: 8 }}>
+              Hanya admin / super admin. Tindakan ini akan memberitahu teknisi.
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* ── Reject Modal ──────────────────────────────────────────────────── */}
@@ -534,6 +600,58 @@ export default function TaskDetailScreen() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Cancel Task Modal (admin / super_admin) ──────────────────────── */}
+      <Modal visible={showCancelModal} transparent animationType="slide" onRequestClose={() => setShowCancelModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}>
+          <View style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, paddingBottom: insets.bottom + 24 }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 18 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: C.red + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                <Ban size={18} strokeWidth={2} color={C.red} />
+              </View>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary }}>Batalkan Tugas</Text>
+            </View>
+            <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 8 }}>
+              Tugas akan ditandai sebagai dibatalkan dan teknisi akan dinotifikasi. Tindakan tidak bisa dibatalkan.
+            </Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 6, marginTop: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Alasan Pembatalan *
+            </Text>
+            <TextInput
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              placeholder="Jelaskan alasan pembatalan (min. 5 karakter)..."
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
+              multiline numberOfLines={4} textAlignVertical="top" maxLength={500}
+              style={{ backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5, borderColor: inputBorder, padding: 14, fontSize: 15, color: textPrimary, minHeight: 110, marginBottom: 6 }}
+            />
+            <Text style={{ fontSize: 11, color: textSecondary, textAlign: 'right', marginBottom: 16 }}>
+              {cancelReason.length}/500
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity onPress={() => { setShowCancelModal(false); setCancelReason(''); }} style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', alignItems: 'center' }}>
+                <Text style={{ color: textPrimary, fontWeight: '600', fontSize: 15 }}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  if (cancelReason.trim().length < 5) {
+                    Alert.alert('Alasan Kurang', 'Alasan pembatalan minimal 5 karakter.');
+                    return;
+                  }
+                  cancelMut.mutate();
+                }}
+                disabled={cancelMut.isPending || cancelReason.trim().length < 5}
+                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: cancelReason.trim().length >= 5 ? C.red : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
+              >
+                {cancelMut.isPending ? <ActivityIndicator color="#FFF" /> : (
+                  <Text style={{ color: cancelReason.trim().length >= 5 ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'), fontWeight: '700', fontSize: 15 }}>Batalkan</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>

@@ -7,7 +7,8 @@ export type TaskStatus =
   | 'assigned'
   | 'on_hold'
   | 'rescheduled'
-  | 'completed';
+  | 'completed'
+  | 'cancelled';
 
 export interface TaskSummary {
   id: string;
@@ -23,6 +24,9 @@ export interface TaskSummary {
   is_emergency: boolean;
   escalated_from?: string;
   escalated_at?: string;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  canceller?: { id: string; full_name: string } | null;
   created_at: string;
 }
 
@@ -61,6 +65,11 @@ export const tasksService = {
   async reject(id: string, reason?: string) {
     const res = await api.post(`/tasks/${id}/reject`, { reason });
     return res.data;
+  },
+
+  async cancelTask(id: string, reason: string) {
+    const res = await api.post(`/tasks/${id}/cancel`, { reason });
+    return res.data as TaskSummary;
   },
 
   async delegate(id: string, payload: DelegateTaskPayload) {

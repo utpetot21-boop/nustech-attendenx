@@ -92,6 +92,19 @@ export class TaskEntity {
   @Column({ type: 'timestamptz', nullable: true })
   completed_at: Date | null;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  cancelled_at: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  cancelled_by: string | null;
+
+  @ManyToOne(() => UserEntity, { nullable: true })
+  @JoinColumn({ name: 'cancelled_by' })
+  canceller: UserEntity | null;
+
+  @Column({ type: 'text', nullable: true })
+  cancel_reason: string | null;
+
   @Column({ type: 'boolean', default: false })
   is_emergency: boolean;
 

@@ -12,6 +12,7 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -21,6 +22,7 @@ import { HandoverTaskDto } from './dto/handover-task.dto';
 import { SwapRequestDto } from './dto/swap-request.dto';
 import { HoldTaskDto } from './dto/hold-task.dto';
 import { ApproveHoldDto, RejectHoldDto } from './dto/review-hold.dto';
+import { CancelTaskDto } from './dto/cancel-task.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -37,7 +39,7 @@ export class TasksController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const isAdmin = ['admin', 'manager'].includes(role);
+    const isAdmin = ['admin', 'super_admin', 'manager'].includes(role);
     return this.tasks.findAll({
       userId: isAdmin ? undefined : userId,
       status,
@@ -116,6 +118,18 @@ export class TasksController {
     @Body('user_id') toUserId: string,
   ) {
     return this.tasks.assign(id, toUserId);
+  }
+
+  // ── ADMIN CANCEL (soft) ──────────────────────────────────────────────────────
+  @Post(':id/cancel')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'super_admin')
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: CancelTaskDto,
+  ) {
+    return this.tasks.cancel(id, userId, dto);
   }
 
   // ── ACCEPT / REJECT ──────────────────────────────────────────────────────────
