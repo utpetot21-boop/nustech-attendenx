@@ -67,6 +67,18 @@ export class VisitsService {
       );
     }
 
+    // Validasi task: harus ada, statusnya in_progress/assigned, dan ditugaskan ke user ini
+    if (dto.task_id) {
+      const task = await this.taskRepo.findOne({ where: { id: dto.task_id } });
+      if (!task) throw new NotFoundException('Tugas tidak ditemukan.');
+      if (!['assigned', 'in_progress'].includes(task.status)) {
+        throw new BadRequestException('Tugas ini tidak dalam status yang dapat dikunjungi.');
+      }
+      if (task.assigned_to && task.assigned_to !== userId) {
+        throw new ForbiddenException('Anda tidak memiliki izin untuk melakukan check-in pada tugas ini.');
+      }
+    }
+
     // Validasi client
     const client = await this.clientRepo.findOne({ where: { id: dto.client_id } });
     if (!client) throw new NotFoundException('Client tidak ditemukan.');
