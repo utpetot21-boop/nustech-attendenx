@@ -40,6 +40,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   completed:   { label: 'Selesai',        color: C.green  },
   on_hold:     { label: 'Ditahan',        color: C.orange },
   rescheduled: { label: 'Dijadwal Ulang', color: C.purple },
+  cancelled:   { label: 'Dibatalkan',     color: C.red    },
 };
 
 const FILTERS = [
@@ -147,11 +148,14 @@ export default function VisitsListScreen() {
   const handleRefresh = useCallback(() => { refetch(); }, [refetch]);
 
   const ongoingVisit = data?.items.find((v) => v.status === 'ongoing');
-  // Kunjungan berlangsung sudah ditampilkan sebagai banner biru di atas —
-  // keluarkan dari daftar agar tidak dobel (hanya saat filter "Semua" atau "Berlangsung").
-  const listItems = ongoingVisit
-    ? (data?.items ?? []).filter((v) => v.id !== ongoingVisit.id)
-    : (data?.items ?? []);
+  // - kunjungan berlangsung sudah tampil sebagai banner biru atas, keluarkan dari daftar
+  // - visit "cancelled" (hasil admin cleanup / stale) disembunyikan kecuali user
+  //   memfilter eksplisit dari dropdown di masa depan.
+  const listItems = (data?.items ?? []).filter((v) => {
+    if (v.status === 'cancelled') return false;
+    if (ongoingVisit && v.id === ongoingVisit.id) return false;
+    return true;
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
