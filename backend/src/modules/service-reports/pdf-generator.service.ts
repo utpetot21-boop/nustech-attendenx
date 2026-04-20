@@ -54,9 +54,51 @@ export class PdfGeneratorService {
     }
   }
 
+  // Fetch URL → base64 data URI. Returns null on failure (image will be missing, not crash).
+  private async toDataUri(url: string | null): Promise<string | null> {
+    if (!url) return null;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
+      const ct = res.headers.get('content-type') ?? 'image/jpeg';
+      return `data:${ct};base64,${buf.toString('base64')}`;
+    } catch {
+      this.logger.warn(`Failed to fetch image for PDF: ${url}`);
+      return null;
+    }
+  }
+
   async generate(data: ServiceReportData): Promise<Buffer> {
     if (!this.template) this.loadTemplate();
-    const html = this.template!(data);
+
+    // Pre-fetch all images as base64 so Puppeteer makes zero external requests
+    const allPhotoUrls = [
+      ...data.before_photos.map((p) => p.url),
+      ...data.during_photos.map((p) => p.url),
+      ...data.after_photos.map((p) => p.url),
+      data.tech_signature_url,
+      data.client_signature_url,
+    ];
+
+    const dataUris = await Promise.all(allPhotoUrls.map((u) => this.toDataUri(u)));
+    const uriMap = new Map<string, string | null>(
+      allPhotoUrls.map((u, i) => [u ?? '', dataUris[i]]),
+    );
+
+    const embedPhotos = (photos: Array<{ url: string; caption?: string }>) =>
+      photos.map((p) => ({ ...p, url: uriMap.get(p.url) ?? p.url }));
+
+    const embeddedData: ServiceReportData = {
+      ...data,
+      before_photos: embedPhotos(data.before_photos),
+      during_photos: embedPhotos(data.during_photos),
+      after_photos: embedPhotos(data.after_photos),
+      tech_signature_url: uriMap.get(data.tech_signature_url ?? '') ?? data.tech_signature_url,
+      client_signature_url: uriMap.get(data.client_signature_url ?? '') ?? data.client_signature_url,
+    };
+
+    const html = this.template!(embeddedData);
 
     const browser = await puppeteer.launch({
       headless: true,
@@ -72,7 +114,8 @@ export class PdfGeneratorService {
 
     try {
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      // domcontentloaded cukup — semua gambar sudah di-embed sebagai base64
+      await page.setContent(html, { waitUntil: 'domcontentloaded' });
 
       const pdfBuffer = await page.pdf({
         format: 'A4',
