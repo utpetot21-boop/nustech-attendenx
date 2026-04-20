@@ -23,7 +23,10 @@ if (ENV_API_URL && !__DEV__ && !ENV_API_URL.startsWith('https://')) {
   );
 }
 
-const API_BASE_URL = ENV_API_URL || 'http://localhost:3001';
+// Socket.io namespace dipisah dari path REST. Kalau env di-set lengkap dengan
+// suffix /api/v1 (seperti yang dipakai axios), strip dulu — kalau tidak, namespace
+// yang dikirim ke server jadi "/api/v1/realtime" → server tolak "Invalid namespace".
+const API_BASE_URL = (ENV_API_URL || 'http://localhost:3001').replace(/\/api\/v\d+$/, '');
 
 export interface LocationPayload {
   task_id?: string;

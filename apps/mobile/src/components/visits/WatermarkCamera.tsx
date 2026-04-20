@@ -102,53 +102,52 @@ export function WatermarkCamera({ onCapture, onCancel, phaseLabel }: Props) {
 
   return (
     <View style={styles.container}>
-      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing}>
-        {/* Top bar */}
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={onCancel} style={styles.cancelBtn}>
-            <Text style={{ color: '#FFF', fontSize: 16 }}>✕</Text>
-          </TouchableOpacity>
-          <View style={styles.phaseTag}>
-            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>
-              {phaseLabel}
-            </Text>
-          </View>
-        </View>
+      {/* CameraView tidak mendukung children di expo-camera versi baru — overlay pakai absolute positioning. */}
+      <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing={facing} />
 
-        {/* Grid overlay */}
-        <View style={styles.gridOverlay} pointerEvents="none">
-          {/* Horizontal lines */}
-          <View style={[styles.gridLine, styles.hLine, { top: '33%' }]} />
-          <View style={[styles.gridLine, styles.hLine, { top: '66%' }]} />
-          {/* Vertical lines */}
-          <View style={[styles.gridLine, styles.vLine, { left: '33%' }]} />
-          <View style={[styles.gridLine, styles.vLine, { left: '66%' }]} />
-        </View>
-
-        {/* Watermark preview hint */}
-        <View style={styles.watermarkHint} pointerEvents="none">
-          <Text style={styles.watermarkText}>📅 Waktu · 📍 GPS · 🗺 Wilayah</Text>
-          <Text style={[styles.watermarkText, { opacity: 0.7 }]}>
-            Watermark akan diburn otomatis
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={onCancel} style={styles.cancelBtn}>
+          <Text style={{ color: '#FFF', fontSize: 16 }}>✕</Text>
+        </TouchableOpacity>
+        <View style={styles.phaseTag}>
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>
+            {phaseLabel}
           </Text>
         </View>
+      </View>
 
-        {/* Bottom shutter */}
-        <View style={styles.bottomBar}>
-          <TouchableOpacity
-            onPress={handleCapture}
-            disabled={isCapturing}
-            style={[styles.shutterBtn, isCapturing && { opacity: 0.6 }]}
-            activeOpacity={0.8}
-          >
-            {isCapturing ? (
-              <ActivityIndicator color="#FFF" size="large" />
-            ) : (
-              <View style={styles.shutterInner} />
-            )}
-          </TouchableOpacity>
-        </View>
-      </CameraView>
+      {/* Grid overlay */}
+      <View style={styles.gridOverlay} pointerEvents="none">
+        <View style={[styles.gridLine, styles.hLine, { top: '33%' }]} />
+        <View style={[styles.gridLine, styles.hLine, { top: '66%' }]} />
+        <View style={[styles.gridLine, styles.vLine, { left: '33%' }]} />
+        <View style={[styles.gridLine, styles.vLine, { left: '66%' }]} />
+      </View>
+
+      {/* Watermark preview hint */}
+      <View style={styles.watermarkHint} pointerEvents="none">
+        <Text style={styles.watermarkText}>📅 Waktu · 📍 GPS · 🗺 Wilayah</Text>
+        <Text style={[styles.watermarkText, { opacity: 0.7 }]}>
+          Watermark akan diburn otomatis
+        </Text>
+      </View>
+
+      {/* Bottom shutter */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          onPress={handleCapture}
+          disabled={isCapturing}
+          style={[styles.shutterBtn, isCapturing && { opacity: 0.6 }]}
+          activeOpacity={0.8}
+        >
+          {isCapturing ? (
+            <ActivityIndicator color="#FFF" size="large" />
+          ) : (
+            <View style={styles.shutterInner} />
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -159,6 +158,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
