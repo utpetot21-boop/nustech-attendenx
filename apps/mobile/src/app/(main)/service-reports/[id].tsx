@@ -191,7 +191,12 @@ export default function ServiceReportDetailScreen() {
             disabled={downloading}
           >
             {downloading ? (
-              <ActivityIndicator color="#fff" />
+              <View style={{ alignItems: 'center', gap: 4 }}>
+                <ActivityIndicator color="#fff" />
+                <Text style={[styles.pdfBtnText, { fontSize: 12, opacity: 0.85 }]}>
+                  Sedang generate PDF…
+                </Text>
+              </View>
             ) : (
               <Text style={styles.pdfBtnText}>↓ Download PDF Berita Acara</Text>
             )}
