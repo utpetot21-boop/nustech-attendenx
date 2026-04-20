@@ -518,6 +518,7 @@ export default function BerandaScreen() {
           fullName={user?.full_name?.split(' ').slice(0, 2).join(' ') ?? 'Karyawan'}
           greeting={greeting()}
           todayStr={todayStr}
+          avatarUrl={user?.avatar_url ?? null}
           unreadCount={unreadCount}
         >
           {/* Status badge di hero */}

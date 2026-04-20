@@ -16,13 +16,15 @@ import {
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
   Search, User, ChevronDown, Check, X as XIcon, Ban, Trash2,
-  UserPlus, Target, Radio,
+  UserPlus, Target, Radio, Play,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
+import * as Location from 'expo-location';
 import { C, R, B, pageBg, cardBg as tokenCardBg, lPrimary, lSecondary, lTertiary, gradients } from '@/constants/tokens';
 import { tasksService, type TaskSummary } from '@/services/tasks.service';
+import { visitsService } from '@/services/visits.service';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -270,6 +272,53 @@ export default function TaskDetailScreen() {
     enabled: showDelegateModal && delegatePickerOpen,
     staleTime: 30_000,
   });
+
+  // ── Check-in Visit (mulai kunjungan) ──────────────────────────────────────
+  const checkInMut = useMutation({
+    mutationFn: async () => {
+      if (!task?.client?.id) throw new Error('Tugas ini tidak memiliki klien. Hubungi manajer untuk penugasan ulang.');
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') throw new Error('Izin lokasi ditolak. Aktifkan izin GPS di pengaturan.');
+
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+
+      return visitsService.checkIn({
+        task_id: task.id,
+        client_id: task.client.id,
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+      });
+    },
+    onSuccess: (visit) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['tasks-all'] });
+      qc.invalidateQueries({ queryKey: ['visits-ongoing'] });
+      router.replace(`/(main)/visits/${visit.id}` as never);
+    },
+    onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal Check-in', err?.response?.data?.message ?? err?.message ?? 'Terjadi kesalahan.');
+    },
+  });
+
+  const handleStartVisit = useCallback(() => {
+    if (!task) return;
+    if (!task.client?.id) {
+      Alert.alert('Tidak Ada Klien', 'Tugas ini tidak memiliki klien. Hubungi manajer untuk penugasan ulang.');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      'Mulai Kunjungan?',
+      `Anda akan check-in di ${task.client.name}.\n\nPastikan Anda sudah tiba di lokasi klien. Koordinat GPS akan tercatat dan tidak bisa diubah.`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Mulai', onPress: () => checkInMut.mutate() },
+      ],
+    );
+  }, [task, checkInMut]);
 
   // ── Loading / Error ────────────────────────────────────────────────────────
   if (isLoading || !task) {
@@ -520,6 +569,29 @@ export default function TaskDetailScreen() {
 
         {isAssigned && (
           <View style={{ paddingHorizontal: 20, gap: 12, marginBottom: 14 }}>
+            {/* Primary: Mulai Kunjungan (Check-in) */}
+            <TouchableOpacity
+              onPress={handleStartVisit}
+              disabled={checkInMut.isPending}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: C.green, borderRadius: 18, paddingVertical: 17,
+                alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+                shadowColor: C.green, shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+                opacity: checkInMut.isPending ? 0.7 : 1,
+              }}
+            >
+              {checkInMut.isPending
+                ? <ActivityIndicator size="small" color="#FFF" />
+                : <Play size={20} strokeWidth={2.2} color="#FFF" />
+              }
+              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>
+                {checkInMut.isPending ? 'Mengambil lokasi…' : 'Mulai Kunjungan'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Secondary actions */}
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowHoldModal(true); }}
               style={{ backgroundColor: isDark ? C.orange + '1F' : C.orange + '0D', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.orange + '59' }}

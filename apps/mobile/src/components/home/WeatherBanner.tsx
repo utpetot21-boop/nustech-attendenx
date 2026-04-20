@@ -7,7 +7,8 @@
  * - Gradient berubah sesuai kondisi cuaca × waktu hari
  */
 import { useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -489,6 +490,8 @@ interface WeatherBannerProps {
   fullName: string;
   greeting: string;
   todayStr: string;
+  /** URL foto profile; kalau ada ditampilkan, else fallback ke initials */
+  avatarUrl?: string | null;
   /** jumlah notifikasi belum dibaca untuk badge lonceng */
   unreadCount?: number;
   /** konten tambahan di bawah greeting (mis. status badge) */
@@ -500,9 +503,11 @@ export default function WeatherBanner({
   fullName,
   greeting,
   todayStr,
+  avatarUrl,
   unreadCount = 0,
   children,
 }: WeatherBannerProps) {
+  const [avatarError, setAvatarError] = useState(false);
   const insets = useSafeAreaInsets();
   const period = getTimePeriod();
 
@@ -668,11 +673,21 @@ export default function WeatherBanner({
               backgroundColor: 'rgba(255,255,255,0.18)',
               borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.28)',
               alignItems: 'center', justifyContent: 'center',
+              overflow: 'hidden',
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF' }}>
-              {initials}
-            </Text>
+            {avatarUrl && !avatarError ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#FFFFFF' }}>
+                {initials}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
