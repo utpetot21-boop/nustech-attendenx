@@ -499,26 +499,72 @@ export class TasksService {
   // ────────────────────────────────────────────────────────────────────────────
   // ADMIN ASSIGN (force-assign oleh admin/manager)
   // ────────────────────────────────────────────────────────────────────────────
-  async assign(taskId: string, toUserId: string): Promise<TaskEntity> {
+  async assign(
+    taskId: string,
+    body: { user_id?: string; dept_id?: string },
+  ): Promise<TaskEntity> {
     const task = await this.findOne(taskId);
 
     if (!['unassigned', 'pending_confirmation', 'assigned', 'rescheduled'].includes(task.status)) {
       throw new BadRequestException('Tugas tidak dapat di-assign pada status ini.');
     }
 
-    const toUser = await this.userRepo.findOne({ where: { id: toUserId, is_active: true } });
-    if (!toUser) throw new NotFoundException('Teknisi tujuan tidak ditemukan.');
+    if (!body.user_id && !body.dept_id) {
+      throw new BadRequestException('user_id atau dept_id wajib diisi.');
+    }
 
-    // Revoke previous assignment
+    // Revoke previous assignments
     await this.assignRepo.update(
-      { task_id: taskId, is_current: true },
-      { is_current: false },
+      { task_id: taskId },
+      { is_current: false, status: 'rejected', responded_at: new Date() },
     );
+
+    // ── BROADCAST ke departemen ────────────────────────────────────────────────
+    if (body.dept_id) {
+      const members = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.dept_id = :deptId', { deptId: body.dept_id })
+        .andWhere('u.is_active = true')
+        .getMany();
+
+      if (members.length === 0) {
+        throw new BadRequestException('Departemen tidak memiliki anggota aktif.');
+      }
+
+      for (const member of members) {
+        await this.assignRepo.save(
+          this.assignRepo.create({
+            task_id: taskId,
+            user_id: member.id,
+            status: 'offered',
+            offered_at: new Date(),
+            is_current: false,
+          }),
+        );
+      }
+
+      await this.taskRepo.update(taskId, {
+        assigned_to: null,
+        dispatch_type: 'broadcast',
+        broadcast_dept_id: body.dept_id,
+        status: 'pending_confirmation',
+        confirm_deadline: null,
+      });
+
+      const result = await this.findOne(taskId);
+      this.realtime?.emitTaskUpdated(taskId, { status: 'pending_confirmation' });
+      await this.notifyBroadcastOffer(taskId, members.map((m) => m.id));
+      return result;
+    }
+
+    // ── DIRECT ke individu ─────────────────────────────────────────────────────
+    const toUser = await this.userRepo.findOne({ where: { id: body.user_id, is_active: true } });
+    if (!toUser) throw new NotFoundException('Teknisi tujuan tidak ditemukan.');
 
     await this.assignRepo.save(
       this.assignRepo.create({
         task_id: taskId,
-        user_id: toUserId,
+        user_id: body.user_id,
         status: 'accepted',
         offered_at: new Date(),
         responded_at: new Date(),
@@ -527,14 +573,16 @@ export class TasksService {
     );
 
     await this.taskRepo.update(taskId, {
-      assigned_to: toUserId,
+      assigned_to: body.user_id,
+      dispatch_type: 'direct',
+      broadcast_dept_id: null,
       status: 'assigned',
       confirm_deadline: null,
     });
 
     const result = await this.findOne(taskId);
-    this.realtime?.emitTaskUpdated(taskId, { status: 'assigned', assigned_to: toUserId });
-    await this.notifyAssignee(taskId, toUserId);
+    this.realtime?.emitTaskUpdated(taskId, { status: 'assigned', assigned_to: body.user_id });
+    await this.notifyAssignee(taskId, body.user_id!);
     return result;
   }
 

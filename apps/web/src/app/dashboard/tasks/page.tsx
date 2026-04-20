@@ -260,7 +260,9 @@ export default function TasksPage() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [assignTarget, setAssignTarget] = useState<Task | null>(null);
+  const [assignMode, setAssignMode] = useState<'direct' | 'broadcast'>('direct');
   const [assignUserId, setAssignUserId] = useState('');
+  const [assignDeptId, setAssignDeptId] = useState('');
 
   const [userRole, setUserRole] = useState<string | undefined>(undefined);
   useEffect(() => {
@@ -362,19 +364,25 @@ export default function TasksPage() {
     : undefined;
 
   const assignMut = useMutation({
-    mutationFn: ({ id, user_id }: { id: string; user_id: string }) =>
-      apiClient.post(`/tasks/${id}/assign`, { user_id }),
-    onSuccess: () => {
+    mutationFn: (body: { user_id?: string; dept_id?: string }) =>
+      apiClient.post(`/tasks/${assignTarget!.id}/assign`, body),
+    onSuccess: (_, body) => {
       qc.invalidateQueries({ queryKey: ['tasks-web'] });
       setAssignTarget(null);
       setAssignUserId('');
-      toast.success('Tugas berhasil ditugaskan');
+      setAssignDeptId('');
+      toast.success(body.dept_id ? 'Tugas di-broadcast ke departemen' : 'Tugas berhasil ditugaskan');
     },
     onError: (err) => toast.error(getErrorMessage(err, 'Gagal menugaskan tugas')),
   });
 
   const onAssignHandler = canAssign
-    ? (t: Task) => { setAssignTarget(t); setAssignUserId(''); }
+    ? (t: Task) => {
+        setAssignTarget(t);
+        setAssignMode('direct');
+        setAssignUserId('');
+        setAssignDeptId('');
+      }
     : undefined;
 
   const tasks: Task[] = tasksData?.items ?? [];
@@ -764,10 +772,10 @@ export default function TasksPage() {
                 <div className="w-8 h-8 rounded-[10px] bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)] flex items-center justify-center">
                   <UserPlus size={16} className="text-[#007AFF]" />
                 </div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-white">Tugaskan ke Teknisi</h2>
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">Tugaskan</h2>
               </div>
               <button
-                onClick={() => { setAssignTarget(null); setAssignUserId(''); }}
+                onClick={() => { setAssignTarget(null); setAssignUserId(''); setAssignDeptId(''); }}
                 className="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition"
               >
                 <X size={14} />
@@ -783,43 +791,91 @@ export default function TasksPage() {
                 )}
               </div>
 
+              {/* Mode toggle */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">
-                  Pilih Teknisi *
-                </label>
-                <select
-                  value={assignUserId}
-                  onChange={(e) => setAssignUserId(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 transition"
-                >
-                  <option value="">— Pilih teknisi —</option>
-                  {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                </select>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">Mode Penugasan</label>
+                <div className="flex gap-2">
+                  {([
+                    { val: 'direct',    label: 'Individu',  Icon: Target },
+                    { val: 'broadcast', label: 'Departemen', Icon: Radio  },
+                  ] as const).map(({ val, label, Icon }) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setAssignMode(val)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium border transition-all ${
+                        assignMode === val
+                          ? 'border-[#007AFF] bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)] text-[#007AFF]'
+                          : 'border-black/[0.08] dark:border-white/[0.10] text-gray-500 dark:text-white/50 bg-gray-50 dark:bg-white/[0.04] hover:bg-gray-100 dark:hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <Icon size={13} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {assignMode === 'direct' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">
+                    Pilih Teknisi *
+                  </label>
+                  <select
+                    value={assignUserId}
+                    onChange={(e) => setAssignUserId(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 transition"
+                  >
+                    <option value="">— Pilih teknisi —</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">
+                    Pilih Departemen *
+                  </label>
+                  <select
+                    value={assignDeptId}
+                    onChange={(e) => setAssignDeptId(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 transition"
+                  >
+                    <option value="">— Pilih departemen —</option>
+                    {depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+              )}
 
               <div className="p-3 rounded-xl bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.08)] border border-[#BFDBFE] dark:border-[rgba(0,122,255,0.25)]">
                 <p className="text-[11px] text-[#007AFF] leading-relaxed">
-                  Teknisi akan menerima notifikasi untuk mengkonfirmasi tugas ini.
+                  {assignMode === 'direct'
+                    ? 'Teknisi akan menerima notifikasi untuk mengkonfirmasi tugas ini.'
+                    : 'Semua anggota aktif di departemen akan menerima notifikasi — siapa cepat dia dapat.'}
                 </p>
               </div>
             </div>
 
             <div className="px-5 pb-5 pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex gap-3">
               <button
-                onClick={() => { setAssignTarget(null); setAssignUserId(''); }}
+                onClick={() => { setAssignTarget(null); setAssignUserId(''); setAssignDeptId(''); }}
                 className="flex-1 py-3 border border-black/[0.08] dark:border-white/[0.10] rounded-xl text-sm font-semibold text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition"
               >
                 Batal
               </button>
               <button
-                onClick={() => assignMut.mutate({ id: assignTarget.id, user_id: assignUserId })}
-                disabled={assignMut.isPending || !assignUserId}
+                onClick={() => assignMut.mutate(
+                  assignMode === 'direct' ? { user_id: assignUserId } : { dept_id: assignDeptId }
+                )}
+                disabled={
+                  assignMut.isPending ||
+                  (assignMode === 'direct' ? !assignUserId : !assignDeptId)
+                }
                 className="flex-1 py-3 bg-[#007AFF] hover:bg-[#0066CC] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.30)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {assignMut.isPending ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <><UserPlus size={14} /> Tugaskan</>
+                  <>{assignMode === 'direct' ? <UserPlus size={14} /> : <Radio size={14} />} Tugaskan</>
                 )}
               </button>
             </div>

@@ -119,9 +119,9 @@ export class TasksController {
   @RequirePermission('task:assign')
   assign(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('user_id') toUserId: string,
+    @Body() body: { user_id?: string; dept_id?: string },
   ) {
-    return this.tasks.assign(id, toUserId);
+    return this.tasks.assign(id, body);
   }
 
   // ── ADMIN CANCEL (soft) ──────────────────────────────────────────────────────
