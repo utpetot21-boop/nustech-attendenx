@@ -59,7 +59,8 @@ export default function ServiceReportDetailScreen() {
     if (!report?.is_locked) return;
     try {
       setDownloading(true);
-      const filePath = `${FileSystem.cacheDirectory}${report.report_number ?? id}.pdf`;
+      const safeFileName = (report.report_number ?? id).replace(/\//g, '-');
+      const filePath = `${FileSystem.cacheDirectory}${safeFileName}.pdf`;
 
       const token = await SecureStore.getItemAsync('access_token');
       if (!token) {
