@@ -259,7 +259,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
     }
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) { Alert.alert('Izin diperlukan', 'Akses kamera diperlukan'); return; }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
     if (!result.canceled && result.assets[0]) {
       // P2-10: cek ukuran file sebelum ditambahkan
       const fileSize = result.assets[0].fileSize ?? 0;
