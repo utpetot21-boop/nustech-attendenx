@@ -9,12 +9,13 @@ import {
   ListTodo, Plus, LayoutGrid, List, AlertTriangle, MapPin,
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
   PauseCircle, RefreshCw, Radio, Target, Check, X,
-  ChevronDown, Calendar, Zap,
+  ChevronDown, Calendar, Zap, Ban,
 } from 'lucide-react';
+import { getAuthUser } from '@/lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
-type TaskStatus   = 'unassigned' | 'pending_confirmation' | 'assigned' | 'on_hold' | 'rescheduled' | 'completed';
+type TaskStatus   = 'unassigned' | 'pending_confirmation' | 'assigned' | 'on_hold' | 'rescheduled' | 'completed' | 'cancelled';
 
 interface Task {
   id: string; title: string; description?: string; type?: string;
@@ -24,6 +25,9 @@ interface Task {
   dispatch_type?: 'direct' | 'broadcast';
   confirm_deadline?: string; scheduled_at?: string;
   is_emergency: boolean; escalated_from?: string; created_at: string;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  canceller?: { id: string; full_name: string } | null;
 }
 
 interface Delegation {
@@ -52,6 +56,7 @@ const STATUS_MAP: Record<TaskStatus, { label: string; Icon: typeof CircleDot; co
   on_hold:              { label: 'Ditunda',             Icon: PauseCircle,  color: 'text-[#FF9500]',   bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.12)]', ring: 'border-[#FED7AA]' },
   rescheduled:          { label: 'Dijadwal Ulang',      Icon: RefreshCw,    color: 'text-[#AF52DE]',   bg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.12)]',ring: 'border-[#DDD6FE]' },
   completed:            { label: 'Selesai',             Icon: CheckCircle2, color: 'text-[#34C759]',   bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.12)]', ring: 'border-[#BBF7D0]' },
+  cancelled:            { label: 'Dibatalkan',          Icon: Ban,          color: 'text-[#FF3B30]',   bg: 'bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.12)]', ring: 'border-[#FECACA]' },
 };
 
 const BOARD_COLUMNS: { key: TaskStatus[]; label: string; accent: string; headerBg: string }[] = [
@@ -120,11 +125,12 @@ function KanbanCard({ task }: { task: Task }) {
 }
 
 // ── TaskListCard (mobile / table-mode card) ───────────────────────────────────
-function TaskListCard({ task }: { task: Task }) {
+function TaskListCard({ task, onCancel }: { task: Task; onCancel?: (t: Task) => void }) {
   const p = PRIORITY_MAP[task.priority] ?? PRIORITY_MAP.normal;
   const s = STATUS_MAP[task.status]     ?? STATUS_MAP.unassigned;
   const SIcon = s.Icon;
   const isOverdue = task.confirm_deadline && new Date(task.confirm_deadline) < new Date();
+  const cancellable = onCancel && task.status !== 'cancelled' && task.status !== 'completed';
 
   return (
     <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-4 shadow-sm">
@@ -149,6 +155,16 @@ function TaskListCard({ task }: { task: Task }) {
           {p.label}
         </span>
       </div>
+
+      {task.status === 'cancelled' && task.cancel_reason && (
+        <div className="mb-3 p-2.5 rounded-xl bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.10)] border border-[#FECACA] dark:border-[rgba(255,59,48,0.25)]">
+          <p className="text-[11px] font-semibold text-[#FF3B30] mb-0.5 flex items-center gap-1">
+            <Ban size={10} /> Dibatalkan
+            {task.canceller && <span className="font-normal text-gray-500 dark:text-white/40">oleh {task.canceller.full_name}</span>}
+          </p>
+          <p className="text-[11px] text-gray-700 dark:text-white/70 leading-relaxed">{task.cancel_reason}</p>
+        </div>
+      )}
 
       {/* Bottom pills */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -185,6 +201,18 @@ function TaskListCard({ task }: { task: Task }) {
           </span>
         )}
       </div>
+
+      {cancellable && (
+        <div className="flex justify-end mt-3 pt-3 border-t border-black/[0.04] dark:border-white/[0.06]">
+          <button
+            onClick={() => onCancel!(task)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-[#FF3B30] bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.12)] border border-[#FECACA] dark:border-[rgba(255,59,48,0.30)] hover:bg-[#FEE2E2] dark:hover:bg-[rgba(255,59,48,0.18)] px-3 py-1.5 rounded-lg transition"
+          >
+            <Ban size={12} />
+            Batalkan
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -195,6 +223,11 @@ export default function TasksPage() {
   const [viewMode,  setViewMode]  = useState<'board' | 'list'>('board');
   const [showForm,  setShowForm]  = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [cancelTarget, setCancelTarget] = useState<Task | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+
+  const userRole = getAuthUser()?.role.name;
+  const canCancel = userRole === 'admin' || userRole === 'super_admin';
 
   const [form, setForm] = useState({
     title: '', description: '', type: 'visit', priority: 'normal' as TaskPriority,
@@ -256,6 +289,22 @@ export default function TasksPage() {
     onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak delegasi')),
   });
 
+  const cancelMut = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiClient.post(`/tasks/${id}/cancel`, { reason }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks-web'] });
+      setCancelTarget(null);
+      setCancelReason('');
+      toast.success('Tugas berhasil dibatalkan');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal membatalkan tugas')),
+  });
+
+  const onCancelHandler = canCancel
+    ? (t: Task) => { setCancelTarget(t); setCancelReason(''); }
+    : undefined;
+
   const tasks: Task[] = tasksData?.items ?? [];
   const total         = tasksData?.total ?? 0;
 
@@ -314,7 +363,9 @@ export default function TasksPage() {
               { value: 'pending_confirmation',  label: 'Menunggu' },
               { value: 'assigned',              label: 'Ditugaskan' },
               { value: 'on_hold',               label: 'Ditunda' },
+              { value: 'rescheduled',           label: 'Dijadwal Ulang' },
               { value: 'completed',             label: 'Selesai' },
+              { value: 'cancelled',             label: 'Dibatalkan' },
             ].map(({ value, label }) => (
               <button
                 key={value}
@@ -441,7 +492,7 @@ export default function TasksPage() {
 
             {/* Mobile list cards */}
             <div className="md:hidden space-y-3">
-              {tasks.map((t) => <TaskListCard key={t.id} task={t} />)}
+              {tasks.map((t) => <TaskListCard key={t.id} task={t} onCancel={onCancelHandler} />)}
             </div>
           </>
         ) : (
@@ -625,6 +676,83 @@ export default function TasksPage() {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>Buat & Kirim <ArrowUpRight size={14} /></>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Task Modal ──────────────────────────────────────────────── */}
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl w-full max-w-md shadow-2xl border border-black/[0.06] dark:border-white/[0.10] overflow-hidden">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-[10px] bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.15)] flex items-center justify-center">
+                  <Ban size={16} className="text-[#FF3B30]" />
+                </div>
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">Batalkan Tugas</h2>
+              </div>
+              <button
+                onClick={() => { setCancelTarget(null); setCancelReason(''); }}
+                className="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.08]">
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wider mb-1">Tugas</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{cancelTarget.title}</p>
+                {cancelTarget.assignee && (
+                  <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+                    Teknisi: {cancelTarget.assignee.full_name}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">
+                  Alasan Pembatalan *
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value.slice(0, 500))}
+                  placeholder="Jelaskan alasan pembatalan (minimal 5 karakter)..."
+                  rows={4}
+                  className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/25 focus:outline-none focus:border-[#FF3B30] focus:ring-2 focus:ring-[#FF3B30]/20 transition resize-none"
+                />
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-[11px] text-gray-400 dark:text-white/30">Min 5, maks 500 karakter</p>
+                  <p className="text-[11px] text-gray-400 dark:text-white/30">{cancelReason.length}/500</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.08)] border border-[#FED7AA] dark:border-[rgba(255,149,0,0.25)]">
+                <p className="text-[11px] text-[#FF9500] leading-relaxed">
+                  ⚠ Pembatalan akan menutup penugasan aktif. Teknisi dan pembuat tugas akan menerima notifikasi.
+                </p>
+              </div>
+            </div>
+
+            <div className="px-5 pb-5 pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex gap-3">
+              <button
+                onClick={() => { setCancelTarget(null); setCancelReason(''); }}
+                className="flex-1 py-3 border border-black/[0.08] dark:border-white/[0.10] rounded-xl text-sm font-semibold text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => cancelMut.mutate({ id: cancelTarget.id, reason: cancelReason.trim() })}
+                disabled={cancelMut.isPending || cancelReason.trim().length < 5}
+                className="flex-1 py-3 bg-[#FF3B30] hover:bg-[#E0352A] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(255,59,48,0.30)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {cancelMut.isPending ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <><Ban size={14} /> Batalkan Tugas</>
                 )}
               </button>
             </div>

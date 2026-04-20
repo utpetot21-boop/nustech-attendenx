@@ -38,12 +38,13 @@ export class BusinessTripsController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
     @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: string,
+    @CurrentUser('role') role: { name?: string } | string | null,
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const isAdmin = ['admin', 'manager'].includes(role);
+    const roleName = typeof role === 'string' ? role : role?.name ?? '';
+    const isAdmin = ['admin', 'super_admin', 'manager'].includes(roleName);
     return this.service.findAll({
       userId: isAdmin ? undefined : userId,
       status,
@@ -75,10 +76,11 @@ export class BusinessTripsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: string,
+    @CurrentUser('role') role: { name?: string } | string | null,
     @Body() dto: UpdateBusinessTripDto,
   ) {
-    return this.service.update(id, userId, role, dto);
+    const roleName = typeof role === 'string' ? role : role?.name ?? '';
+    return this.service.update(id, userId, roleName, dto);
   }
 
   // ── SUBMIT ────────────────────────────────────────────────────────────────────
@@ -132,10 +134,11 @@ export class BusinessTripsController {
   complete(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: string,
+    @CurrentUser('role') role: { name?: string } | string | null,
     @Body() dto: { actual_cost?: number; doc_url?: string },
   ) {
-    return this.service.complete(id, userId, role, dto);
+    const roleName = typeof role === 'string' ? role : role?.name ?? '';
+    return this.service.complete(id, userId, roleName, dto);
   }
 
   // ── CANCEL ────────────────────────────────────────────────────────────────────
@@ -145,8 +148,9 @@ export class BusinessTripsController {
   cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: string,
+    @CurrentUser('role') role: { name?: string } | string | null,
   ) {
-    return this.service.cancel(id, userId, role);
+    const roleName = typeof role === 'string' ? role : role?.name ?? '';
+    return this.service.cancel(id, userId, roleName);
   }
 }
