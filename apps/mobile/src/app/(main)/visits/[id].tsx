@@ -19,6 +19,7 @@ import {
   Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
@@ -49,6 +50,7 @@ export default function VisitDetailScreen() {
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
   const qc = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   // Camera state
   const [cameraPhase, setCameraPhase] = useState<Phase | null>(null);
@@ -871,7 +873,7 @@ export default function VisitDetailScreen() {
               </View>
             )}
 
-            <View style={{ height: 40 }} />
+            <View style={{ height: insets.bottom + 96 }} />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
