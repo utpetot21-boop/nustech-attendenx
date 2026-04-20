@@ -33,13 +33,14 @@ export class TasksController {
   @Get()
   findAll(
     @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: string,
+    @CurrentUser('role') role: { name?: string } | string | null,
     @Query('status') status?: string,
     @Query('priority') priority?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const isAdmin = ['admin', 'super_admin', 'manager'].includes(role);
+    const roleName = typeof role === 'string' ? role : role?.name;
+    const isAdmin = ['admin', 'super_admin', 'manager'].includes(roleName ?? '');
     return this.tasks.findAll({
       userId: isAdmin ? undefined : userId,
       status,
