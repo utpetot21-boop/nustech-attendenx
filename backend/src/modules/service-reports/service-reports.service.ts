@@ -246,10 +246,11 @@ export class ServiceReportsService {
       order: { phase: 'ASC', created_at: 'ASC' },
     });
 
+    // Pakai thumbnail_url (jauh lebih kecil) agar base64 pre-fetch cepat
     const byPhase = (phase: string) =>
       photos
         .filter((p) => p.phase === phase)
-        .map((p) => ({ url: p.watermarked_url ?? p.original_url, caption: p.caption ?? '' }));
+        .map((p) => ({ url: p.thumbnail_url ?? p.watermarked_url ?? p.original_url, caption: p.caption ?? '' }));
 
     const visit = report.visit;
     const durationMin = visit.duration_minutes ?? 0;
