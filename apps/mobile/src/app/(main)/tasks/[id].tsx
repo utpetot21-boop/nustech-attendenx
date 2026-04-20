@@ -15,7 +15,7 @@ import {
   ChevronLeft, AlertTriangle, Calendar, Clock, FileText,
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
-  Search, User, ChevronDown, Check, X as XIcon, Ban,
+  Search, User, ChevronDown, Check, X as XIcon, Ban, Trash2,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -72,6 +72,8 @@ export default function TaskDetailScreen() {
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [showDelegateModal, setShowDelegateModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [holdReasonType, setHoldReasonType] = useState('client_absent');
   const [holdNotes, setHoldNotes] = useState('');
@@ -83,6 +85,7 @@ export default function TaskDetailScreen() {
 
   const userRole = useAuthStore((s) => s.user?.role?.name);
   const canCancelTask = userRole === 'admin' || userRole === 'super_admin';
+  const canDeleteTask = userRole === 'super_admin';
 
   const bg = pageBg(isDark);
   const cardBg = tokenCardBg(isDark);
@@ -164,6 +167,23 @@ export default function TaskDetailScreen() {
       setShowCancelModal(false);
       setCancelReason('');
       Alert.alert('Tugas Dibatalkan', 'Tugas telah dibatalkan dan teknisi telah dinotifikasi.');
+    },
+    onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err?.response?.data?.message ?? err?.message ?? 'Terjadi kesalahan.');
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => tasksService.deleteTask(id!),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      setShowDeleteModal(false);
+      setDeleteConfirm('');
+      Alert.alert('Tugas Dihapus', 'Tugas telah dihapus permanen.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
     },
     onError: (err: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -517,6 +537,22 @@ export default function TaskDetailScreen() {
             </Text>
           </View>
         )}
+
+        {/* ── Super Admin: Hapus Permanen ─────────────────── */}
+        {canDeleteTask && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); setShowDeleteModal(true); setDeleteConfirm(''); }}
+              style={{ backgroundColor: '#DC2626', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+            >
+              <Trash2 size={20} strokeWidth={2.2} color="#FFF" />
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16 }}>Hapus Permanen</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 11, color: textSecondary, textAlign: 'center', marginTop: 8 }}>
+              Hanya super admin. Tugas akan dihapus dari database, tidak dapat dikembalikan.
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* ── Reject Modal ──────────────────────────────────────────────────── */}
@@ -649,6 +685,59 @@ export default function TaskDetailScreen() {
               >
                 {cancelMut.isPending ? <ActivityIndicator color="#FFF" /> : (
                   <Text style={{ color: cancelReason.trim().length >= 5 ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'), fontWeight: '700', fontSize: 15 }}>Batalkan</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Delete Modal (super_admin) ─────────────────────────────────── */}
+      <Modal visible={showDeleteModal} transparent animationType="slide" onRequestClose={() => setShowDeleteModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.65)' }}>
+          <View style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12, paddingHorizontal: 24, paddingBottom: insets.bottom + 24 }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 18 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <Trash2 size={22} strokeWidth={2.2} color="#DC2626" />
+              <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary }}>Hapus Permanen</Text>
+            </View>
+            <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 14 }}>
+              Tugas akan dihapus permanen dari database beserta penugasan, riwayat hold, dan delegasi terkait. Kunjungan yang sudah ada akan kehilangan referensi tugas.
+            </Text>
+
+            <View style={{ backgroundColor: isDark ? 'rgba(220,38,38,0.10)' : '#FEF2F2', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(220,38,38,0.30)', marginBottom: 16 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#DC2626', marginBottom: 4 }}>⚠ Tidak dapat dibatalkan</Text>
+              <Text style={{ fontSize: 12, color: textSecondary, lineHeight: 18 }}>
+                Untuk audit trail, gunakan "Batalkan Tugas" — bukan hapus.
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 12, fontWeight: '600', color: textSecondary, marginBottom: 8 }}>
+              Ketik <Text style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', color: '#DC2626', fontWeight: '700' }}>HAPUS</Text> untuk mengkonfirmasi
+            </Text>
+            <TextInput
+              value={deleteConfirm}
+              onChangeText={setDeleteConfirm}
+              placeholder="HAPUS"
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
+              autoCapitalize="characters"
+              style={{ backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5, borderColor: deleteConfirm === 'HAPUS' ? '#DC2626' : inputBorder, padding: 14, fontSize: 15, color: textPrimary, marginBottom: 18, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => { setShowDeleteModal(false); setDeleteConfirm(''); }}
+                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', alignItems: 'center' }}
+              >
+                <Text style={{ color: textPrimary, fontWeight: '600', fontSize: 15 }}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => deleteMut.mutate()}
+                disabled={deleteMut.isPending || deleteConfirm !== 'HAPUS'}
+                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: deleteConfirm === 'HAPUS' ? '#DC2626' : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
+              >
+                {deleteMut.isPending ? <ActivityIndicator color="#FFF" /> : (
+                  <Text style={{ color: deleteConfirm === 'HAPUS' ? '#FFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'), fontWeight: '700', fontSize: 15 }}>Hapus</Text>
                 )}
               </TouchableOpacity>
             </View>

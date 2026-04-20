@@ -72,6 +72,10 @@ export const tasksService = {
     return res.data as TaskSummary;
   },
 
+  async deleteTask(id: string) {
+    await api.delete(`/tasks/${id}`);
+  },
+
   async delegate(id: string, payload: DelegateTaskPayload) {
     const res = await api.post(`/tasks/${id}/delegate`, payload);
     return res.data;

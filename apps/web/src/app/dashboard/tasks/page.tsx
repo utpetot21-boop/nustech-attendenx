@@ -9,7 +9,7 @@ import {
   ListTodo, Plus, LayoutGrid, List, AlertTriangle, MapPin,
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
   PauseCircle, RefreshCw, Radio, Target, Check, X,
-  ChevronDown, Calendar, Zap, Ban,
+  ChevronDown, Calendar, Zap, Ban, Trash2,
 } from 'lucide-react';
 import { getAuthUser } from '@/lib/auth';
 
@@ -125,12 +125,21 @@ function KanbanCard({ task }: { task: Task }) {
 }
 
 // ── TaskListCard (mobile / table-mode card) ───────────────────────────────────
-function TaskListCard({ task, onCancel }: { task: Task; onCancel?: (t: Task) => void }) {
+function TaskListCard({
+  task,
+  onCancel,
+  onDelete,
+}: {
+  task: Task;
+  onCancel?: (t: Task) => void;
+  onDelete?: (t: Task) => void;
+}) {
   const p = PRIORITY_MAP[task.priority] ?? PRIORITY_MAP.normal;
   const s = STATUS_MAP[task.status]     ?? STATUS_MAP.unassigned;
   const SIcon = s.Icon;
   const isOverdue = task.confirm_deadline && new Date(task.confirm_deadline) < new Date();
   const cancellable = onCancel && task.status !== 'cancelled' && task.status !== 'completed';
+  const deletable = !!onDelete;
 
   return (
     <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-4 shadow-sm">
@@ -202,15 +211,26 @@ function TaskListCard({ task, onCancel }: { task: Task; onCancel?: (t: Task) => 
         )}
       </div>
 
-      {cancellable && (
-        <div className="flex justify-end mt-3 pt-3 border-t border-black/[0.04] dark:border-white/[0.06]">
-          <button
-            onClick={() => onCancel!(task)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold text-[#FF3B30] bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.12)] border border-[#FECACA] dark:border-[rgba(255,59,48,0.30)] hover:bg-[#FEE2E2] dark:hover:bg-[rgba(255,59,48,0.18)] px-3 py-1.5 rounded-lg transition"
-          >
-            <Ban size={12} />
-            Batalkan
-          </button>
+      {(cancellable || deletable) && (
+        <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-black/[0.04] dark:border-white/[0.06]">
+          {cancellable && (
+            <button
+              onClick={() => onCancel!(task)}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#FF3B30] bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.12)] border border-[#FECACA] dark:border-[rgba(255,59,48,0.30)] hover:bg-[#FEE2E2] dark:hover:bg-[rgba(255,59,48,0.18)] px-3 py-1.5 rounded-lg transition"
+            >
+              <Ban size={12} />
+              Batalkan
+            </button>
+          )}
+          {deletable && (
+            <button
+              onClick={() => onDelete!(task)}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-[#DC2626] hover:bg-[#B91C1C] border border-[#B91C1C] px-3 py-1.5 rounded-lg transition shadow-sm"
+            >
+              <Trash2 size={12} />
+              Hapus
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -225,9 +245,12 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [cancelTarget, setCancelTarget] = useState<Task | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
 
   const userRole = getAuthUser()?.role.name;
   const canCancel = userRole === 'admin' || userRole === 'super_admin';
+  const canDelete = userRole === 'super_admin';
 
   const [form, setForm] = useState({
     title: '', description: '', type: 'visit', priority: 'normal' as TaskPriority,
@@ -303,6 +326,21 @@ export default function TasksPage() {
 
   const onCancelHandler = canCancel
     ? (t: Task) => { setCancelTarget(t); setCancelReason(''); }
+    : undefined;
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/tasks/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks-web'] });
+      setDeleteTarget(null);
+      setDeleteConfirm('');
+      toast.success('Tugas berhasil dihapus permanen');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menghapus tugas')),
+  });
+
+  const onDeleteHandler = canDelete
+    ? (t: Task) => { setDeleteTarget(t); setDeleteConfirm(''); }
     : undefined;
 
   const tasks: Task[] = tasksData?.items ?? [];
@@ -492,7 +530,7 @@ export default function TasksPage() {
 
             {/* Mobile list cards */}
             <div className="md:hidden space-y-3">
-              {tasks.map((t) => <TaskListCard key={t.id} task={t} onCancel={onCancelHandler} />)}
+              {tasks.map((t) => <TaskListCard key={t.id} task={t} onCancel={onCancelHandler} onDelete={onDeleteHandler} />)}
             </div>
           </>
         ) : (
@@ -753,6 +791,83 @@ export default function TasksPage() {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <><Ban size={14} /> Batalkan Tugas</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Task Modal (super_admin) ──────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl w-full max-w-md shadow-2xl border border-[#DC2626]/30 overflow-hidden">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-[10px] bg-[#FEF2F2] dark:bg-[rgba(220,38,38,0.15)] flex items-center justify-center">
+                  <Trash2 size={16} className="text-[#DC2626]" />
+                </div>
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">Hapus Tugas Permanen</h2>
+              </div>
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteConfirm(''); }}
+                className="w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.08]">
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-white/40 uppercase tracking-wider mb-1">Tugas yang akan dihapus</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{deleteTarget.title}</p>
+                {deleteTarget.assignee && (
+                  <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+                    Teknisi: {deleteTarget.assignee.full_name}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FEF2F2] dark:bg-[rgba(220,38,38,0.10)] border border-[#DC2626]/30">
+                <p className="text-[11px] font-bold text-[#DC2626] mb-1.5 flex items-center gap-1">
+                  <AlertTriangle size={12} /> PERINGATAN — Tidak dapat dibatalkan
+                </p>
+                <ul className="text-[11px] text-gray-700 dark:text-white/70 space-y-1 list-disc pl-4 leading-relaxed">
+                  <li>Tugas, penugasan, riwayat hold, dan delegasi akan dihapus permanen dari database</li>
+                  <li>Kunjungan yang terhubung akan tetap ada tapi kehilangan referensi tugas</li>
+                  <li>Untuk audit trail, gunakan "Batalkan" — bukan hapus</li>
+                </ul>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">
+                  Ketik <span className="font-mono text-[#DC2626]">HAPUS</span> untuk mengkonfirmasi
+                </label>
+                <input
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder="HAPUS"
+                  className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm font-mono text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/25 focus:outline-none focus:border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20 transition"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 pb-5 pt-3 border-t border-black/[0.06] dark:border-white/[0.08] flex gap-3">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteConfirm(''); }}
+                className="flex-1 py-3 border border-black/[0.08] dark:border-white/[0.10] rounded-xl text-sm font-semibold text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/[0.06] transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => deleteMut.mutate(deleteTarget.id)}
+                disabled={deleteMut.isPending || deleteConfirm !== 'HAPUS'}
+                className="flex-1 py-3 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(220,38,38,0.30)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {deleteMut.isPending ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <><Trash2 size={14} /> Hapus Permanen</>
                 )}
               </button>
             </div>

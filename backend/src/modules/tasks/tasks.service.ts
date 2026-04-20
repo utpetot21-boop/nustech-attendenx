@@ -655,6 +655,18 @@ export class TasksService {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
+  // HARD DELETE (super_admin only) — cascade ke assignments/delegations/holds,
+  // visits.task_id di-set NULL oleh FK.
+  // ────────────────────────────────────────────────────────────────────────────
+  async remove(taskId: string): Promise<void> {
+    const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    if (!task) throw new NotFoundException('Tugas tidak ditemukan.');
+
+    await this.taskRepo.delete(taskId);
+    this.realtime?.emitTaskUpdated(taskId, { status: 'deleted' });
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
   // HANDOVER (delegasi darurat — langsung tanpa approval)
   // ────────────────────────────────────────────────────────────────────────────
   async handover(taskId: string, fromUserId: string, dto: HandoverTaskDto): Promise<TaskEntity> {

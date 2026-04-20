@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -131,6 +134,15 @@ export class TasksController {
     @Body() dto: CancelTaskDto,
   ) {
     return this.tasks.cancel(id, userId, dto);
+  }
+
+  // ── SUPER ADMIN HARD DELETE ──────────────────────────────────────────────────
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(RolesGuard)
+  @Roles('super_admin')
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tasks.remove(id);
   }
 
   // ── ACCEPT / REJECT ──────────────────────────────────────────────────────────
