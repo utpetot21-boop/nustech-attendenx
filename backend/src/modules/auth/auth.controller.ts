@@ -101,6 +101,8 @@ export class AuthController {
       employee_id: user.employee_id,
       full_name: user.full_name,
       email: user.email,
+      phone: user.phone,
+      avatar_url: user.avatar_url,
       role: user.role,
       role_id: user.role_id,
       department_id: user.department_id,

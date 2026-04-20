@@ -98,7 +98,12 @@ export default function ProfileScreen() {
   // Cek can_approve dari /auth/me (selalu fresh, tidak bergantung SecureStore)
   const { data: meData } = useQuery({
     queryKey: ['auth-me'],
-    queryFn: () => api.get('/auth/me').then((r) => r.data as { role?: { name?: string; can_approve?: boolean } }),
+    queryFn: () => api.get('/auth/me').then((r) => r.data as {
+      role?: { name?: string; can_approve?: boolean };
+      avatar_url?: string | null;
+      full_name?: string;
+      phone?: string | null;
+    }),
     staleTime: 60_000,
   });
   const isApprover = !!meData?.role?.can_approve
@@ -130,10 +135,16 @@ export default function ProfileScreen() {
     onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? 'Gagal menolak'),
   });
 
-  // ── Sync user.role dari /auth/me ke store (untuk konsistensi global) ─
+  // ── Sync user.role + avatar_url dari /auth/me ke store ─────────────
   useEffect(() => {
-    if (meData?.role) updateUser({ role: { name: meData.role.name ?? '' } });
-  }, [meData?.role?.name]);
+    if (!meData) return;
+    const patch: Partial<typeof user & Record<string, unknown>> = {};
+    if (meData.role) patch.role = { name: meData.role.name ?? '' };
+    if (meData.avatar_url !== undefined && meData.avatar_url !== user?.avatar_url) {
+      patch.avatar_url = meData.avatar_url;
+    }
+    if (Object.keys(patch).length > 0) updateUser(patch);
+  }, [meData?.role?.name, meData?.avatar_url]);
 
   // ── Pengingat Check-in ─────────────────────────────────────────────
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
@@ -218,8 +229,10 @@ export default function ProfileScreen() {
     },
     onSuccess: (res) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (__DEV__) console.log('[avatar] upload OK →', res.data?.avatar_url);
       updateUser({ avatar_url: res.data.avatar_url });
       setAvatarError(false);
+      qc.invalidateQueries({ queryKey: ['auth-me'] });
     },
     onError: (err: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -288,7 +301,12 @@ export default function ProfileScreen() {
                   <Image
                     source={{ uri: user.avatar_url }}
                     style={{ width: 72, height: 72 }}
-                    onError={() => setAvatarError(true)}
+                    resizeMode="cover"
+                    onLoad={() => { if (__DEV__) console.log('[avatar] Image loaded:', user.avatar_url); }}
+                    onError={(e) => {
+                      if (__DEV__) console.warn('[avatar] Image error:', user.avatar_url, e.nativeEvent);
+                      setAvatarError(true);
+                    }}
                   />
                 ) : (
                   <Text style={{ color: '#FFF', fontSize: 26, fontWeight: '800' }}>{initials}</Text>
