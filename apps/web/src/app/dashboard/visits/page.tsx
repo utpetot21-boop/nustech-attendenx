@@ -19,6 +19,7 @@ type Visit = {
   check_out_at: string | null;
   duration_minutes: number | null;
   gps_valid: boolean;
+  gps_deviation_meter: number | null;
   work_description: string | null;
   findings: string | null;
   recommendations: string | null;
@@ -298,7 +299,18 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
               { label: 'Check-in', value: visit.check_in_at ? new Date(visit.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) : '—', Icon: Clock },
               { label: 'Durasi', value: durFmt(visit.duration_minutes), Icon: Clock },
               { label: 'Foto', value: `${photoCount}/16`, Icon: Camera, valueClass: photoCount >= 16 ? 'text-[#166534]' : 'text-[#9A3412]' },
-              { label: 'GPS', value: visit.gps_valid ? 'Valid' : 'Alert', Icon: visit.gps_valid ? Navigation : NavigationOff, valueClass: visit.gps_valid ? 'text-[#166534]' : 'text-[#9A3412]' },
+              {
+                label: 'GPS',
+                value: visit.gps_valid
+                  ? 'Valid'
+                  : (visit.gps_deviation_meter && visit.gps_deviation_meter > 100_000)
+                    ? 'Lokasi klien belum dikonfigurasi'
+                    : visit.gps_deviation_meter
+                      ? `Deviasi ${(visit.gps_deviation_meter / 1000).toFixed(1)} km`
+                      : 'Alert',
+                Icon: visit.gps_valid ? Navigation : NavigationOff,
+                valueClass: visit.gps_valid ? 'text-[#166534]' : 'text-[#9A3412]',
+              },
             ].map(({ label, value, Icon, valueClass }) => (
               <div key={label} className="bg-gray-50 dark:bg-white/[0.04] rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -367,16 +379,22 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
           {/* Service Report / BA */}
           {visit.service_report && (
             <div className="bg-[#EFF6FF] dark:bg-[#007AFF]/10 border border-[#3B82F6]/20 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-2">
                 <FileText size={14} className="text-[#007AFF]" />
                 <p className="text-xs font-semibold text-[#1D4ED8] dark:text-[#60A5FA]">Berita Acara</p>
               </div>
-              <p className="font-mono text-sm font-bold text-[#007AFF] mb-3">{visit.service_report.report_number}</p>
-              {visit.service_report.pdf_url && (
+              {visit.service_report.report_number && (
+                <p className="font-mono text-sm font-bold text-[#007AFF] mb-3">{visit.service_report.report_number}</p>
+              )}
+              {visit.service_report.pdf_url ? (
                 <a href={visit.service_report.pdf_url} target="_blank" rel="noreferrer"
                   className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#007AFF] hover:bg-[#0063CC] text-white rounded-xl text-sm font-semibold transition">
                   <ExternalLink size={14} /> Lihat PDF
                 </a>
+              ) : (
+                <p className="text-xs text-[#1D4ED8]/60 dark:text-[#60A5FA]/60 text-center py-1">
+                  PDF belum digenerate — tanda tangan klien diperlukan
+                </p>
               )}
             </div>
           )}
