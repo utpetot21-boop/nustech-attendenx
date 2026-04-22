@@ -7,8 +7,12 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { StorageService } from '../../services/storage.service';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -29,6 +33,7 @@ export class LeaveController {
   constructor(
     private readonly leave: LeaveService,
     private readonly config: LeaveConfigService,
+    private readonly storage: StorageService,
   ) {}
 
   // ── Config ───────────────────────────────────────────────────────────────────
@@ -87,6 +92,15 @@ export class LeaveController {
   @RequirePermission('leave:approve')
   getLogs(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.leave.getBalanceLogs(userId);
+  }
+
+  // ── Upload Attachment ────────────────────────────────────────────────────────
+  @Post('requests/upload-attachment')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  async uploadAttachment(@UploadedFile() file: Express.Multer.File) {
+    const ext = file.originalname.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const url = await this.storage.upload('leave/attachments', ext, file.buffer, file.mimetype);
+    return { url };
   }
 
   // ── Requests ─────────────────────────────────────────────────────────────────

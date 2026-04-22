@@ -20,6 +20,7 @@ import { LeaveExpiryReminderJob } from './jobs/leave-expiry-reminder.job';
 import { PendingDeductionJob } from './jobs/pending-deduction.job';
 import { CollectiveLeaveJob } from './jobs/collective-leave.job';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { StorageService } from '../../services/storage.service';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
   providers: [
     LeaveConfigService,
     LeaveService,
+    StorageService,
     LeaveAccrualJob,
     LeaveExpiryJob,
     LeaveExpiryReminderJob,

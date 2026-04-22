@@ -3,7 +3,7 @@
  * Menggantikan 4+ implementasi inline tiap screen dengan API yang sama.
  */
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { B, R } from '@/constants/tokens';
+import { B, R, lPrimary, lSecondary } from '@/constants/tokens';
 
 type Option = {
   label: string;
@@ -46,15 +46,15 @@ export function FilterChips({
                   : isDark ? 'rgba(255,255,255,0.09)' : '#FFFFFF',
                 borderColor: active
                   ? accentColor
-                  : isDark ? 'rgba(255,255,255,0.14)' : 'rgba(60,60,67,0.18)',
+                  : isDark ? 'rgba(255,255,255,0.22)' : 'rgba(60,60,67,0.25)',
               },
             ]}
           >
             <Text style={[
               styles.label,
               {
-                color:      active ? '#FFF' : isDark ? 'rgba(255,255,255,0.75)' : '#475569',
-                fontWeight: active ? '700' : '500',
+                color:      active ? '#FFF' : lPrimary(isDark),
+                fontWeight: active ? '700' : '600',
               },
             ]}>
               {opt.label}

@@ -14,6 +14,7 @@ export interface LeaveRequest {
   reason: string;
   status: LeaveStatus;
   reject_reason?: string | null;
+  attachment_url?: string | null;
   created_at: string;
   user?: { id: string; full_name: string };
 }
@@ -30,6 +31,7 @@ export interface CreateLeaveDto {
   start_date: string;   // YYYY-MM-DD
   end_date: string;     // YYYY-MM-DD
   reason: string;
+  attachment_url?: string;
 }
 
 export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
@@ -68,6 +70,17 @@ export const leaveService = {
   create: async (dto: CreateLeaveDto): Promise<LeaveRequest> => {
     const res = await api.post('/leave/requests', dto);
     return res.data;
+  },
+
+  /** Upload lampiran (surat, foto dokumen) — return public URL */
+  uploadAttachment: async (uri: string, mimeType: string): Promise<string> => {
+    const form = new FormData();
+    const ext  = uri.split('.').pop()?.split('?')[0] ?? 'jpg';
+    form.append('file', { uri, name: `attachment.${ext}`, type: mimeType } as any);
+    const res = await api.post('/leave/requests/upload-attachment', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.url as string;
   },
 
   /** Batalkan pengajuan (jika backend sudah ada endpoint-nya) */
