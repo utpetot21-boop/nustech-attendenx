@@ -71,6 +71,7 @@ export class VisitsService {
     }
 
     // Validasi task: harus ada, statusnya in_progress/assigned, dan ditugaskan ke user ini
+    let taskTemplateId: string | null = null;
     if (dto.task_id) {
       const task = await this.taskRepo.findOne({ where: { id: dto.task_id } });
       if (!task) throw new NotFoundException('Tugas tidak ditemukan.');
@@ -80,6 +81,7 @@ export class VisitsService {
       if (task.assigned_to && task.assigned_to !== userId) {
         throw new ForbiddenException('Anda tidak memiliki izin untuk melakukan check-in pada tugas ini.');
       }
+      taskTemplateId = task.template_id ?? null;
     }
 
     // Validasi client
@@ -100,6 +102,7 @@ export class VisitsService {
 
     const visit = this.visitRepo.create({
       task_id: dto.task_id,
+      template_id: taskTemplateId,
       user_id: userId,
       client_id: dto.client_id,
       check_in_at: new Date(),
@@ -221,6 +224,30 @@ export class VisitsService {
       throw new BadRequestException(
         `Foto fase "after" belum cukup. Minimal ${PHOTO_LIMITS.after.min} foto, saat ini ${afterCount}.`,
       );
+    }
+
+    // Validasi required form fields jika visit punya template
+    if (visit.template_id) {
+      const missing = await this.formResponseRepo.manager.query<{ count: string }[]>(
+        `SELECT COUNT(*) AS count
+         FROM template_fields tf
+         JOIN template_sections ts ON tf.section_id = ts.id
+         WHERE ts.template_id = $1
+           AND tf.is_required = true
+           AND NOT EXISTS (
+             SELECT 1 FROM visit_form_responses vfr
+             WHERE vfr.visit_id = $2
+               AND vfr.field_id = tf.id
+               AND vfr.value IS NOT NULL
+               AND vfr.value <> ''
+           )`,
+        [visit.template_id, visitId],
+      );
+      if (parseInt(missing[0].count) > 0) {
+        throw new BadRequestException(
+          `Semua field wajib pada formulir kunjungan harus diisi sebelum check-out.`,
+        );
+      }
     }
 
     const checkOutAt = new Date();

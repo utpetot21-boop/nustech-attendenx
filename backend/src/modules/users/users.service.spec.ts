@@ -62,7 +62,7 @@ describe('UsersService', () => {
 
       const result = await service.create({
         employee_id: 'EMP-002',
-        name: 'Budi',
+        full_name: 'Budi',
         email: 'budi@test.com',
         phone: '08198765432',
         role_id: 'role-id',
@@ -77,7 +77,7 @@ describe('UsersService', () => {
       await expect(
         service.create({
           employee_id: 'EMP-003',
-          name: 'Cici',
+          full_name: 'Cici',
           email: 'ahmad@test.com',
           phone: '08111111111',
           role_id: 'role-id',

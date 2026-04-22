@@ -8,6 +8,7 @@ import { ServiceReportEntity } from '../visits/entities/service-report.entity';
 import { VisitEntity } from '../visits/entities/visit.entity';
 import { VisitPhotoEntity } from '../visits/entities/visit-photo.entity';
 import { StorageService } from '../../services/storage.service';
+import { EmailService } from '../notifications/email.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { StorageService } from '../../services/storage.service';
     MulterModule.register({ dest: '/tmp' }),
   ],
   controllers: [ServiceReportsController],
-  providers: [ServiceReportsService, PdfGeneratorService, StorageService],
+  providers: [ServiceReportsService, PdfGeneratorService, StorageService, EmailService],
   exports: [ServiceReportsService],
 })
 export class ServiceReportsModule {}

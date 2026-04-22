@@ -54,4 +54,8 @@ export class CreateTaskDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsUUID()
+  @IsOptional()
+  template_id?: string;
 }

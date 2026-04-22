@@ -81,28 +81,28 @@ describe('AttendanceService', () => {
       attendanceRepo.save.mockResolvedValueOnce(saved);
       attendanceRepo.findOne.mockResolvedValueOnce(saved); // final find
 
-      const result = await service.checkIn(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 });
+      const result = await service.checkIn(USER_ID, { method: 'face_id', lat: -1.23, lng: 116.8 });
       expect(result).toBeDefined();
       expect(attendanceRepo.save).toHaveBeenCalledTimes(1);
     });
 
     it('melempar BadRequestException jika sudah check-in hari ini', async () => {
       attendanceRepo.findOne.mockResolvedValueOnce({ check_in_at: new Date() });
-      await expect(service.checkIn(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 }))
+      await expect(service.checkIn(USER_ID, { method: 'face_id', lat: -1.23, lng: 116.8 }))
         .rejects.toThrow(BadRequestException);
     });
 
     it('melempar BadRequestException jika tidak ada jadwal hari ini', async () => {
       attendanceRepo.findOne.mockResolvedValueOnce(null);
       scheduleRepo.findOne.mockResolvedValueOnce(null);
-      await expect(service.checkIn(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 }))
+      await expect(service.checkIn(USER_ID, { method: 'face_id', lat: -1.23, lng: 116.8 }))
         .rejects.toThrow(BadRequestException);
     });
 
     it('melempar BadRequestException jika hari libur karyawan', async () => {
       attendanceRepo.findOne.mockResolvedValueOnce(null);
       scheduleRepo.findOne.mockResolvedValueOnce(makeSchedule({ is_day_off: true } as any));
-      await expect(service.checkIn(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 }))
+      await expect(service.checkIn(USER_ID, { method: 'face_id', lat: -1.23, lng: 116.8 }))
         .rejects.toThrow(BadRequestException);
     });
   });
@@ -116,20 +116,20 @@ describe('AttendanceService', () => {
       attendanceRepo.findOne.mockResolvedValueOnce(attendance);
       attendanceRepo.findOne.mockResolvedValueOnce({ ...attendance, check_out_at: new Date() });
 
-      const result = await service.checkOut(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 });
+      const result = await service.checkOut(USER_ID, { method: 'manual', lat: -1.23, lng: 116.8 });
       expect(result).toBeDefined();
       expect(attendanceRepo.update).toHaveBeenCalledTimes(1);
     });
 
     it('melempar BadRequestException jika belum check-in', async () => {
       attendanceRepo.findOne.mockResolvedValueOnce(null);
-      await expect(service.checkOut(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 }))
+      await expect(service.checkOut(USER_ID, { method: 'manual', lat: -1.23, lng: 116.8 }))
         .rejects.toThrow(BadRequestException);
     });
 
     it('melempar BadRequestException jika sudah check-out', async () => {
       attendanceRepo.findOne.mockResolvedValueOnce({ check_in_at: new Date(), check_out_at: new Date() });
-      await expect(service.checkOut(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 }))
+      await expect(service.checkOut(USER_ID, { method: 'manual', lat: -1.23, lng: 116.8 }))
         .rejects.toThrow(BadRequestException);
     });
 
@@ -137,7 +137,7 @@ describe('AttendanceService', () => {
       const checkInAt = new Date(Date.now() - 3 * 60 * 60 * 1000); // 3 jam lalu — belum 8 jam
       const checkoutEarliest = new Date(checkInAt.getTime() + 8 * 60 * 60 * 1000); // 5 jam lagi
       attendanceRepo.findOne.mockResolvedValueOnce({ check_in_at: checkInAt, check_out_at: null, checkout_earliest: checkoutEarliest, shift_end: '17:00', date: TODAY });
-      await expect(service.checkOut(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 }))
+      await expect(service.checkOut(USER_ID, { method: 'manual', lat: -1.23, lng: 116.8 }))
         .rejects.toThrow(ForbiddenException);
     });
   });
@@ -162,7 +162,7 @@ describe('AttendanceService', () => {
 
     it('checkIn berhasil dipanggil — status calculation tidak throw', async () => {
       setupCheckIn(0);
-      await expect(service.checkIn(USER_ID, { method: 'biometric', lat: -1.23, lng: 116.8 }))
+      await expect(service.checkIn(USER_ID, { method: 'face_id', lat: -1.23, lng: 116.8 }))
         .resolves.toBeDefined();
     });
   });

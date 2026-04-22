@@ -22,6 +22,10 @@ export interface ServiceReportData {
   findings: string;
   recommendations: string;
   materials_used: Array<{ name: string; qty: number; unit: string; notes?: string }>;
+  form_sections: Array<{
+    title: string;
+    fields: Array<{ label: string; field_type: string; value: string; is_required: boolean }>;
+  }>;
   before_photos: Array<{ url: string; caption?: string }>;
   during_photos: Array<{ url: string; caption?: string }>;
   after_photos: Array<{ url: string; caption?: string }>;

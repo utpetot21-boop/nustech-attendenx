@@ -121,6 +121,7 @@ export class TasksService {
       scheduled_at: dto.scheduled_at ? new Date(dto.scheduled_at) : null,
       is_emergency: dto.is_emergency ?? false,
       notes: dto.notes ?? null,
+      template_id: dto.template_id ?? null,
       created_by: creatorId,
       status: 'unassigned',
     });

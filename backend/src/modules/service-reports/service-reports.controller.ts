@@ -102,6 +102,16 @@ export class ServiceReportsController {
     return this.svc.findAll({ month, userId, clientId });
   }
 
+  // POST /service-reports/:id/send  — kirim BA ke email PIC klien
+  @Post(':id/send')
+  @RequirePermission('task:assign')
+  sendToClient(
+    @CurrentUser() user: UserEntity,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.svc.sendToClient(id, user.id);
+  }
+
   // GET /service-reports/:id  — detail
   @Get(':id')
   @RequirePermission('task:own', 'task:assign')

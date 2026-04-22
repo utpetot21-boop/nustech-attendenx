@@ -13,6 +13,7 @@ import { StorageService } from '../../services/storage.service';
 import { PdfGeneratorService, ServiceReportData } from './pdf-generator.service';
 import { CreateServiceReportDto } from './dto/create-service-report.dto';
 import { SignClientDto, ClientSignatureType } from './dto/sign-client.dto';
+import { EmailService } from '../notifications/email.service';
 
 @Injectable()
 export class ServiceReportsService {
@@ -27,6 +28,7 @@ export class ServiceReportsService {
     private readonly ds: DataSource,
     private readonly storage: StorageService,
     private readonly pdfGen: PdfGeneratorService,
+    private readonly email: EmailService,
   ) {}
 
   // ── Create draft BA ─────────────────────────────────────────────────────────
@@ -173,6 +175,79 @@ export class ServiceReportsService {
     return this.findReportOrThrow(id);
   }
 
+  // ── Kirim BA ke klien via email ───────────────────────────────────────────────
+  async sendToClient(reportId: string, requesterId: string): Promise<{ success: boolean; sent_to: string }> {
+    const report = await this.findReportOrThrow(reportId);
+
+    if (!report.is_locked) throw new BadRequestException('BA belum ditandatangani — tidak bisa dikirim');
+    if (!report.pdf_url) throw new BadRequestException('PDF belum ter-generate — coba download PDF terlebih dahulu');
+
+    const clientEmail = report.client?.pic_email;
+    if (!clientEmail) throw new BadRequestException('Email PIC klien tidak ditemukan pada data klien');
+
+    // Ambil PDF buffer dari R2
+    let pdfBuffer: Buffer;
+    try {
+      const res = await fetch(report.pdf_url, { signal: AbortSignal.timeout(15_000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      pdfBuffer = Buffer.from(await res.arrayBuffer());
+    } catch {
+      pdfBuffer = await this.generateAndStorePdf(reportId);
+    }
+
+    const reportNum = report.report_number ?? reportId;
+    const techName = report.technician?.full_name ?? '—';
+    const clientName = report.client?.name ?? '—';
+    const picName = report.client_pic_name ?? report.client?.pic_name ?? '—';
+    const signedAt = report.signed_at
+      ? new Date(report.signed_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', dateStyle: 'long', timeStyle: 'short' }) + ' WITA'
+      : '—';
+
+    const html = `
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+<style>
+  body{font-family:Arial,sans-serif;background:#f5f7fa;margin:0;padding:24px}
+  .card{background:#fff;border-radius:8px;padding:32px;max-width:560px;margin:0 auto;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  h2{color:#1a56db;font-size:18px;margin:0 0 4px}
+  .sub{color:#666;font-size:13px;margin-bottom:24px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td{padding:6px 0;vertical-align:top}
+  td:first-child{color:#555;width:45%}
+  .footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:12px}
+  .badge{display:inline-block;background:#d1fae5;color:#065f46;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700}
+</style></head><body>
+<div class="card">
+  <h2>Berita Acara Kunjungan Teknis</h2>
+  <div class="sub">Dokumen ini dikirimkan secara otomatis oleh sistem Nustech AttendenX</div>
+  <table>
+    <tr><td>Nomor BA</td><td><strong>${reportNum}</strong></td></tr>
+    <tr><td>Klien</td><td>${clientName}</td></tr>
+    <tr><td>PIC</td><td>${picName}</td></tr>
+    <tr><td>Teknisi</td><td>${techName}</td></tr>
+    <tr><td>Tanggal TTD</td><td>${signedAt}</td></tr>
+    <tr><td>Status</td><td><span class="badge">✓ Selesai &amp; Terkunci</span></td></tr>
+  </table>
+  <p style="margin-top:20px;font-size:13px;color:#374151">
+    Berita Acara terlampir dalam format PDF. Mohon simpan dokumen ini sebagai bukti pelaksanaan kunjungan.
+  </p>
+  <div class="footer">
+    Nustech AttendenX · Sistem Manajemen Kunjungan Lapangan<br>
+    Email ini dikirim secara otomatis, tidak perlu membalas.
+  </div>
+</div>
+</body></html>`;
+
+    await this.email.sendEmail(
+      clientEmail,
+      `Berita Acara Kunjungan — ${reportNum}`,
+      html,
+      [{ filename: `${reportNum.replace(/\//g, '-')}.pdf`, content: pdfBuffer.toString('base64') }],
+    );
+
+    await this.reportRepo.update(reportId, { sent_to_client: true, sent_at: new Date() });
+    return { success: true, sent_to: clientEmail };
+  }
+
   // ──────────────────────────────────────────────────────────────────────────────
   // Private helpers
   // ──────────────────────────────────────────────────────────────────────────────
@@ -246,6 +321,47 @@ export class ServiceReportsService {
       order: { phase: 'ASC', created_at: 'ASC' },
     });
 
+    // Ambil form sections + field responses (semua field template, nilai diisi jika ada jawaban)
+    const rawFormRows = report.visit.template_id
+      ? await this.ds.query<{
+          section_title: string;
+          section_order: number;
+          field_label: string;
+          field_type: string;
+          is_required: boolean;
+          field_order: number;
+          value: string | null;
+        }[]>(
+          `SELECT ts.title AS section_title, ts.order_index AS section_order,
+                  tf.label AS field_label, tf.field_type, tf.is_required,
+                  tf.order_index AS field_order, vfr.value
+           FROM template_sections ts
+           JOIN template_fields tf ON tf.section_id = ts.id
+           LEFT JOIN visit_form_responses vfr
+             ON vfr.field_id = tf.id AND vfr.visit_id = $1
+           WHERE ts.template_id = $2
+           ORDER BY ts.order_index ASC, tf.order_index ASC`,
+          [report.visit_id, report.visit.template_id],
+        )
+      : [];
+
+    const formSections = rawFormRows.reduce<
+      Array<{ title: string; fields: Array<{ label: string; field_type: string; value: string; is_required: boolean }> }>
+    >((acc, row) => {
+      let section = acc.find((s) => s.title === row.section_title);
+      if (!section) {
+        section = { title: row.section_title, fields: [] };
+        acc.push(section);
+      }
+      section.fields.push({
+        label: row.field_label,
+        field_type: row.field_type,
+        value: row.value ?? '',
+        is_required: row.is_required,
+      });
+      return acc;
+    }, []);
+
     // Pakai thumbnail_url (jauh lebih kecil) agar base64 pre-fetch cepat
     const byPhase = (phase: string) =>
       photos
@@ -289,6 +405,7 @@ export class ServiceReportsService {
       findings: visit.findings ?? '',
       recommendations: visit.recommendations ?? '',
       materials_used: (visit.materials_used as any[]) ?? [],
+      form_sections: formSections,
       before_photos: byPhase('before'),
       during_photos: byPhase('during'),
       after_photos: byPhase('after'),

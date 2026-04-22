@@ -44,6 +44,14 @@
   .gps-pill { display: inline-flex; align-items: center; gap: 4px; background: #e0f2fe; color: #0369a1; border-radius: 10px; padding: 2px 8px; font-size: 9px; }
   .gps-invalid { background: #fef2f2; color: #991b1b; }
   .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-30deg); font-size: 72px; opacity: 0.04; color: #1a56db; font-weight: 900; pointer-events: none; white-space: nowrap; }
+  .form-section-block { margin-bottom: 10px; }
+  .form-section-subtitle { font-size: 10px; font-weight: 700; color: #374151; padding: 3px 8px; background: #f9fafb; border-radius: 3px; margin-bottom: 4px; }
+  .form-field-row { display: flex; gap: 8px; padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
+  .form-field-row:last-child { border-bottom: none; }
+  .form-field-label { width: 40%; color: #555; font-size: 10px; }
+  .form-field-required { color: #e53e3e; font-size: 9px; }
+  .form-field-value { flex: 1; font-weight: 500; }
+  .form-field-empty { color: #9ca3af; font-style: italic; }
 </style>
 </head>
 <body>
@@ -123,6 +131,27 @@
 <div class="section">
   <div class="section-title">Rekomendasi</div>
   <div class="description-box">{{ recommendations }}</div>
+</div>
+{{/if}}
+
+{{#if form_sections.length}}
+<div class="section">
+  <div class="section-title">Formulir Kunjungan</div>
+  {{#each form_sections}}
+  <div class="form-section-block">
+    <div class="form-section-subtitle">{{ this.title }}</div>
+    {{#each this.fields}}
+    <div class="form-field-row">
+      <div class="form-field-label">
+        {{ this.label }}{{#if this.is_required}}<span class="form-field-required"> *</span>{{/if}}
+      </div>
+      <div class="form-field-value{{#unless this.value}} form-field-empty{{/unless}}">
+        {{#if this.value}}{{ this.value }}{{else}}—{{/if}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+  {{/each}}
 </div>
 {{/if}}
 
