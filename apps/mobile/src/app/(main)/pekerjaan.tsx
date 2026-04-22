@@ -56,6 +56,7 @@ import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, separator,
 import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { Toast } from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
+import { useTabBar } from '@/context/TabBarContext';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -371,6 +372,7 @@ export default function PekerjaanScreen() {
   const qc        = useQueryClient();
   const insets    = useSafeAreaInsets();
   const user      = useAuthStore((s) => s.user);
+  const { onScroll } = useTabBar();
   const isManager = ['manager', 'admin', 'super_admin'].includes(user?.role?.name ?? '');
 
   const [showCreate, setShowCreate] = useState(false);
@@ -461,6 +463,8 @@ export default function PekerjaanScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={C.orange} />
         }

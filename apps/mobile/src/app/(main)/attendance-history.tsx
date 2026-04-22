@@ -29,6 +29,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { attendanceService, AttendanceRecord } from '@/services/attendance.service';
+import { useTabBar } from '@/context/TabBarContext';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -216,6 +217,7 @@ function RecordCard({ rec, isDark }: { rec: AttendanceRecord; isDark: boolean })
 export default function AttendanceHistoryScreen() {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
+  const { onScroll } = useTabBar();
 
   const monthOptions = useMemo(() => getMonthOptions(6), []);
   const [month, setMonth] = useState<string | undefined>(monthOptions[0]?.value);
@@ -296,6 +298,8 @@ export default function AttendanceHistoryScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 96 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={C.blue} />}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
       >
         {isLoading ? (
           <ActivityIndicator color={C.blue} style={{ marginTop: 48 }} />

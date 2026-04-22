@@ -50,6 +50,7 @@ import * as Haptics from 'expo-haptics';
 import { router, type Href } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '@/services/api';
+import { useTabBar } from '@/context/TabBarContext';
 import { useAuthStore } from '@/stores/auth.store';
 import {
   getReminderSettings,
@@ -83,6 +84,7 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const insets = useSafeAreaInsets();
+  const { onScroll } = useTabBar();
 
   const updateUser = useAuthStore((s) => s.updateUser);
 
@@ -273,6 +275,8 @@ export default function ProfileScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={pendingLoading} onRefresh={handleRefresh}
             tintColor={C.blue} />

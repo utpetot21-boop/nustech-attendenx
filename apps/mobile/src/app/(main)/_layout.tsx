@@ -1,7 +1,7 @@
-import { useColorScheme, View } from 'react-native';
+import { useCallback, useRef } from 'react';
+import { useColorScheme, View, Animated, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { StyleSheet } from 'react-native';
 import {
   Home,
   Wrench,
@@ -12,6 +12,9 @@ import { useQuery } from '@tanstack/react-query';
 import { tasksService } from '@/services/tasks.service';
 import { api } from '@/services/api';
 import { C } from '@/constants/tokens';
+import { TabBarContext } from '@/context/TabBarContext';
+
+const TAB_BAR_SLIDE = 100;
 
 // ── Warna aksen per tab ──────────────────────────────────────────────────────
 const TAB_COLORS = {
@@ -57,6 +60,34 @@ export default function MainLayout() {
   const isDark = colorScheme === 'dark';
   const inactiveColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)';
 
+  // ── Auto-hide tab bar on scroll ──────────────────────────────────────────────
+  const translateY  = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+  const isHidden    = useRef(false);
+
+  const showTabBar = useCallback(() => {
+    if (!isHidden.current) return;
+    isHidden.current = false;
+    Animated.spring(translateY, {
+      toValue: 0, useNativeDriver: true, tension: 120, friction: 16,
+    }).start();
+  }, [translateY]);
+
+  const onScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const y    = e.nativeEvent.contentOffset.y;
+    const diff = y - lastScrollY.current;
+    lastScrollY.current = y;
+
+    if (diff > 8 && !isHidden.current && y > 80) {
+      isHidden.current = true;
+      Animated.spring(translateY, {
+        toValue: TAB_BAR_SLIDE, useNativeDriver: true, tension: 120, friction: 16,
+      }).start();
+    } else if (diff < -8 && isHidden.current) {
+      showTabBar();
+    }
+  }, [translateY, showTabBar]);
+
   // Badge: tugas pending_confirmation yang perlu aksi
   const { data: pendingTasks } = useQuery({
     queryKey: ['tasks', 'pending_confirmation'],
@@ -84,6 +115,7 @@ export default function MainLayout() {
   const notifBadge = totalUnread > 0 ? totalUnread : undefined;
 
   return (
+    <TabBarContext.Provider value={{ translateY, onScroll, showTabBar }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -102,6 +134,7 @@ export default function MainLayout() {
           backgroundColor: 'transparent',
           elevation: 0,
           shadowOpacity: 0,
+          transform: [{ translateY }],
         },
         tabBarBackground: () => (
           <BlurView
@@ -134,6 +167,7 @@ export default function MainLayout() {
             <TabIcon icon={Home} focused={focused} color={color} activeColor={TAB_COLORS.index} />
           ),
         }}
+        listeners={{ tabPress: showTabBar }}
       />
       <Tabs.Screen
         name="pekerjaan"
@@ -145,6 +179,7 @@ export default function MainLayout() {
             <TabIcon icon={Wrench} focused={focused} color={color} activeColor={TAB_COLORS.pekerjaan} />
           ),
         }}
+        listeners={{ tabPress: showTabBar }}
       />
       <Tabs.Screen
         name="profile"
@@ -154,6 +189,7 @@ export default function MainLayout() {
             <TabIcon icon={LayoutGrid} focused={focused} color={color} activeColor={TAB_COLORS.profile} />
           ),
         }}
+        listeners={{ tabPress: showTabBar }}
       />
 
       {/* Hidden screens — accessible via router.push */}
@@ -176,5 +212,6 @@ export default function MainLayout() {
       <Tabs.Screen name="attendance-history"    options={{ href: null, title: 'Riwayat Absensi' }} />
       <Tabs.Screen name="warning-letters"       options={{ href: null, title: 'Surat Peringatan' }} />
     </Tabs>
+    </TabBarContext.Provider>
   );
 }

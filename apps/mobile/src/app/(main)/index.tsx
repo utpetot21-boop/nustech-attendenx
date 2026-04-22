@@ -48,6 +48,7 @@ import { api } from '@/services/api';
 import { useMutation } from '@tanstack/react-query';
 import { currentMonth } from '@/utils/dateFormatter';
 import { useCheckoutTimer } from '@/hooks/useCheckoutTimer';
+import { useTabBar } from '@/context/TabBarContext';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 
 const MONTH_NOW = currentMonth();
@@ -323,6 +324,7 @@ export default function BerandaScreen() {
   const isDark = scheme === 'dark';
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const { onScroll } = useTabBar();
 
   const { data: user } = useQuery({
     queryKey: ['user-profile'],
@@ -508,6 +510,8 @@ export default function BerandaScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={loadingAtt}
