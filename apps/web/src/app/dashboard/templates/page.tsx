@@ -204,24 +204,35 @@ function TemplatePreviewModal({ template, onClose }: { template: WorkTypeTemplat
           {/* Syarat Foto */}
           {template.photo_requirements.length > 0 && (
             <PreviewSection title="Dokumentasi Foto">
-              <div className="space-y-3">
-                {(['before', 'during', 'after'] as const).map((phase) => {
-                  const reqs = template.photo_requirements.filter((p) => p.phase === phase);
-                  if (!reqs.length) return null;
+              <div className="space-y-4">
+                {template.photo_requirements.map((req, ri) => {
+                  const phaseColors: Record<string, string> = {
+                    before: 'bg-orange-50 border-orange-200 text-orange-700',
+                    during: 'bg-blue-50 border-blue-200 text-blue-700',
+                    after:  'bg-green-50 border-green-200 text-green-700',
+                  };
                   return (
-                    <div key={phase}>
-                      <div className="text-[10px] font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
-                        Foto {phaseLabel[phase]}
-                        {reqs[0].is_required && <span className="text-red-500 ml-0.5">*</span>}
-                        <span className="text-gray-400 font-normal ml-1">(maks. {reqs[0].max_photos} foto)</span>
+                    <div key={req.id ?? ri} className={`rounded-xl border p-3 ${phaseColors[req.phase] ?? 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wide">
+                          {req.label}
+                          {req.is_required && <span className="text-red-500 ml-0.5">*</span>}
+                        </span>
+                        <span className="text-[9px] font-medium opacity-60">
+                          {phaseLabel[req.phase]} · maks. {req.max_photos} foto
+                        </span>
                       </div>
-                      <div className="grid grid-cols-4 gap-2">
-                        {Array.from({ length: Math.min(reqs[0].max_photos, 4) }).map((_, i) => (
-                          <div key={i} className="aspect-square bg-gray-100 border border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center">
-                            <span className="text-gray-300 text-xl">📷</span>
-                            <span className="text-[9px] text-gray-400 mt-1">{reqs[0].label || `Foto ${i + 1}`}</span>
+                      <div className="flex gap-1.5">
+                        {Array.from({ length: Math.min(req.max_photos, 4) }).map((_, i) => (
+                          <div key={i} className="w-12 h-12 bg-white/60 border border-dashed border-current/30 rounded-lg flex flex-col items-center justify-center opacity-60">
+                            <span className="text-base">📷</span>
                           </div>
                         ))}
+                        {req.max_photos > 4 && (
+                          <div className="w-12 h-12 bg-white/40 border border-dashed border-current/20 rounded-lg flex items-center justify-center opacity-50">
+                            <span className="text-[10px] font-bold">+{req.max_photos - 4}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
