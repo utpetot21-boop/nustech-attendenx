@@ -169,6 +169,22 @@ export class UsersService {
     }
 
     Object.assign(user, dto);
+
+    // Clear stale relation refs so TypeORM uses the new FK columns on save
+    // (otherwise loaded relation.id wins over freshly-set foreign key)
+    if (dto.role_id !== undefined && dto.role_id !== user.role?.id) {
+      (user as any).role = undefined;
+    }
+    if (dto.department_id !== undefined && dto.department_id !== user.department?.id) {
+      (user as any).department = undefined;
+    }
+    if (dto.position_id !== undefined && dto.position_id !== user.position?.id) {
+      (user as any).position = undefined;
+    }
+    if (dto.location_id !== undefined && dto.location_id !== user.location?.id) {
+      (user as any).location = undefined;
+    }
+
     const saved = await this.userRepo.save(user);
     this.invalidateUserCache(id);
     return saved;
