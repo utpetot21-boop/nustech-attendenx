@@ -23,6 +23,8 @@ import {
   Modal,
   ActivityIndicator,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
@@ -585,12 +587,13 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
 
       {/* Edit profil modal */}
       <Modal visible={showEditModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: pageBg(isDark), padding: 20 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
+        <View style={{ flex: 1, padding: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
             <Text style={{ fontSize: 20, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.4 }}>
               Edit Profil
@@ -600,7 +603,11 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 80 }}
+          >
             {[
               { key: 'full_name', label: 'Nama Lengkap', placeholder: 'Masukkan nama lengkap' },
               { key: 'phone',     label: 'No. Telepon',   placeholder: '08xxxxxxxxxx' },
@@ -644,11 +651,13 @@ export default function ProfileScreen() {
             <View style={{ height: 40 }} />
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Password change modal */}
       <Modal visible={showPasswordModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: pageBg(isDark), padding: 20 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
+        <View style={{ flex: 1, padding: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
             <Text style={{ fontSize: 20, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.4 }}>
               Ubah Password
@@ -658,7 +667,11 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 80 }}
+          >
             {[
               { key: 'current_password', label: 'Password Saat Ini' },
               { key: 'new_password', label: 'Password Baru' },
@@ -719,6 +732,7 @@ export default function ProfileScreen() {
             <View style={{ height: 40 }} />
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Approval Modal ──────────────────────────────────────────── */}

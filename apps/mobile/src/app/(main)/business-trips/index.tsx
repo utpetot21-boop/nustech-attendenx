@@ -407,7 +407,7 @@ export default function BusinessTripsScreen() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48, gap: 4 }}>
+              <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 4 }} keyboardShouldPersistTaps="handled">
                 {/* Destination hero */}
                 <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF', borderRadius: R.xl, padding: 20, marginBottom: 16, borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
                   <Text style={{ fontSize: 11, fontWeight: '600', color: lTertiary(isDark), textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Tujuan Perjalanan</Text>
@@ -511,7 +511,7 @@ export default function BusinessTripsScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48, gap: 12 }} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140, gap: 12 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {/* Form fields dalam card group */}
               {([
                 { key: 'destination',        label: 'Tujuan / Kota *',                placeholder: 'Makassar, Sulawesi Selatan',      icon: MapPin },

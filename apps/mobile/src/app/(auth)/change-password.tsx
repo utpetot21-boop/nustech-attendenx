@@ -116,7 +116,7 @@ export default function ChangePasswordScreen() {
       </LinearGradient>
 
       <ScrollView
-        contentContainerStyle={{ padding: 24, paddingBottom: insets.bottom + 32 }}
+        contentContainerStyle={{ padding: 24, paddingBottom: insets.bottom + 80 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

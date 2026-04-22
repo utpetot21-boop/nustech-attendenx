@@ -803,7 +803,7 @@ function CreateTaskSheet({
           <FlatList<PickerItem>
             data={items}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: isDept ? 12 : 0, paddingBottom: 24 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: isDept ? 12 : 0, paddingBottom: insets.bottom + 110 }}
             ListEmptyComponent={<Text style={{ textAlign: 'center', color: ter, marginTop: 32, fontSize: 14 }}>{search ? 'Tidak ada hasil' : 'Belum ada data'}</Text>}
             renderItem={({ item }) => {
               const name = isEmp ? (item as EmployeeItem).full_name : (item as ClientItem | DepartmentItem).name;
@@ -838,7 +838,7 @@ function CreateTaskSheet({
 
   // ── Form ───────────────────────────────────────────────────────────────────
   const renderForm = () => (
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 140 }} showsVerticalScrollIndicator={false}>
 
       {/* Judul */}
       <Text style={[fieldLabel, { color: ter }]}>JUDUL *</Text>

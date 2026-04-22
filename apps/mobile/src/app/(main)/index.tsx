@@ -502,7 +502,7 @@ export default function BerandaScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
