@@ -9,10 +9,11 @@ import { VisitEntity } from '../visits/entities/visit.entity';
 import { VisitPhotoEntity } from '../visits/entities/visit-photo.entity';
 import { StorageService } from '../../services/storage.service';
 import { EmailService } from '../notifications/email.service';
+import { CompanyProfileEntity } from '../settings/entities/company-profile.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ServiceReportEntity, VisitEntity, VisitPhotoEntity]),
+    TypeOrmModule.forFeature([ServiceReportEntity, VisitEntity, VisitPhotoEntity, CompanyProfileEntity]),
     MulterModule.register({ dest: '/tmp' }),
   ],
   controllers: [ServiceReportsController],

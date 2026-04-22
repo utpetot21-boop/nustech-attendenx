@@ -32,6 +32,8 @@ export interface ServiceReportData {
   tech_signature_url: string | null;
   client_signature_url: string | null;
   is_locked: boolean;
+  company_name: string;
+  company_address: string;
 }
 
 @Injectable()

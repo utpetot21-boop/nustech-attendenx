@@ -14,6 +14,7 @@ import { PdfGeneratorService, ServiceReportData } from './pdf-generator.service'
 import { CreateServiceReportDto } from './dto/create-service-report.dto';
 import { SignClientDto, ClientSignatureType } from './dto/sign-client.dto';
 import { EmailService } from '../notifications/email.service';
+import { CompanyProfileEntity } from '../settings/entities/company-profile.entity';
 
 @Injectable()
 export class ServiceReportsService {
@@ -24,6 +25,8 @@ export class ServiceReportsService {
     private readonly visitRepo: Repository<VisitEntity>,
     @InjectRepository(VisitPhotoEntity)
     private readonly photoRepo: Repository<VisitPhotoEntity>,
+    @InjectRepository(CompanyProfileEntity)
+    private readonly companyRepo: Repository<CompanyProfileEntity>,
     @InjectDataSource()
     private readonly ds: DataSource,
     private readonly storage: StorageService,
@@ -195,6 +198,9 @@ export class ServiceReportsService {
       pdfBuffer = await this.generateAndStorePdf(reportId);
     }
 
+    const company = await this.companyRepo.findOne({ where: {} });
+    const companyName = company?.name ?? 'Nustech';
+
     const reportNum = report.report_number ?? reportId;
     const techName = report.technician?.full_name ?? '—';
     const clientName = report.client?.name ?? '—';
@@ -218,7 +224,7 @@ export class ServiceReportsService {
 </style></head><body>
 <div class="card">
   <h2>Berita Acara Kunjungan Teknis</h2>
-  <div class="sub">Dokumen ini dikirimkan secara otomatis oleh sistem Nustech AttendenX</div>
+  <div class="sub">Dokumen ini dikirimkan secara otomatis oleh sistem ${companyName}</div>
   <table>
     <tr><td>Nomor BA</td><td><strong>${reportNum}</strong></td></tr>
     <tr><td>Klien</td><td>${clientName}</td></tr>
@@ -231,7 +237,7 @@ export class ServiceReportsService {
     Berita Acara terlampir dalam format PDF. Mohon simpan dokumen ini sebagai bukti pelaksanaan kunjungan.
   </p>
   <div class="footer">
-    Nustech AttendenX · Sistem Manajemen Kunjungan Lapangan<br>
+    ${companyName}<br>
     Email ini dikirim secara otomatis, tidak perlu membalas.
   </div>
 </div>
@@ -362,6 +368,9 @@ export class ServiceReportsService {
       return acc;
     }, []);
 
+    // Ambil profil perusahaan untuk header PDF
+    const company = await this.companyRepo.findOne({ where: {} });
+
     // Pakai thumbnail_url (jauh lebih kecil) agar base64 pre-fetch cepat
     const byPhase = (phase: string) =>
       photos
@@ -412,6 +421,8 @@ export class ServiceReportsService {
       tech_signature_url: report.tech_signature_url,
       client_signature_url: report.client_signature_url,
       is_locked: report.is_locked,
+      company_name: company?.name ?? 'Nustech',
+      company_address: company?.address ?? '',
     };
 
     const pdfBuffer = await this.pdfGen.generate(data);

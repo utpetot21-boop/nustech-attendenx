@@ -55,13 +55,13 @@
 </style>
 </head>
 <body>
-<div class="watermark">NUSTECH</div>
+<div class="watermark">{{ company_name }}</div>
 
 <!-- Header -->
 <div class="header">
   <div class="logo-area">
-    <div class="company">NUSTECH ATTENDENX</div>
-    <div class="company-sub">Sistem Manajemen Kunjungan Lapangan</div>
+    <div class="company">{{ company_name }}</div>
+    {{#if company_address}}<div class="company-sub">{{ company_address }}</div>{{/if}}
   </div>
   <div class="doc-info">
     <div class="ba-number">{{ report_number }}</div>
