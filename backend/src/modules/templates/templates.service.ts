@@ -172,6 +172,20 @@ export class TemplatesService {
     return this.findOne(id);
   }
 
+  // ── Delete ────────────────────────────────────────────────────────────────
+
+  async remove(id: string): Promise<void> {
+    const template = await this.findOne(id);
+    // Hapus children dulu (cascade manual — field → section → photo_req → template)
+    const sections = await this.sectionRepo.find({ where: { template_id: template.id } });
+    for (const sec of sections) {
+      await this.fieldRepo.delete({ section_id: sec.id });
+    }
+    await this.sectionRepo.delete({ template_id: template.id });
+    await this.photoReqRepo.delete({ template_id: template.id });
+    await this.templateRepo.delete(template.id);
+  }
+
   // ── Toggle active ─────────────────────────────────────────────────────────
 
   async toggleActive(id: string): Promise<WorkTypeTemplateEntity> {

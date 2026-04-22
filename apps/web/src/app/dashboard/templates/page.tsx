@@ -330,6 +330,7 @@ export default function TemplatesPage() {
   const [editing, setEditing] = useState<WorkTypeTemplate | null>(null);
   const [previewing, setPreviewing] = useState<WorkTypeTemplate | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: templates = [], isLoading } = useQuery<WorkTypeTemplate[]>({
     queryKey: ['templates', showAll],
@@ -344,6 +345,19 @@ export default function TemplatesPage() {
       toast.success('Status template diperbarui');
     },
     onError: (err) => toast.error(getErrorMessage(err, 'Gagal mengubah status template')),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/templates/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['templates'] });
+      setConfirmDeleteId(null);
+      toast.success('Template berhasil dihapus');
+    },
+    onError: (err) => {
+      setConfirmDeleteId(null);
+      toast.error(getErrorMessage(err, 'Gagal menghapus template'));
+    },
   });
 
   const openCreate = () => {
@@ -452,6 +466,31 @@ export default function TemplatesPage() {
                       >
                         Edit
                       </button>
+                      {confirmDeleteId === t.id ? (
+                        <span className="flex items-center gap-1">
+                          <button
+                            onClick={() => deleteMut.mutate(t.id)}
+                            disabled={deleteMut.isPending}
+                            className="text-red-600 hover:text-red-800 text-xs font-semibold"
+                          >
+                            {deleteMut.isPending ? '...' : 'Ya, Hapus'}
+                          </button>
+                          <span className="text-gray-300">|</span>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-gray-400 hover:text-gray-600 text-xs"
+                          >
+                            Batal
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(t.id)}
+                          className="text-red-500 hover:text-red-700 text-xs font-medium"
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -53,5 +55,13 @@ export class TemplatesController {
   @RequirePermission('task:assign')
   toggleActive(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.toggleActive(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @UseGuards(RolesGuard)
+  @RequirePermission('task:assign')
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.remove(id);
   }
 }
