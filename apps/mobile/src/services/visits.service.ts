@@ -13,6 +13,7 @@ export interface AddPhotoPayload {
   lng: number;
   caption?: string;
   photoUri: string; // local file URI from camera
+  requirement_id?: string;
 }
 
 export interface CheckOutPayload {
@@ -46,7 +47,23 @@ export interface PhotoCount {
   min: number;
   max: number;
 }
-export type PhotoCounts = Record<'before' | 'during' | 'after', PhotoCount>;
+
+export interface PhotoRequirementCount {
+  id: string;
+  label: string;
+  phase: string;
+  max_photos: number;
+  is_required: boolean;
+  count: number;
+}
+
+export interface PhotoCounts {
+  has_requirements: boolean;
+  requirements: PhotoRequirementCount[];
+  before: PhotoCount;
+  during: PhotoCount;
+  after: PhotoCount;
+}
 
 export const visitsService = {
   async checkIn(payload: VisitCheckInPayload) {
@@ -60,6 +77,7 @@ export const visitsService = {
     formData.append('lat', String(payload.lat));
     formData.append('lng', String(payload.lng));
     if (payload.caption) formData.append('caption', payload.caption);
+    if (payload.requirement_id) formData.append('requirement_id', payload.requirement_id);
 
     // Append the photo file
     const filename = payload.photoUri.split('/').pop() ?? 'photo.jpg';

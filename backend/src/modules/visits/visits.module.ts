@@ -7,6 +7,7 @@ import { ServiceReportEntity } from './entities/service-report.entity';
 import { SlaBreachEntity } from './entities/sla-breach.entity';
 import { ClientEntity } from '../clients/entities/client.entity';
 import { VisitFormResponseEntity } from '../templates/entities/visit-form-response.entity';
+import { TemplatePhotoRequirementEntity } from '../templates/entities/template-photo-requirement.entity';
 import { TaskEntity } from '../tasks/entities/task.entity';
 import { VisitsService } from './visits.service';
 import { VisitsController } from './visits.controller';
@@ -26,6 +27,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       SlaBreachEntity,
       ClientEntity,
       VisitFormResponseEntity,
+      TemplatePhotoRequirementEntity,
       TaskEntity,
     ]),
   ],

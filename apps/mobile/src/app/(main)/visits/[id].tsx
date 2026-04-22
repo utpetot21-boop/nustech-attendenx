@@ -55,6 +55,8 @@ export default function VisitDetailScreen() {
   // Camera state
   const [cameraPhase, setCameraPhase] = useState<Phase | null>(null);
   const [uploadingPhase, setUploadingPhase] = useState<Phase | null>(null);
+  const [uploadingRequirementId, setUploadingRequirementId] = useState<string | null>(null);
+  const [pendingRequirementId, setPendingRequirementId] = useState<string | null>(null);
 
   // Check-out form state
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
@@ -178,8 +180,9 @@ export default function VisitDetailScreen() {
       uri,
       lat,
       lng,
-    }: { phase: Phase; uri: string; lat: number; lng: number }) =>
-      visitsService.addPhoto(visitId!, { phase, lat, lng, photoUri: uri }),
+      requirementId,
+    }: { phase: Phase; uri: string; lat: number; lng: number; requirementId?: string }) =>
+      visitsService.addPhoto(visitId!, { phase, lat, lng, photoUri: uri, requirement_id: requirementId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['visit', visitId] });
       qc.invalidateQueries({ queryKey: ['visit-photo-counts', visitId] });
@@ -189,6 +192,7 @@ export default function VisitDetailScreen() {
     },
     onSettled: () => {
       setUploadingPhase(null);
+      setUploadingRequirementId(null);
       setCameraPhase(null);
     },
   });
@@ -228,10 +232,12 @@ export default function VisitDetailScreen() {
       if (!cameraPhase) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setUploadingPhase(cameraPhase);
-      setCameraPhase(null); // close camera first
-      addPhotoMutation.mutate({ phase: cameraPhase, uri, lat, lng });
+      setUploadingRequirementId(pendingRequirementId);
+      setCameraPhase(null);
+      setPendingRequirementId(null);
+      addPhotoMutation.mutate({ phase: cameraPhase, uri, lat, lng, requirementId: pendingRequirementId ?? undefined });
     },
-    [cameraPhase, addPhotoMutation],
+    [cameraPhase, pendingRequirementId, addPhotoMutation],
   );
 
   const handleCheckOut = useCallback(async () => {
@@ -287,9 +293,11 @@ export default function VisitDetailScreen() {
   const canCheckout =
     isOngoing &&
     photoCounts &&
-    photoCounts.before.count >= photoCounts.before.min &&
-    photoCounts.during.count >= photoCounts.during.min &&
-    photoCounts.after.count >= photoCounts.after.min;
+    (photoCounts.has_requirements
+      ? photoCounts.requirements.filter((r) => r.is_required).every((r) => r.count > 0)
+      : photoCounts.before.count >= photoCounts.before.min &&
+        photoCounts.during.count >= photoCounts.during.min &&
+        photoCounts.after.count >= photoCounts.after.min);
 
   const checkInTime = new Date(visit.check_in_at).toLocaleString('id-ID', {
     timeZone: 'Asia/Makassar',
@@ -469,9 +477,14 @@ export default function VisitDetailScreen() {
                     photos: photosOf(phase),
                     counts: photoCounts[phase],
                   }))}
-                  onAddPhoto={(phase) => setCameraPhase(phase)}
+                  photoCounts={photoCounts}
+                  onAddPhoto={(phase, requirementId) => {
+                    setPendingRequirementId(requirementId ?? null);
+                    setCameraPhase(phase);
+                  }}
                   isUploading={addPhotoMutation.isPending}
                   uploadingPhase={uploadingPhase}
+                  uploadingRequirementId={uploadingRequirementId}
                   isCompleted={!isOngoing}
                 />
               ) : isOngoing ? (
@@ -479,7 +492,6 @@ export default function VisitDetailScreen() {
                   <ActivityIndicator color={isDark ? '#FFF' : '#007AFF'} />
                 </View>
               ) : (
-                // Completed — show photos without counts
                 <PhotoPhaseGrid
                   sections={(['before', 'during', 'after'] as Phase[]).map((phase) => ({
                     phase,
@@ -515,57 +527,43 @@ export default function VisitDetailScreen() {
                 >
                   Progres Foto
                 </Text>
-                {(['before', 'during', 'after'] as Phase[]).map((phase) => {
-                  const c = photoCounts[phase];
-                  const pct = Math.min(c.count / c.min, 1);
-                  const met = c.count >= c.min;
-                  return (
-                    <View key={phase} style={{ marginBottom: 8 }}>
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          justifyContent: 'space-between',
-                          marginBottom: 4,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280',
-                          }}
-                        >
-                          {PHASE_LABELS[phase]}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: '600',
-                            color: met ? '#34C759' : isDark ? 'rgba(255,255,255,0.6)' : '#6B7280',
-                          }}
-                        >
-                          {met ? `✓ ${c.count}` : `${c.count}/${c.min}`}
-                        </Text>
-                      </View>
-                      <View
-                        style={{
-                          height: 4,
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : '#E5E7EB',
-                          borderRadius: 2,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <View
-                          style={{
-                            height: 4,
-                            width: `${pct * 100}%`,
-                            backgroundColor: met ? '#34C759' : '#007AFF',
-                            borderRadius: 2,
-                          }}
-                        />
-                      </View>
-                    </View>
-                  );
-                })}
+                {photoCounts.has_requirements
+                  ? photoCounts.requirements.filter((r) => r.is_required).map((req) => {
+                      const pct = Math.min(req.count / 1, 1); // wajib minimal 1
+                      const met = req.count > 0;
+                      return (
+                        <View key={req.id} style={{ marginBottom: 8 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', flex: 1, marginRight: 8 }} numberOfLines={1}>{req.label}</Text>
+                            <Text style={{ fontSize: 11, fontWeight: '600', color: met ? '#34C759' : isDark ? 'rgba(255,255,255,0.6)' : '#6B7280' }}>
+                              {met ? `✓ ${req.count}` : `${req.count}/${req.max_photos}`}
+                            </Text>
+                          </View>
+                          <View style={{ height: 4, backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : '#E5E7EB', borderRadius: 2, overflow: 'hidden' }}>
+                            <View style={{ height: 4, width: `${pct * 100}%`, backgroundColor: met ? '#34C759' : '#007AFF', borderRadius: 2 }} />
+                          </View>
+                        </View>
+                      );
+                    })
+                  : (['before', 'during', 'after'] as Phase[]).map((phase) => {
+                      const c = photoCounts[phase];
+                      const pct = Math.min(c.count / c.min, 1);
+                      const met = c.count >= c.min;
+                      return (
+                        <View key={phase} style={{ marginBottom: 8 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280' }}>{PHASE_LABELS[phase]}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: met ? '#34C759' : isDark ? 'rgba(255,255,255,0.6)' : '#6B7280' }}>
+                              {met ? `✓ ${c.count}` : `${c.count}/${c.min}`}
+                            </Text>
+                          </View>
+                          <View style={{ height: 4, backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : '#E5E7EB', borderRadius: 2, overflow: 'hidden' }}>
+                            <View style={{ height: 4, width: `${pct * 100}%`, backgroundColor: met ? '#34C759' : '#007AFF', borderRadius: 2 }} />
+                          </View>
+                        </View>
+                      );
+                    })
+                }
               </View>
             )}
 
@@ -866,7 +864,10 @@ export default function VisitDetailScreen() {
                         marginTop: 4,
                       }}
                     >
-                      {`Before ${photoCounts.before.count}/${photoCounts.before.min} · During ${photoCounts.during.count}/${photoCounts.during.min} · After ${photoCounts.after.count}/${photoCounts.after.min}`}
+                      {photoCounts.has_requirements
+                        ? `${photoCounts.requirements.filter((r) => r.is_required && r.count > 0).length}/${photoCounts.requirements.filter((r) => r.is_required).length} foto wajib terisi`
+                        : `Before ${photoCounts.before.count}/${photoCounts.before.min} · During ${photoCounts.during.count}/${photoCounts.during.min} · After ${photoCounts.after.count}/${photoCounts.after.min}`
+                      }
                     </Text>
                   )}
                 </TouchableOpacity>

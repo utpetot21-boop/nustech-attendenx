@@ -19,6 +19,7 @@ import { StorageService } from '../../services/storage.service';
 import { PhotoWatermarkService } from './photo-watermark.service';
 import { ClientEntity } from '../clients/entities/client.entity';
 import { VisitFormResponseEntity } from '../templates/entities/visit-form-response.entity';
+import { TemplatePhotoRequirementEntity } from '../templates/entities/template-photo-requirement.entity';
 import { TaskEntity } from '../tasks/entities/task.entity';
 import { ReviewVisitDto } from './dto/review-visit.dto';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -45,6 +46,8 @@ export class VisitsService {
     private readonly formResponseRepo: Repository<VisitFormResponseEntity>,
     @InjectRepository(TaskEntity)
     private readonly taskRepo: Repository<TaskEntity>,
+    @InjectRepository(TemplatePhotoRequirementEntity)
+    private readonly photoReqRepo: Repository<TemplatePhotoRequirementEntity>,
     private readonly nominatim: NominatimService,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
@@ -139,16 +142,28 @@ export class VisitsService {
   ): Promise<VisitPhotoEntity> {
     const visit = await this.getOngoingVisit(userId, visitId);
 
-    // Count existing photos for this phase
-    const phaseCount = await this.photoRepo.count({
-      where: { visit_id: visitId, phase: dto.phase },
-    });
-
-    const limits = PHOTO_LIMITS[dto.phase];
-    if (phaseCount >= limits.max) {
-      throw new BadRequestException(
-        `Fase "${dto.phase}" sudah mencapai batas maksimum ${limits.max} foto.`,
-      );
+    // Validasi batas foto — per requirement jika dikirim, fallback ke phase global
+    if (dto.requirement_id) {
+      const req = await this.photoReqRepo.findOne({ where: { id: dto.requirement_id } });
+      if (!req) throw new BadRequestException('Requirement foto tidak ditemukan.');
+      const reqCount = await this.photoRepo.count({
+        where: { visit_id: visitId, photo_requirement_id: dto.requirement_id },
+      });
+      if (reqCount >= req.max_photos) {
+        throw new BadRequestException(
+          `"${req.label}" sudah mencapai batas maksimum ${req.max_photos} foto.`,
+        );
+      }
+    } else {
+      const phaseCount = await this.photoRepo.count({
+        where: { visit_id: visitId, phase: dto.phase },
+      });
+      const limits = PHOTO_LIMITS[dto.phase];
+      if (phaseCount >= limits.max) {
+        throw new BadRequestException(
+          `Fase "${dto.phase}" sudah mencapai batas maksimum ${limits.max} foto.`,
+        );
+      }
     }
 
     // Reverse geocode photo location
@@ -174,10 +189,11 @@ export class VisitsService {
       this.storage.upload(`${folder}/thumbnail`, 'jpg', thumbnailBuffer),
     ]);
 
+    const seqCount = await this.photoRepo.count({ where: { visit_id: visitId, phase: dto.phase } });
     const photo = this.photoRepo.create({
       visit_id: visitId,
       phase: dto.phase,
-      seq_number: phaseCount + 1,
+      seq_number: seqCount + 1,
       original_url: originalUrl,
       watermarked_url: watermarkedUrl,
       thumbnail_url: thumbnailUrl,
@@ -188,6 +204,7 @@ export class VisitsService {
       district: geo.district,
       province: geo.province,
       file_size_kb: fileSizeKb,
+      photo_requirement_id: dto.requirement_id ?? null,
     });
 
     return this.photoRepo.save(photo);
@@ -203,27 +220,30 @@ export class VisitsService {
   ): Promise<VisitEntity> {
     const visit = await this.getOngoingVisit(userId, visitId);
 
-    // Validate minimum photo counts per phase
-    const [beforeCount, duringCount, afterCount] = await Promise.all([
-      this.photoRepo.count({ where: { visit_id: visitId, phase: 'before' } }),
-      this.photoRepo.count({ where: { visit_id: visitId, phase: 'during' } }),
-      this.photoRepo.count({ where: { visit_id: visitId, phase: 'after' } }),
-    ]);
+    // Validasi foto — per requirement jika template ada, fallback ke phase global
+    const photoReqs = visit.template_id
+      ? await this.photoReqRepo.find({ where: { template_id: visit.template_id } })
+      : [];
 
-    if (beforeCount < PHOTO_LIMITS.before.min) {
-      throw new BadRequestException(
-        `Foto fase "before" belum cukup. Minimal ${PHOTO_LIMITS.before.min} foto, saat ini ${beforeCount}.`,
-      );
-    }
-    if (duringCount < PHOTO_LIMITS.during.min) {
-      throw new BadRequestException(
-        `Foto fase "during" belum cukup. Minimal ${PHOTO_LIMITS.during.min} foto, saat ini ${duringCount}.`,
-      );
-    }
-    if (afterCount < PHOTO_LIMITS.after.min) {
-      throw new BadRequestException(
-        `Foto fase "after" belum cukup. Minimal ${PHOTO_LIMITS.after.min} foto, saat ini ${afterCount}.`,
-      );
+    if (photoReqs.length > 0) {
+      for (const req of photoReqs.filter((r) => r.is_required)) {
+        const cnt = await this.photoRepo.count({ where: { visit_id: visitId, photo_requirement_id: req.id } });
+        if (cnt === 0) {
+          throw new BadRequestException(`Foto "${req.label}" wajib diisi sebelum check-out.`);
+        }
+      }
+    } else {
+      const [beforeCount, duringCount, afterCount] = await Promise.all([
+        this.photoRepo.count({ where: { visit_id: visitId, phase: 'before' } }),
+        this.photoRepo.count({ where: { visit_id: visitId, phase: 'during' } }),
+        this.photoRepo.count({ where: { visit_id: visitId, phase: 'after' } }),
+      ]);
+      if (beforeCount < PHOTO_LIMITS.before.min)
+        throw new BadRequestException(`Foto fase "before" belum cukup. Minimal ${PHOTO_LIMITS.before.min} foto, saat ini ${beforeCount}.`);
+      if (duringCount < PHOTO_LIMITS.during.min)
+        throw new BadRequestException(`Foto fase "during" belum cukup. Minimal ${PHOTO_LIMITS.during.min} foto, saat ini ${duringCount}.`);
+      if (afterCount < PHOTO_LIMITS.after.min)
+        throw new BadRequestException(`Foto fase "after" belum cukup. Minimal ${PHOTO_LIMITS.after.min} foto, saat ini ${afterCount}.`);
     }
 
     // Validasi required form fields jika visit punya template
@@ -315,19 +335,49 @@ export class VisitsService {
     return visit;
   }
 
-  async getPhotoCounts(
-    visitId: string,
-  ): Promise<Record<string, { count: number; min: number; max: number }>> {
+  async getPhotoCounts(visitId: string): Promise<{
+    has_requirements: boolean;
+    requirements: Array<{ id: string; label: string; phase: string; max_photos: number; is_required: boolean; count: number }>;
+    before: { count: number; min: number; max: number };
+    during: { count: number; min: number; max: number };
+    after: { count: number; min: number; max: number };
+  }> {
+    const visit = await this.visitRepo.findOne({ where: { id: visitId }, select: ['template_id'] });
     const [b, d, a] = await Promise.all([
       this.photoRepo.count({ where: { visit_id: visitId, phase: 'before' } }),
       this.photoRepo.count({ where: { visit_id: visitId, phase: 'during' } }),
       this.photoRepo.count({ where: { visit_id: visitId, phase: 'after' } }),
     ]);
-    return {
+    const phaseTotals = {
       before: { count: b, ...PHOTO_LIMITS.before },
       during: { count: d, ...PHOTO_LIMITS.during },
       after: { count: a, ...PHOTO_LIMITS.after },
     };
+
+    if (!visit?.template_id) {
+      return { has_requirements: false, requirements: [], ...phaseTotals };
+    }
+
+    const reqs = await this.photoReqRepo.find({
+      where: { template_id: visit.template_id },
+      order: { order_index: 'ASC' },
+    });
+    if (reqs.length === 0) {
+      return { has_requirements: false, requirements: [], ...phaseTotals };
+    }
+
+    const requirements = await Promise.all(
+      reqs.map(async (r) => ({
+        id: r.id,
+        label: r.label,
+        phase: r.phase,
+        max_photos: r.max_photos,
+        is_required: r.is_required,
+        count: await this.photoRepo.count({ where: { visit_id: visitId, photo_requirement_id: r.id } }),
+      })),
+    );
+
+    return { has_requirements: true, requirements, ...phaseTotals };
   }
 
   async findAll(filters: { status?: string; userId?: string; clientId?: string; date?: string; page?: number; limit?: number }) {

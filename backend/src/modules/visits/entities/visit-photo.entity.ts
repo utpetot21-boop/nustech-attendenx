@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 
 import { VisitEntity } from './visit.entity';
+import { TemplatePhotoRequirementEntity } from '../../templates/entities/template-photo-requirement.entity';
 
 @Entity('visit_photos')
 export class VisitPhotoEntity {
@@ -56,6 +57,13 @@ export class VisitPhotoEntity {
 
   @Column({ type: 'integer', nullable: true })
   file_size_kb: number | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  photo_requirement_id: string | null;
+
+  @ManyToOne(() => TemplatePhotoRequirementEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'photo_requirement_id' })
+  photo_requirement: TemplatePhotoRequirementEntity | null;
 
   @CreateDateColumn()
   created_at: Date;
