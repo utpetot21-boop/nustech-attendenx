@@ -75,14 +75,18 @@ const styles = StyleSheet.create({
     alignItems:        'center',
   },
   chip: {
+    minWidth:          88,
     paddingHorizontal: 16,
-    paddingVertical:    8,
+    paddingVertical:   11,
     borderRadius:      R.pill,
     borderWidth:       B.default,
+    alignItems:        'center',
+    justifyContent:    'center',
     alignSelf:         'center',
   },
   label: {
-    fontSize:      13,
+    fontSize:      14,
     letterSpacing: 0,
+    textAlign:     'center',
   },
 });
