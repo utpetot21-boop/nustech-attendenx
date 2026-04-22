@@ -53,13 +53,14 @@ export class FcmService implements OnModuleInit {
     title: string,
     body: string,
     data?: Record<string, string>,
+    channelId: string = 'default',
   ): Promise<void> {
     const devices = await this.deviceRepo.find({
       where: { user_id: userId, is_active: true },
       select: ['fcm_token'],
     });
     const tokens = devices.map((d) => d.fcm_token).filter(Boolean);
-    if (tokens.length) await this.sendRaw(tokens, title, body, data);
+    if (tokens.length) await this.sendRaw(tokens, title, body, data, channelId);
   }
 
   async sendToMany(
@@ -67,6 +68,7 @@ export class FcmService implements OnModuleInit {
     title: string,
     body: string,
     data?: Record<string, string>,
+    channelId: string = 'default',
   ): Promise<void> {
     if (!userIds.length) return;
     const devices = await this.deviceRepo.find({
@@ -74,7 +76,7 @@ export class FcmService implements OnModuleInit {
       select: ['fcm_token'],
     });
     const tokens = [...new Set(devices.map((d) => d.fcm_token).filter(Boolean))];
-    if (tokens.length) await this.sendRaw(tokens, title, body, data);
+    if (tokens.length) await this.sendRaw(tokens, title, body, data, channelId);
   }
 
   private async sendRaw(
@@ -82,14 +84,15 @@ export class FcmService implements OnModuleInit {
     title: string,
     body: string,
     data?: Record<string, string>,
+    channelId: string = 'default',
   ): Promise<void> {
     // Pisahkan Expo tokens dan raw FCM tokens
     const expoTokens = tokens.filter((t) => t.startsWith('ExponentPushToken['));
     const fcmTokens  = tokens.filter((t) => !t.startsWith('ExponentPushToken['));
 
     await Promise.all([
-      expoTokens.length ? this.sendViaExpo(expoTokens, title, body, data) : Promise.resolve(),
-      fcmTokens.length  ? this.sendViaFCM(fcmTokens, title, body, data)   : Promise.resolve(),
+      expoTokens.length ? this.sendViaExpo(expoTokens, title, body, data, channelId) : Promise.resolve(),
+      fcmTokens.length  ? this.sendViaFCM(fcmTokens, title, body, data, channelId)   : Promise.resolve(),
     ]);
   }
 
@@ -99,6 +102,7 @@ export class FcmService implements OnModuleInit {
     title: string,
     body: string,
     data?: Record<string, string>,
+    channelId: string = 'default',
   ): Promise<void> {
     const BATCH = 100;
     for (let i = 0; i < tokens.length; i += BATCH) {
@@ -109,6 +113,7 @@ export class FcmService implements OnModuleInit {
         data: data ?? {},
         sound: 'default',
         priority: 'high',
+        channelId,
       }));
       try {
         const resp = await fetch('https://exp.host/--/api/v2/push/send', {
@@ -131,6 +136,7 @@ export class FcmService implements OnModuleInit {
     title: string,
     body: string,
     data?: Record<string, string>,
+    channelId: string = 'default',
   ): Promise<void> {
     if (!this.app) {
       this.logger.warn('FCM not initialized, skipping FCM push');
@@ -146,7 +152,7 @@ export class FcmService implements OnModuleInit {
           data: data ?? {},
           android: {
             priority: 'high',
-            notification: { sound: 'default', channelId: 'default' },
+            notification: { sound: 'default', channelId },
           },
           apns: {
             payload: { aps: { sound: 'default', badge: 1 } },

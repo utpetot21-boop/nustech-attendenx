@@ -64,6 +64,15 @@ export async function registerForPushNotifications(): Promise<string | null> {
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#007AFF',
       });
+      // Channel khusus SOS — always-on, tidak bisa di-mute per-app
+      await Notifications.setNotificationChannelAsync('sos', {
+        name: 'SOS Darurat',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 200, 500, 200, 500],
+        lightColor: '#FF3B30',
+        bypassDnd: true,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      });
     } catch {
       // Android Expo Go SDK 53 — skip channel setup
     }

@@ -15,7 +15,7 @@ export interface SendNotifOptions {
   body: string;
   data?: Record<string, string>;
   channels?: ('push' | 'whatsapp' | 'email')[];
-  // If channels not provided, auto-select based on type
+  channelId?: string; // Android notification channel (default: 'default', SOS: 'sos')
 }
 
 @Injectable()
@@ -62,7 +62,8 @@ export class NotificationsService {
 
     // Push notification
     if (channels.includes('push')) {
-      await this.fcm.sendToUser(opts.userId, opts.title, opts.body, opts.data);
+      const channelId = opts.channelId ?? (opts.type === 'sos_alert' ? 'sos' : 'default');
+      await this.fcm.sendToUser(opts.userId, opts.title, opts.body, opts.data, channelId);
     }
 
     // WhatsApp
@@ -106,8 +107,9 @@ export class NotificationsService {
       });
     });
 
-    // Push to all
-    await this.fcm.sendToMany(userIds, title, body, data);
+    // Push to all — SOS pakai channel khusus bypass DND
+    const channelId = type === 'sos_alert' ? 'sos' : 'default';
+    await this.fcm.sendToMany(userIds, title, body, data, channelId);
   }
 
   async getForUser(userId: string, page = 1, limit = 30) {
