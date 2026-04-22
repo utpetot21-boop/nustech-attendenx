@@ -421,7 +421,7 @@ export default function ScheduleSwapScreen() {
     queryKey: ['my-schedule-date', requesterDateStr],
     queryFn: () =>
       api.get<UserSchedule[]>('/schedules/me', { params: { date: requesterDateStr } })
-         .then((r) => r.data[0] ?? null),
+         .then((r) => (Array.isArray(r.data) ? r.data[0] : null) ?? null),
     enabled: showForm,
     staleTime: 60_000,
   });
@@ -430,7 +430,7 @@ export default function ScheduleSwapScreen() {
     queryKey: ['user-schedule-date', selectedUser?.id, targetDateStr],
     queryFn: () =>
       api.get<UserSchedule[]>(`/schedules/user/${selectedUser!.id}`, { params: { date: targetDateStr } })
-         .then((r) => r.data[0] ?? null),
+         .then((r) => (Array.isArray(r.data) ? r.data[0] : null) ?? null),
     enabled: showForm && swapType === 'with_person' && !!selectedUser?.id,
     staleTime: 60_000,
   });

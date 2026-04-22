@@ -337,7 +337,8 @@ export default function ProfileScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
-                    setEditForm({ full_name: user?.full_name ?? '', phone: user?.phone ?? '' });
+                    if (!user) return;
+                    setEditForm({ full_name: user.full_name ?? '', phone: user.phone ?? '' });
                     setShowEditModal(true);
                   }}
                   style={{ padding: 6 }}

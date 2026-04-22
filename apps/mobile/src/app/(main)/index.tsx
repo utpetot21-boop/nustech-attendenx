@@ -328,7 +328,8 @@ export default function BerandaScreen() {
     queryKey: ['user-profile'],
     queryFn: async () => {
       const raw = await SecureStore.getItemAsync('user');
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
     },
     staleTime: Infinity,
   });
@@ -485,8 +486,11 @@ export default function BerandaScreen() {
   const shiftProgress = (() => {
     if (!attendance?.shift_start || !attendance?.shift_end || !alreadyCheckedIn) return 0;
     const now = new Date();
-    const [sh, sm] = attendance.shift_start.split(':').map(Number);
-    const [eh, em] = attendance.shift_end.split(':').map(Number);
+    const sParts = attendance.shift_start.split(':').map(Number);
+    const eParts = attendance.shift_end.split(':').map(Number);
+    const sh = sParts[0] ?? 0, sm = sParts[1] ?? 0;
+    const eh = eParts[0] ?? 0, em = eParts[1] ?? 0;
+    if (!Number.isFinite(sh) || !Number.isFinite(sm) || !Number.isFinite(eh) || !Number.isFinite(em)) return 0;
     const start = new Date(); start.setHours(sh, sm, 0, 0);
     const end   = new Date(); end.setHours(eh, em, 0, 0);
     if (end <= start) end.setDate(end.getDate() + 1);
@@ -1025,7 +1029,10 @@ export default function BerandaScreen() {
                 <Text style={{ fontSize: 15, fontWeight: '700', color: lSecondary(isDark) }}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => submitRequestMutation.mutate()}
+                onPress={() => {
+                  if (submitRequestMutation.isPending || !requestReason.trim()) return;
+                  submitRequestMutation.mutate();
+                }}
                 disabled={submitRequestMutation.isPending || !requestReason.trim()}
                 style={{
                   flex: 2, padding: 14, borderRadius: R.lg,

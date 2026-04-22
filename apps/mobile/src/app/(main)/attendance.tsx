@@ -283,7 +283,10 @@ export default function AttendanceScreen() {
     const shiftStart = attendance?.shift_start ?? todaySchedule?.start_time ?? null;
     const tolerance = attendance?.tolerance_minutes ?? todaySchedule?.tolerance_minutes ?? 0;
     if (!shiftStart) return { isLate: false, lateMin: 0, tolerance, shiftStart: null };
-    const [h, m] = shiftStart.split(':').map(Number);
+    const parts = shiftStart.split(':').map(Number);
+    const h = parts[0] ?? 0;
+    const m = parts[1] ?? 0;
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return { isLate: false, lateMin: 0, tolerance, shiftStart: null };
     const toleranceEnd = new Date();
     toleranceEnd.setHours(h, m + tolerance, 0, 0);
     const diffMin = Math.floor((new Date().getTime() - toleranceEnd.getTime()) / 60000);

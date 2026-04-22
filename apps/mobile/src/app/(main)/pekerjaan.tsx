@@ -481,7 +481,10 @@ export default function PekerjaanScreen() {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => isManager ? setShowCreate(true) : router.push('/(main)/visits' as Href)}
+              onPress={() => {
+                if (isManager) setShowCreate(true);
+                else router.push('/(main)/visits' as Href);
+              }}
               activeOpacity={0.8}
               style={{
                 width: 48, height: 48, borderRadius: R.md,

@@ -282,7 +282,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
       setUploading(false);
       return createClaim({
         category,
-        amount: parseInt(amount.replace(/\D/g, '')),
+        amount: parseInt(amount.replace(/\D/g, '') || '0', 10),
         description: description || undefined,
         receipt_urls: uploadedUrls,
       });
@@ -298,7 +298,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
     },
   });
 
-  const canSubmit = category && amount && parseInt(amount.replace(/\D/g, '')) > 0;
+  const canSubmit = category && amount && parseInt(amount.replace(/\D/g, '') || '0', 10) > 0;
 
   return (
     <KeyboardAvoidingView
@@ -372,7 +372,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
           />
           {amount && (
             <Text style={{ fontSize: 13, color: C.purple, marginTop: 6, fontWeight: '600' }}>
-              = {formatRupiah(parseInt(amount.replace(/\D/g, '') || '0'))}
+              = {formatRupiah(parseInt(amount.replace(/\D/g, '') || '0', 10))}
             </Text>
           )}
         </View>
