@@ -10,7 +10,7 @@ import {
   ShieldCheck, Briefcase, Layers, MessageCircle, HardDrive,
   Siren, Pencil, Trash2, Plus, X, Check, RefreshCw,
   Lock, ChevronDown, ChevronUp, ChevronRight, ChevronLeft,
-  Settings, Users, CalendarClock, type LucideIcon,
+  Settings, CalendarClock, type LucideIcon,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────

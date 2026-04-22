@@ -9,8 +9,8 @@ import { getErrorMessage } from '@/lib/errors';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import {
   Users, UserPlus, Search, Pencil, KeyRound, UserX,
-  Camera, Phone, Mail, BadgeCheck, Building2, Calendar,
-  X, Check, Eye, EyeOff, type LucideIcon,
+  Camera, Phone, Mail, BadgeCheck, Calendar,
+  X, Eye, EyeOff,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────

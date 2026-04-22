@@ -9,7 +9,7 @@ import {
   ListTodo, Plus, LayoutGrid, List, AlertTriangle, MapPin,
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
   PauseCircle, RefreshCw, Radio, Target, Check, X,
-  ChevronDown, Calendar, Zap, Ban, Trash2, UserPlus,
+  Calendar, Zap, Ban, Trash2, UserPlus,
 } from 'lucide-react';
 import { getAuthUser } from '@/lib/auth';
 
@@ -69,7 +69,6 @@ const BOARD_COLUMNS: { key: TaskStatus[]; label: string; accent: string; headerB
 // ── KanbanCard ─────────────────────────────────────────────────────────────────
 function KanbanCard({ task }: { task: Task }) {
   const p   = PRIORITY_MAP[task.priority] ?? PRIORITY_MAP.normal;
-  const s   = STATUS_MAP[task.status]     ?? STATUS_MAP.unassigned;
   const now = new Date();
   const isOverdue = task.confirm_deadline && new Date(task.confirm_deadline) < now;
 
@@ -276,6 +275,7 @@ export default function TasksPage() {
     title: '', description: '', type: 'visit', priority: 'normal' as TaskPriority,
     client_id: '', dispatch_type: 'direct' as 'direct' | 'broadcast',
     assigned_to: '', broadcast_dept_id: '', scheduled_at: '', is_emergency: false, notes: '',
+    template_id: '',
   });
 
   const { data: tasksData, isLoading } = useQuery({
@@ -286,9 +286,10 @@ export default function TasksPage() {
     refetchInterval: 15000,
   });
 
-  const { data: clients = [] }  = useQuery<Client[]>({ queryKey: ['clients'],     queryFn: () => apiClient.get('/clients').then((r) => r.data.items ?? r.data) });
-  const { data: users   = [] }  = useQuery<User[]>({   queryKey: ['users'],       queryFn: () => apiClient.get('/users').then((r) => r.data.items ?? r.data) });
-  const { data: depts   = [] }  = useQuery<Department[]>({ queryKey: ['departments'], queryFn: () => apiClient.get('/departments').then((r) => r.data.items ?? r.data) });
+  const { data: clients = [] }   = useQuery<Client[]>({ queryKey: ['clients'],     queryFn: () => apiClient.get('/clients').then((r) => r.data.items ?? r.data) });
+  const { data: users   = [] }   = useQuery<User[]>({   queryKey: ['users'],       queryFn: () => apiClient.get('/users').then((r) => r.data.items ?? r.data) });
+  const { data: depts   = [] }   = useQuery<Department[]>({ queryKey: ['departments'], queryFn: () => apiClient.get('/departments').then((r) => r.data.items ?? r.data) });
+  const { data: templates = [] } = useQuery<{ id: string; name: string; work_type: string }[]>({ queryKey: ['templates'], queryFn: () => apiClient.get('/templates').then((r) => r.data.items ?? r.data) });
 
   const { data: pendingDelegations = [] } = useQuery<Delegation[]>({
     queryKey: ['pending-delegations'],
@@ -303,6 +304,7 @@ export default function TasksPage() {
       assigned_to:       form.dispatch_type === 'direct'    ? form.assigned_to       || undefined : undefined,
       broadcast_dept_id: form.dispatch_type === 'broadcast' ? form.broadcast_dept_id || undefined : undefined,
       scheduled_at:      form.scheduled_at || undefined,
+      template_id:       form.template_id  || undefined,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks-web'] });
@@ -393,7 +395,6 @@ export default function TasksPage() {
   const emergency     = tasks.filter((t) => t.is_emergency).length;
   const unassigned    = countByStatus(['unassigned']);
   const pending       = countByStatus(['pending_confirmation']);
-  const completed     = countByStatus(['completed']);
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] dark:bg-gray-950">
@@ -723,6 +724,23 @@ export default function TasksPage() {
                   className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF] transition"
                 />
               </div>
+
+              {/* Template BA */}
+              {templates.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wider mb-1.5">Template Berita Acara</label>
+                  <select
+                    value={form.template_id}
+                    onChange={(e) => setForm((f) => ({ ...f, template_id: e.target.value }))}
+                    className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#007AFF] transition"
+                  >
+                    <option value="">— Tanpa Template —</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name} ({t.work_type})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Emergency toggle */}
               <label className="flex items-center gap-3 cursor-pointer select-none bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.10)] border border-[#FECACA] dark:border-[rgba(255,59,48,0.25)] rounded-xl px-4 py-3">

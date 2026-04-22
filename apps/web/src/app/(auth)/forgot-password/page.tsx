@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
-  const { register, handleSubmit, getValues, formState: { errors } } = useForm<Form>({
+  const { register, handleSubmit, formState: { errors } } = useForm<Form>({
     resolver: zodResolver(schema),
   });
 

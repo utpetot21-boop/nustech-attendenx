@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Palmtree, Clock, CheckCircle2, XCircle, MessageSquareWarning,
-  Users, Calendar, Check, X, ExternalLink, ChevronRight, Search, ArrowLeftRight,
+  Users, Calendar, Check, X, ExternalLink, Search, ArrowLeftRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';

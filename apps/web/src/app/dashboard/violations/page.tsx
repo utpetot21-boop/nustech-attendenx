@@ -8,8 +8,8 @@ import { apiClient } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import {
   AlertTriangle, ShieldAlert, FileWarning, CheckCircle2,
-  Clock, Plus, X, ExternalLink, FileText, User,
-  Calendar, Search,
+  Clock, Plus, X, ExternalLink, FileText,
+  Search,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────

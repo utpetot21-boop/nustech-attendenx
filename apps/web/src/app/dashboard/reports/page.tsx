@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ClipboardList, Timer, Palmtree, MapPin, ShieldAlert, Receipt,
   Download, Calendar, Users, CheckCircle2, XCircle, Clock,
-  TrendingUp, Wallet, AlertTriangle, FileSpreadsheet,
+  TrendingUp, Wallet, AlertTriangle,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
@@ -456,7 +456,7 @@ export default function ReportsPage() {
                       {(r.is_resolved as boolean) ? 'Selesai' : 'Aktif'}
                     </span>
                   </div>
-                  {r.description && <p className="text-xs text-gray-500 dark:text-white/40 mt-1">{r.description as string}</p>}
+                  {!!r.description && <p className="text-xs text-gray-500 dark:text-white/40 mt-1">{r.description as string}</p>}
                   <p className="text-[11px] text-gray-400 dark:text-white/30 mt-2">
                     {new Date(r.created_at as string).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                   </p>
@@ -509,7 +509,7 @@ export default function ReportsPage() {
                       <span className={`text-xs font-semibold px-2 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
                     </div>
                     <p className="text-lg font-bold text-gray-900 dark:text-white">Rp {Number(r.amount).toLocaleString('id-ID')}</p>
-                    {r.description && <p className="text-xs text-gray-500 dark:text-white/40 mt-1 truncate">{r.description as string}</p>}
+                    {!!r.description && <p className="text-xs text-gray-500 dark:text-white/40 mt-1 truncate">{r.description as string}</p>}
                     <p className="text-[11px] text-gray-400 dark:text-white/30 mt-2">
                       {new Date(r.created_at as string).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
                     </p>

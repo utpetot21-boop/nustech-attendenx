@@ -15,11 +15,15 @@ L.Icon.Default.mergeOptions({
 type TechnicianStatus = {
   userId:     string;
   name:       string;
+  department: string | null;
+  avatar:     string | null;
   type:       'visit' | 'office' | 'alert' | 'idle' | 'sos';
   lat:        number | null;
   lng:        number | null;
+  visitId:    string | null;
   clientName: string | null;
   lastSeen:   string | null;
+  sosAlertId: string | null;
 };
 
 // Warna per status — selaras dengan TYPE_CONFIG di page.tsx
@@ -179,7 +183,6 @@ export default function MapComponent({
       zoomControl={false}
       dragging={!isMobile}
       touchZoom={false}
-      tap={false}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

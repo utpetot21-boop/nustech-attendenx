@@ -66,7 +66,7 @@ function initials(name: string) {
 
 type Tab = 'all' | 'emergency' | 'priority' | 'sla';
 
-const TABS: { key: Tab; label: string; Icon: React.ComponentType<{ size?: number }> }[] = [
+const TABS: { key: Tab; label: string; Icon: React.ComponentType<{ size?: number | string }> }[] = [
   { key: 'all',       label: 'Semua Klien', Icon: Building2 },
   { key: 'emergency', label: 'Emergency',   Icon: AlertTriangle },
   { key: 'priority',  label: 'Priority',    Icon: Star },

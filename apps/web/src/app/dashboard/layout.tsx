@@ -70,13 +70,6 @@ const NAV: NavGroup[] = [
   },
 ];
 
-// ── Alias reverse — path alternatif → href nav canonical ──────────────────────
-const ALIAS_REVERSE: Record<string, string> = {
-  '/dashboard/expense-claims':  '/dashboard/keuangan',
-  '/dashboard/service-reports': '/dashboard/visits',
-  '/dashboard/violations':      '/dashboard/attendance',
-};
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
   super_admin: 'bg-orange-100 text-orange-700',

@@ -6,7 +6,7 @@ import {
   MapPin, Clock, Camera, Navigation, NavigationOff, FileText,
   Activity, CheckCircle2, Pause, RefreshCw, XCircle, X,
   Calendar, ChevronRight, Building2,
-  ExternalLink, Image as ImageIcon, Star, ThumbsUp, AlertCircle,
+  ExternalLink, Image as ImageIcon, Star, ThumbsUp, AlertCircle, Send,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
@@ -77,7 +77,6 @@ function initials(name: string) {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_MAP[status] ?? STATUS_MAP.ongoing;
-  const { Icon } = s;
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${s.lightBg} ${s.text} ${s.ring}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
@@ -206,6 +205,17 @@ function VisitCard({ v, onClick }: { v: Visit; onClick: () => void }) {
 
 // ── BA card (mobile) ───────────────────────────────────────────────────────────
 function BaCard({ ba }: { ba: ServiceReport }) {
+  const [confirmSend, setConfirmSend] = useState(false);
+  const qc = useQueryClient();
+
+  const sendMut = useMutation({
+    mutationFn: () => apiClient.post(`/service-reports/${ba.id}/send`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['service-reports-all'] });
+      setConfirmSend(false);
+    },
+  });
+
   return (
     <div className="bg-white dark:bg-white/[0.06] rounded-2xl p-4 border border-black/[0.05] dark:border-white/[0.08]">
       <div className="flex items-start justify-between mb-3">
@@ -225,17 +235,42 @@ function BaCard({ ba }: { ba: ServiceReport }) {
         <Building2 size={11} className="text-gray-400" />
         <p className="text-xs text-gray-500 dark:text-white/50">{ba.visit?.client?.name ?? '—'}</p>
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 text-xs text-gray-400">
           <Calendar size={11} />
           {new Date(ba.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
         </div>
-        {ba.pdf_url && (
-          <a href={ba.pdf_url} target="_blank" rel="noreferrer"
-            className="flex items-center gap-1 px-3 py-1.5 bg-[#007AFF] text-white rounded-xl text-xs font-semibold hover:bg-[#0063CC] transition">
-            <FileText size={12} /> PDF
-          </a>
-        )}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {ba.sent_to_client ? (
+            <span className="flex items-center gap-1 text-xs text-[#166534] bg-[#F0FDF4] px-2.5 py-1 rounded-xl font-semibold">
+              <CheckCircle2 size={11} /> Terkirim
+            </span>
+          ) : ba.is_locked && (
+            confirmSend ? (
+              <div className="flex items-center gap-1">
+                <button onClick={() => sendMut.mutate()} disabled={sendMut.isPending}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-[#34C759] text-white rounded-xl text-xs font-semibold hover:bg-[#28A348] disabled:opacity-60 transition">
+                  {sendMut.isPending ? 'Mengirim...' : 'Ya, Kirim'}
+                </button>
+                <button onClick={() => setConfirmSend(false)}
+                  className="px-2 py-1.5 bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/60 rounded-xl text-xs font-semibold hover:bg-gray-200 transition">
+                  Batal
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmSend(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#FF9500]/10 text-[#FF9500] rounded-xl text-xs font-semibold hover:bg-[#FF9500]/20 transition">
+                <Send size={11} /> Kirim
+              </button>
+            )
+          )}
+          {ba.pdf_url && (
+            <a href={ba.pdf_url} target="_blank" rel="noreferrer"
+              className="flex items-center gap-1 px-3 py-1.5 bg-[#007AFF] text-white rounded-xl text-xs font-semibold hover:bg-[#0063CC] transition">
+              <FileText size={12} /> PDF
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -503,7 +538,17 @@ export default function VisitsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [detail, setDetail] = useState<Visit | null>(null);
+  const [confirmSendId, setConfirmSendId] = useState<string | null>(null);
   const handleReviewed = (updated: Visit) => setDetail(updated);
+  const qc = useQueryClient();
+
+  const sendBaMut = useMutation({
+    mutationFn: (id: string) => apiClient.post(`/service-reports/${id}/send`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['service-reports-all'] });
+      setConfirmSendId(null);
+    },
+  });
 
   const { data: result, isLoading } = useQuery({
     queryKey: ['admin-visits', statusFilter, dateFilter],
@@ -735,12 +780,39 @@ export default function VisitsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {ba.pdf_url && (
-                            <a href={ba.pdf_url} target="_blank" rel="noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] rounded-xl text-xs font-semibold transition w-fit">
-                              <ExternalLink size={12} /> PDF
-                            </a>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {ba.sent_to_client ? (
+                              <span className="flex items-center gap-1 text-xs text-[#166534] bg-[#F0FDF4] px-2.5 py-1 rounded-xl font-semibold whitespace-nowrap">
+                                <CheckCircle2 size={11} /> Terkirim
+                              </span>
+                            ) : ba.is_locked && (
+                              confirmSendId === ba.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => sendBaMut.mutate(ba.id)}
+                                    disabled={sendBaMut.isPending}
+                                    className="flex items-center gap-1 px-2.5 py-1.5 bg-[#34C759] text-white rounded-xl text-xs font-semibold hover:bg-[#28A348] disabled:opacity-60 transition whitespace-nowrap">
+                                    {sendBaMut.isPending ? 'Mengirim...' : 'Ya, Kirim'}
+                                  </button>
+                                  <button onClick={() => setConfirmSendId(null)}
+                                    className="px-2 py-1.5 bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/60 rounded-xl text-xs font-semibold hover:bg-gray-200 transition">
+                                    Batal
+                                  </button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setConfirmSendId(ba.id)}
+                                  className="flex items-center gap-1 px-2.5 py-1.5 bg-[#FF9500]/10 text-[#FF9500] rounded-xl text-xs font-semibold hover:bg-[#FF9500]/20 transition whitespace-nowrap">
+                                  <Send size={11} /> Kirim ke Klien
+                                </button>
+                              )
+                            )}
+                            {ba.pdf_url && (
+                              <a href={ba.pdf_url} target="_blank" rel="noreferrer"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] rounded-xl text-xs font-semibold transition w-fit whitespace-nowrap">
+                                <ExternalLink size={12} /> PDF
+                              </a>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

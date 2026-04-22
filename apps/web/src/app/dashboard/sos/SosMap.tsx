@@ -113,7 +113,6 @@ export default function SosMap({
       scrollWheelZoom: false,
       dragging: !isMobile,
       touchZoom: false,
-      tap: false,
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
