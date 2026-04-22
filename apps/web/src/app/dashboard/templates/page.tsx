@@ -89,6 +89,12 @@ const FIELD_PLACEHOLDER: Record<string, string> = {
 
 function TemplatePreviewModal({ template, onClose }: { template: WorkTypeTemplate; onClose: () => void }) {
   const phaseLabel: Record<string, string> = { before: 'Sebelum', during: 'Saat Pengerjaan', after: 'Setelah' };
+  const { data: company } = useQuery<{ name: string; address: string }>({
+    queryKey: ['company-profile'],
+    queryFn: () => apiClient.get('/settings/profile').then((r) => r.data),
+  });
+  const companyName = company?.name ?? 'Nustech';
+  const companyAddress = company?.address ?? '';
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-start justify-center overflow-y-auto py-6 px-4">
@@ -109,8 +115,8 @@ function TemplatePreviewModal({ template, onClose }: { template: WorkTypeTemplat
           {/* Header */}
           <div className="flex items-start justify-between border-b-2 border-blue-600 pb-3 mb-4">
             <div>
-              <div className="text-[18px] font-bold text-blue-700 tracking-wide">NUSTECH ATTENDENX</div>
-              <div className="text-[10px] text-gray-500">Sistem Manajemen Kunjungan Lapangan</div>
+              <div className="text-[18px] font-bold text-blue-700 tracking-wide">{companyName}</div>
+              {companyAddress && <div className="text-[10px] text-gray-500">{companyAddress}</div>}
             </div>
             <div className="text-right">
               <div className="text-[15px] font-bold text-blue-700">{DUMMY.report_number}</div>
