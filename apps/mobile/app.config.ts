@@ -16,6 +16,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   assetBundlePatterns: ['**/*'],
 
+  updates: {
+    url: 'https://u.expo.dev/32be1f13-1847-447e-b8f2-8154ce65815b',
+    fallbackToCacheTimeout: 0,
+  },
+  runtimeVersion: { policy: 'appVersion' },
+
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'id.nustech.attendenx',

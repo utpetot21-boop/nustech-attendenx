@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 10.0.0"
+    "version": ">= 10.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -11,12 +12,15 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "android": { "buildType": "apk" },
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.appnustech.cloud/api/v1"
       }
     },
     "production": {
+      "channel": "production",
       "android": { "buildType": "app-bundle" },
       "autoIncrement": true,
       "env": {
