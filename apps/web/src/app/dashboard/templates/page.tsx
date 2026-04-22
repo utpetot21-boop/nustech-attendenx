@@ -104,7 +104,6 @@ function TemplatePreviewModal({ template, onClose }: { template: WorkTypeTemplat
         <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-700">Preview — {template.name}</span>
-            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">Data Dummy</span>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
         </div>
