@@ -40,6 +40,7 @@ import { useBiometric } from '@/hooks/useBiometric';
 import { useCheckoutTimer } from '@/hooks/useCheckoutTimer';
 import { PINInput } from '@/components/attendance/PINInput';
 import { GPSValidator } from '@/components/attendance/GPSValidator';
+import { HoldButton } from '@/components/attendance/HoldButton';
 import api from '@/services/api';
 import { scheduleService, getCurrentWeekString } from '@/services/schedule.service';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -583,33 +584,20 @@ export default function AttendanceScreen() {
                 Verifikasi identitas untuk check-in kantor
               </Text>
 
-              {/* FAB check-in */}
-              <TouchableOpacity
-                onPress={startCheckIn}
+              {/* FAB check-in — hold press */}
+              <HoldButton
+                onComplete={startCheckIn}
                 disabled={uiState === 'verifying_biometric' || checkInMutation.isPending}
-                style={{
-                  width: '100%', height: 56, borderRadius: 16,
-                  backgroundColor: 'rgba(0,122,255,0.90)',
-                  borderWidth: B.glass, borderColor: 'rgba(0,122,255,0.60)',
-                  alignItems: 'center', justifyContent: 'center',
-                  shadowColor: C.blue, shadowOffset: { width: 0, height: 6 },
-                  shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
-                  opacity: (uiState === 'verifying_biometric' || checkInMutation.isPending) ? 0.60 : 1,
-                }}
-                activeOpacity={0.85}
-              >
-                {(uiState === 'verifying_biometric' || checkInMutation.isPending) ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700' }}>
-                    Verifikasi Sekarang
-                  </Text>
-                )}
-              </TouchableOpacity>
+                loading={uiState === 'verifying_biometric' || checkInMutation.isPending}
+                label="Absen Masuk"
+                sublabel="Tahan untuk absen"
+                color={C.blue}
+                isDark={isDark}
+              />
 
               <TouchableOpacity
                 onPress={() => setUiState('show_pin')}
-                style={{ marginTop: 16 }}
+                style={{ marginTop: 8 }}
               >
                 <Text style={{ fontSize: 15, color: C.blue }}>
                   Tidak bisa? Gunakan PIN 6 digit
@@ -671,31 +659,17 @@ export default function AttendanceScreen() {
               </>
             )}
 
-            <TouchableOpacity
-              onPress={() => checkOutMutation.mutate()}
-              disabled={!canCheckout || checkOutMutation.isPending}
-              style={{
-                height: 56, borderRadius: 16,
-                backgroundColor: canCheckout
-                  ? 'rgba(0,122,255,0.90)'
-                  : isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
-                borderWidth: B.glass,
-                borderColor: canCheckout ? 'rgba(0,122,255,0.60)' : 'rgba(0,0,0,0.10)',
-                alignItems: 'center', justifyContent: 'center',
-              }}
-              activeOpacity={0.85}
-            >
-              {checkOutMutation.isPending ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={{
-                  fontSize: 17, fontWeight: '700',
-                  color: canCheckout ? '#FFFFFF' : lTertiary(isDark),
-                }}>
-                  {canCheckout ? 'Check-Out Sekarang' : 'Menunggu 8 Jam...'}
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View style={{ alignItems: 'center', marginTop: 4 }}>
+              <HoldButton
+                onComplete={() => checkOutMutation.mutate()}
+                disabled={!canCheckout || checkOutMutation.isPending}
+                loading={checkOutMutation.isPending}
+                label={canCheckout ? 'Absen Pulang' : 'Menunggu 8 Jam...'}
+                sublabel={canCheckout ? 'Tahan untuk absen' : undefined}
+                color={canCheckout ? C.blue : (isDark ? 'rgba(255,255,255,0.25)' : '#9CA3AF')}
+                isDark={isDark}
+              />
+            </View>
           </View>
           );
         })()}
