@@ -133,8 +133,14 @@ export const tasksService = {
     scheduled_at?: string;
     is_emergency?: boolean;
     notes?: string;
+    template_id?: string;
   }) {
     const res = await api.post('/tasks', payload);
     return res.data as TaskSummary;
+  },
+
+  async getTemplates() {
+    const res = await api.get('/templates');
+    return (res.data.items ?? res.data) as { id: string; name: string; work_type: string }[];
   },
 };

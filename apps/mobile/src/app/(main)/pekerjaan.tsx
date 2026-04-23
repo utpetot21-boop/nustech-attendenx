@@ -44,6 +44,7 @@ import {
   Search,
   X,
   Briefcase,
+  FileText,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -62,10 +63,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 type Priority    = 'low' | 'normal' | 'high' | 'urgent';
 type TaskType    = 'visit' | 'maintenance' | 'inspection' | 'other';
-type PickerMode  = 'employee' | 'client' | 'department' | null;
+type PickerMode  = 'employee' | 'client' | 'department' | 'template' | null;
 interface EmployeeItem   { id: string; full_name: string; employee_id?: string }
 interface ClientItem     { id: string; name: string; address?: string }
 interface DepartmentItem { id: string; name: string }
+interface TemplateItem   { id: string; name: string; work_type?: string }
 
 const PRIORITY_OPTIONS = [
   { value: 'low',    label: 'Rendah',   color: C.green  },
@@ -707,6 +709,7 @@ function CreateTaskSheet({
   const [androidTempDate, setAndroidTempDate] = useState<Date | null>(null);
   const [isEmergency, setIsEmergency]   = useState(false);
   const [notes, setNotes]               = useState('');
+  const [template, setTemplate]         = useState<TemplateItem | null>(null);
 
   const bg      = isDark ? '#1C1C1E' : '#F2F2F7';
   const cardCol = isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF';
@@ -736,6 +739,13 @@ function CreateTaskSheet({
     staleTime: 5 * 60_000,
   });
 
+  const { data: templates = [], isFetching: loadingTemplates } = useQuery({
+    queryKey: ['templates-picker'],
+    queryFn: () => tasksService.getTemplates(),
+    enabled: visible && pickerMode === 'template',
+    staleTime: 5 * 60_000,
+  });
+
   const canSubmit = title.trim() &&
     (dispatchType === 'direct' ? !!employee : !!department);
 
@@ -751,6 +761,7 @@ function CreateTaskSheet({
       scheduled_at: scheduledAt ? scheduledAt.toISOString() : undefined,
       is_emergency: isEmergency || undefined,
       notes: notes.trim() || undefined,
+      template_id: template?.id,
     }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -776,7 +787,7 @@ function CreateTaskSheet({
     setPriority('normal'); setClient(null); setDispatchType('direct');
     setEmployee(null); setDepartment(null); setScheduledAt(null);
     setShowDatePicker(false); setAndroidStep('date'); setAndroidTempDate(null);
-    setIsEmergency(false); setNotes('');
+    setIsEmergency(false); setNotes(''); setTemplate(null);
   };
 
   const handleClose = () => { resetForm(); onClose(); };
@@ -789,10 +800,12 @@ function CreateTaskSheet({
   const renderPicker = () => {
     const isEmp  = pickerMode === 'employee';
     const isDept = pickerMode === 'department';
-    type PickerItem = EmployeeItem | DepartmentItem | ClientItem;
-    const items: PickerItem[] = isEmp ? employees : isDept ? departments : clients;
-    const loading = isEmp ? loadingEmp : isDept ? loadingDept : loadingCli;
-    const label  = isEmp ? 'Pilih Teknisi' : isDept ? 'Pilih Departemen' : 'Pilih Klien';
+    const isTpl  = pickerMode === 'template';
+    type PickerItem = EmployeeItem | DepartmentItem | ClientItem | TemplateItem;
+    const items: PickerItem[] = isEmp ? employees : isDept ? departments : isTpl ? templates : clients;
+    const loading = isEmp ? loadingEmp : isDept ? loadingDept : isTpl ? loadingTemplates : loadingCli;
+    const label  = isEmp ? 'Pilih Teknisi' : isDept ? 'Pilih Departemen' : isTpl ? 'Pilih Template BA' : 'Pilih Klien';
+    const noSearch = isDept || isTpl;
 
     return (
       <View style={{ flex: 1 }}>
@@ -801,8 +814,13 @@ function CreateTaskSheet({
             <ChevronLeft size={22} strokeWidth={2} color={C.blue} />
           </TouchableOpacity>
           <Text style={{ fontSize: 17, fontWeight: '700', color: prim, flex: 1 }}>{label}</Text>
+          {isTpl && template && (
+            <TouchableOpacity onPress={() => { setTemplate(null); setPickerMode(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: C.red }}>Hapus</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        {!isDept && (
+        {!noSearch && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 12, marginBottom: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#E8EDF5', borderRadius: R.md, paddingHorizontal: 12, paddingVertical: 10 }}>
             <Search size={15} strokeWidth={2} color={ter} />
             <TextInput value={search} onChangeText={setSearch} placeholder={isEmp ? 'Cari nama karyawan...' : 'Cari klien...'} placeholderTextColor={ter} style={{ flex: 1, fontSize: 15, color: prim }} autoFocus />
@@ -813,16 +831,22 @@ function CreateTaskSheet({
           <FlatList<PickerItem>
             data={items}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: isDept ? 12 : 0, paddingBottom: insets.bottom + 110 }}
-            ListEmptyComponent={<Text style={{ textAlign: 'center', color: ter, marginTop: 32, fontSize: 14 }}>{search ? 'Tidak ada hasil' : 'Belum ada data'}</Text>}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: noSearch ? 12 : 0, paddingBottom: insets.bottom + 110 }}
+            ListEmptyComponent={<Text style={{ textAlign: 'center', color: ter, marginTop: 32, fontSize: 14 }}>{isTpl ? 'Belum ada template tersedia' : search ? 'Tidak ada hasil' : 'Belum ada data'}</Text>}
             renderItem={({ item }) => {
-              const name = isEmp ? (item as EmployeeItem).full_name : (item as ClientItem | DepartmentItem).name;
-              const sub  = isEmp ? (item as EmployeeItem).employee_id : (item as ClientItem).address;
+              const name = isEmp ? (item as EmployeeItem).full_name
+                : isTpl ? (item as TemplateItem).name
+                : (item as ClientItem | DepartmentItem).name;
+              const sub  = isEmp ? (item as EmployeeItem).employee_id
+                : isTpl ? (item as TemplateItem).work_type
+                : (item as ClientItem).address;
+              const Icon = isEmp ? User : isTpl ? FileText : Briefcase;
               return (
                 <TouchableOpacity
                   onPress={() => {
                     if (isEmp) setEmployee(item as EmployeeItem);
                     else if (isDept) setDepartment(item as DepartmentItem);
+                    else if (isTpl) setTemplate(item as TemplateItem);
                     else setClient(item as ClientItem);
                     setPickerMode(null); setSearch('');
                   }}
@@ -830,7 +854,7 @@ function CreateTaskSheet({
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: cardCol, borderRadius: R.md, borderWidth: B.default, borderColor: border, marginBottom: 8 }}
                 >
                   <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: isDark ? 'rgba(0,122,255,0.18)' : '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
-                    {isEmp ? <User size={18} strokeWidth={1.8} color={C.blue} /> : <Briefcase size={18} strokeWidth={1.8} color={C.blue} />}
+                    <Icon size={18} strokeWidth={1.8} color={C.blue} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 15, fontWeight: '600', color: prim }} numberOfLines={1}>{name}</Text>
@@ -901,6 +925,25 @@ function CreateTaskSheet({
         </Text>
         {client
           ? <TouchableOpacity onPress={() => setClient(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><X size={15} strokeWidth={2} color={ter} /></TouchableOpacity>
+          : <ChevronRight size={15} strokeWidth={2} color={ter} />
+        }
+      </TouchableOpacity>
+
+      {/* Template BA */}
+      <Text style={[fieldLabel, { color: ter }]}>TEMPLATE BERITA ACARA</Text>
+      <TouchableOpacity onPress={() => openPicker('template')} activeOpacity={0.78}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cardCol, borderRadius: R.md, borderWidth: B.default, borderColor: template ? C.blue + '60' : border, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 16 }}>
+        <FileText size={17} strokeWidth={1.8} color={template ? C.blue : ter} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 15, color: template ? prim : ter, fontWeight: template ? '600' : '400' }} numberOfLines={1}>
+            {template?.name ?? '— Tanpa template —'}
+          </Text>
+          {template?.work_type && (
+            <Text style={{ fontSize: 12, color: ter, marginTop: 2 }} numberOfLines={1}>{template.work_type}</Text>
+          )}
+        </View>
+        {template
+          ? <TouchableOpacity onPress={() => setTemplate(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><X size={15} strokeWidth={2} color={ter} /></TouchableOpacity>
           : <ChevronRight size={15} strokeWidth={2} color={ter} />
         }
       </TouchableOpacity>
