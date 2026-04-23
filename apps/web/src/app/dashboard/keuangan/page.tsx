@@ -358,6 +358,7 @@ function SuratTugasSection() {
       apiClient.get('/business-trips', {
         params: { limit: '50', ...(filterStatus ? { status: filterStatus } : {}) },
       }).then((r) => r.data),
+    refetchInterval: 30_000,
   });
   const trips: BusinessTrip[] = data?.items ?? [];
   const total: number = data?.total ?? 0;
@@ -737,6 +738,7 @@ function KlaimBiayaSection() {
         .replace('?&', '?'))
         .then((r) => r.data),
     enabled: tab !== 'payroll',
+    refetchInterval: 30_000,
   });
 
   const { data: payroll = [] } = useQuery<PayrollRow[]>({

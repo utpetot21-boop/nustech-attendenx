@@ -70,31 +70,37 @@ export default function ReportsPage() {
     queryKey: ['report-attendance', month],
     queryFn: () => apiClient.get(`/reports/attendance?month=${month}`).then((r) => r.data as Record<string, unknown>[]),
     enabled: tab === 'attendance',
+    refetchInterval: 60_000,
   });
   const { data: overtime = [], isLoading: laO } = useQuery({
     queryKey: ['report-overtime', month],
     queryFn: () => apiClient.get(`/reports/overtime?month=${month}`).then((r) => r.data as Record<string, unknown>[]),
     enabled: tab === 'overtime',
+    refetchInterval: 60_000,
   });
   const { data: leave = [], isLoading: laL } = useQuery({
     queryKey: ['report-leave', year],
     queryFn: () => apiClient.get(`/reports/leave?year=${year}`).then((r) => r.data as Record<string, unknown>[]),
     enabled: tab === 'leave',
+    refetchInterval: 60_000,
   });
   const { data: visits = [], isLoading: laV } = useQuery({
     queryKey: ['report-visits', month],
     queryFn: () => apiClient.get(`/reports/visits?month=${month}`).then((r) => r.data as Record<string, unknown>[]),
     enabled: tab === 'visits',
+    refetchInterval: 60_000,
   });
   const { data: violations = [], isLoading: laViol } = useQuery({
     queryKey: ['report-violations', month],
     queryFn: () => apiClient.get(`/reports/violations?month=${month}`).then((r) => r.data as Record<string, unknown>[]),
     enabled: tab === 'violations',
+    refetchInterval: 60_000,
   });
   const { data: claimsData, isLoading: laClaims } = useQuery({
     queryKey: ['report-claims', month],
     queryFn: () => apiClient.get('/expense-claims', { params: { month, limit: 200 } }).then((r) => r.data),
     enabled: tab === 'claims',
+    refetchInterval: 60_000,
   });
   const claims: Record<string, unknown>[] = claimsData?.items ?? [];
 

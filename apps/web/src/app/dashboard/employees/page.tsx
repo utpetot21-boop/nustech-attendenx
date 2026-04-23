@@ -161,7 +161,8 @@ export default function EmployeesPage() {
       if (Array.isArray(d) && Array.isArray(d[0])) return d[0];
       return d?.items ?? d?.data ?? d;
     }),
-    staleTime: 30_000, // 30 detik — data karyawan tidak sering berubah
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 
   const { data: nextIdData } = useQuery<{ employee_id: string }>({

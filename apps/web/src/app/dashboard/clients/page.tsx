@@ -181,6 +181,7 @@ export default function ClientsPage() {
           params: tab === 'emergency' || tab === 'priority' ? { contract_type: tab } : {},
         })
         .then((r) => r.data),
+    refetchInterval: 30_000,
   });
 
   const filtered = clients.filter(

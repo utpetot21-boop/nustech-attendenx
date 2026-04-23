@@ -346,6 +346,7 @@ export default function TemplatesPage() {
     queryKey: ['templates', showAll],
     queryFn: () =>
       apiClient.get('/templates', { params: showAll ? { all: 'true' } : {} }).then((r) => r.data),
+    refetchInterval: 30_000,
   });
 
   const toggleActiveMut = useMutation({

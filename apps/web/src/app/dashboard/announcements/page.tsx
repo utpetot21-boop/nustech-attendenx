@@ -188,6 +188,7 @@ export default function AnnouncementsPage() {
   const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
     queryKey: ['announcements'],
     queryFn: () => apiClient.get('/announcements').then((r) => r.data),
+    refetchInterval: 30_000,
   });
 
   const { data: readStats } = useQuery<ReadStats>({

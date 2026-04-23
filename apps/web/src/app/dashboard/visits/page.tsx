@@ -557,6 +557,7 @@ export default function VisitsPage() {
         params: { status: statusFilter || undefined, date: dateFilter || undefined, limit: 100 },
       }).then((r) => r.data),
     enabled: tab === 'visits' || tab === 'onhold',
+    refetchInterval: 30_000,
   });
 
   const visits: Visit[] = result?.items ?? [];
@@ -568,6 +569,7 @@ export default function VisitsPage() {
     queryKey: ['service-reports-all'],
     queryFn: () => apiClient.get('/service-reports').then((r) => r.data),
     enabled: tab === 'ba',
+    refetchInterval: 30_000,
   });
 
   const TABS: { key: Tab; label: string; count?: number }[] = [

@@ -243,12 +243,14 @@ export default function LeavePage() {
     queryKey: ['leave-requests-web'],
     queryFn: () => apiClient.get('/leave/requests', { params: { limit: 50 } })
       .then((r) => r.data as { items: LeaveRequest[]; total: number }),
+    refetchInterval: 30_000,
   });
 
   const { data: objections = [], isLoading: loadingObj } = useQuery({
     queryKey: ['leave-objections'],
     queryFn: () => apiClient.get('/leave/objections').then((r) => r.data as Objection[]),
     enabled: tab === 'objections',
+    refetchInterval: 30_000,
   });
 
   const approveMutation = useMutation({
@@ -278,6 +280,7 @@ export default function LeavePage() {
     queryKey: ['swap-requests-admin'],
     queryFn: () => apiClient.get('/schedule-swap/requests').then((r) => r.data as { items: SwapRequest[]; total: number }),
     enabled: tab === 'swaps',
+    refetchInterval: 30_000,
   });
   const approveSwapMutation = useMutation({
     mutationFn: (id: string) => apiClient.post(`/schedule-swap/requests/${id}/approve`),

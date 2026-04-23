@@ -266,6 +266,7 @@ export default function SchedulePage() {
   const { data: teamSchedule = [] } = useQuery({
     queryKey: ['team-schedule', weekStr],
     queryFn: () => apiClient.get(`/schedules/team?week=${weekStr}`).then(r => r.data),
+    refetchInterval: 30_000,
   });
 
   const { data: allUsers = [] } = useQuery<any[]>({
