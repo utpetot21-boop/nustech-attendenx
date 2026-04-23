@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Post,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -152,12 +153,20 @@ export class AuthController {
   }
 
   // ── POST /auth/verify-pin ─────────────────────────────────────
-  @Public()
+  @UseGuards(JwtAuthGuard)
   @Post('verify-pin')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verifikasi PIN absensi (dipanggil dari mobile saat check-in)' })
-  verifyPin(@Body() dto: VerifyPinDto) {
-    return this.authService.verifyPin(dto.user_id, dto.pin);
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Verifikasi PIN absensi (dipanggil dari mobile saat check-in fallback biometrik)' })
+  async verifyPin(
+    @CurrentUser('id') userId: string,
+    @Body() dto: VerifyPinDto,
+  ): Promise<{ valid: boolean }> {
+    const valid = await this.authService.verifyPin(userId, dto.pin);
+    if (!valid) {
+      throw new UnauthorizedException('PIN salah');
+    }
+    return { valid: true };
   }
 
   // ── POST /auth/fcm-token ──────────────────────────────────────

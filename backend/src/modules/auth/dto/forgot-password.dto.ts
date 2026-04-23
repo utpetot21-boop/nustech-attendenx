@@ -41,10 +41,6 @@ export class VerifyPinDto {
   @ApiProperty({ example: '123456', description: 'PIN 6 digit absensi' })
   @IsString()
   pin: string;
-
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
-  @IsString()
-  user_id: string;
 }
 
 export class SetPinDto {
