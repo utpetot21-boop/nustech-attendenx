@@ -64,9 +64,11 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   unassigned:           { label: 'Belum Ditugaskan',    color: C.labelSecondary.light },
   pending_confirmation: { label: 'Menunggu Konfirmasi', color: C.orange  },
   assigned:             { label: 'Ditugaskan',           color: C.blue    },
+  in_progress:          { label: 'Sedang Dikerjakan',   color: C.teal    },
   on_hold:              { label: 'Ditunda',              color: C.orange  },
   rescheduled:          { label: 'Dijadwal Ulang',       color: C.indigo  },
   completed:            { label: 'Selesai',              color: C.green   },
+  cancelled:            { label: 'Dibatalkan',           color: C.red     },
 };
 
 export function TaskCard({ task, onPress, userLat, userLng }: Props) {

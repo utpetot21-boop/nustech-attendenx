@@ -2,7 +2,7 @@
  * M-04b — Detail Tugas
  * Info lengkap tugas: status, klien, deadline konfirmasi, aksi Terima/Tolak/Tunda/Limpahkan
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, Component, type ReactNode } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   useColorScheme, StatusBar, Alert, ActivityIndicator, Modal,
@@ -42,13 +42,44 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string; 
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; bgDark: string }> = {
   pending_confirmation: { label: 'Menunggu Konfirmasi', color: C.orange, bg: C.orange + '15', bgDark: C.orange + '26' },
-  assigned:   { label: 'Ditugaskan',    color: C.blue,   bg: C.blue + '15',   bgDark: C.blue + '26' },
-  on_hold:    { label: 'Ditunda',       color: C.orange, bg: C.orange + '15', bgDark: C.orange + '26' },
-  rescheduled:{ label: 'Dijadwal Ulang',color: C.purple, bg: C.purple + '15', bgDark: C.purple + '26' },
-  completed:  { label: 'Selesai',       color: C.green,  bg: C.green + '15',  bgDark: C.green + '26' },
-  cancelled:  { label: 'Dibatalkan',    color: C.red,    bg: C.red + '15',    bgDark: C.red + '26' },
-  unassigned: { label: 'Belum Ditugaskan', color: '#8E8E93', bg: '#8E8E93' + '15', bgDark: '#8E8E93' + '26' },
+  assigned:    { label: 'Ditugaskan',      color: C.blue,   bg: C.blue + '15',   bgDark: C.blue + '26' },
+  in_progress: { label: 'Sedang Dikerjakan', color: C.teal, bg: C.teal + '15',   bgDark: C.teal + '26' },
+  on_hold:     { label: 'Ditunda',         color: C.orange, bg: C.orange + '15', bgDark: C.orange + '26' },
+  rescheduled: { label: 'Dijadwal Ulang',  color: C.purple, bg: C.purple + '15', bgDark: C.purple + '26' },
+  completed:   { label: 'Selesai',         color: C.green,  bg: C.green + '15',  bgDark: C.green + '26' },
+  cancelled:   { label: 'Dibatalkan',      color: C.red,    bg: C.red + '15',    bgDark: C.red + '26' },
+  unassigned:  { label: 'Belum Ditugaskan', color: '#8E8E93', bg: '#8E8E9315', bgDark: '#8E8E9326' },
 };
+
+// ── ErrorBoundary ─────────────────────────────────────────────────────────────
+class TaskDetailErrorBoundary extends Component<
+  { children: ReactNode; onBack: () => void },
+  { hasError: boolean; error: string }
+> {
+  state = { hasError: false, error: '' };
+  static getDerivedStateFromError(e: Error) {
+    return { hasError: true, error: e?.message ?? 'Unknown error' };
+  }
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: C.red, marginBottom: 12, textAlign: 'center' }}>
+          Gagal memuat detail tugas
+        </Text>
+        <Text style={{ fontSize: 14, color: '#8E8E93', textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
+          {this.state.error}
+        </Text>
+        <TouchableOpacity
+          onPress={this.props.onBack}
+          style={{ backgroundColor: C.blue, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 }}
+        >
+          <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Kembali</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+}
 
 const HOLD_REASON_LABELS: Record<string, string> = {
   client_absent:        'Klien/PIC tidak ada di lokasi',
@@ -65,6 +96,15 @@ const HOLD_REASONS = Object.entries(HOLD_REASON_LABELS).map(([value, label]) => 
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function TaskDetailScreen() {
+  const _router = useRouter();
+  return (
+    <TaskDetailErrorBoundary onBack={() => _router.back()}>
+      <TaskDetailInner />
+    </TaskDetailErrorBoundary>
+  );
+}
+
+function TaskDetailInner() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
@@ -345,10 +385,11 @@ export default function TaskDetailScreen() {
   const sm = STATUS_META[task.status] ?? STATUS_META.unassigned;
   const isPending = task.status === 'pending_confirmation';
   const isAssigned = task.status === 'assigned';
+  const isInProgress = task.status === 'in_progress';
   const isOnHold = task.status === 'on_hold';
   const isCompleted = task.status === 'completed';
   const isCancelled = task.status === 'cancelled';
-  const cancellable = canCancelTask && !isCompleted && !isCancelled;
+  const cancellable = canCancelTask && !isInProgress && !isCompleted && !isCancelled;
   const assignable = canAssignTask && task.status === 'unassigned';
 
   return (
@@ -541,6 +582,23 @@ export default function TaskDetailScreen() {
                   </View>
                 );
               })}
+            </View>
+          </View>
+        )}
+
+        {/* ── In Progress Banner ───────────────────── */}
+        {isInProgress && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+            <View style={{ backgroundColor: isDark ? C.teal + '1A' : C.teal + '14', borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: C.teal + '4D' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: task.assignee ? 8 : 0 }}>
+                <Play size={20} strokeWidth={2} color={C.teal} />
+                <Text style={{ color: C.teal, fontWeight: '700', fontSize: 16 }}>Sedang Dikerjakan</Text>
+              </View>
+              {task.assignee ? (
+                <Text style={{ fontSize: 14, color: textPrimary, lineHeight: 20 }}>
+                  Teknisi: {task.assignee.full_name}
+                </Text>
+              ) : null}
             </View>
           </View>
         )}

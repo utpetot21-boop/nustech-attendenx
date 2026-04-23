@@ -5,6 +5,7 @@ export type TaskStatus =
   | 'unassigned'
   | 'pending_confirmation'
   | 'assigned'
+  | 'in_progress'
   | 'on_hold'
   | 'rescheduled'
   | 'completed'

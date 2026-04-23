@@ -57,6 +57,7 @@ const STATUS_FILTERS = [
   { label: 'Semua', value: undefined },
   { label: 'Menunggu', value: 'pending_confirmation' },
   { label: 'Ditugaskan', value: 'assigned' },
+  { label: 'Berjalan', value: 'in_progress' },
   { label: 'Ditunda', value: 'on_hold' },
 ];
 
