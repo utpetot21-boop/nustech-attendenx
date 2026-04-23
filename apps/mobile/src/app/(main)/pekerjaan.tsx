@@ -703,6 +703,8 @@ function CreateTaskSheet({
   const [department, setDepartment]     = useState<DepartmentItem | null>(null);
   const [scheduledAt, setScheduledAt]   = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [androidStep, setAndroidStep]   = useState<'date' | 'time'>('date');
+  const [androidTempDate, setAndroidTempDate] = useState<Date | null>(null);
   const [isEmergency, setIsEmergency]   = useState(false);
   const [notes, setNotes]               = useState('');
 
@@ -773,7 +775,8 @@ function CreateTaskSheet({
     setPickerMode(null); setSearch(''); setTitle(''); setTaskType('visit');
     setPriority('normal'); setClient(null); setDispatchType('direct');
     setEmployee(null); setDepartment(null); setScheduledAt(null);
-    setShowDatePicker(false); setIsEmergency(false); setNotes('');
+    setShowDatePicker(false); setAndroidStep('date'); setAndroidTempDate(null);
+    setIsEmergency(false); setNotes('');
   };
 
   const handleClose = () => { resetForm(); onClose(); };
@@ -970,15 +973,37 @@ function CreateTaskSheet({
       {showDatePicker && (
         <>
           <DateTimePicker
-            value={scheduledAt ?? new Date()}
-            mode="datetime"
+            value={
+              Platform.OS === 'android' && androidStep === 'time' && androidTempDate
+                ? androidTempDate
+                : (scheduledAt ?? new Date())
+            }
+            mode={Platform.OS === 'android' ? androidStep : 'datetime'}
             display={Platform.OS === 'ios' ? 'inline' : 'default'}
             onChange={(event, date) => {
-              // Android: picker dismiss sendiri (event.type = 'set'/'dismissed')
-              // iOS inline: picker tetap open, tutup via tombol "Selesai" di bawah
               if (Platform.OS === 'android') {
-                setShowDatePicker(false);
-                if (event.type === 'set' && date) setScheduledAt(date);
+                if (event.type === 'dismissed') {
+                  // User membatalkan — reset ke awal
+                  setShowDatePicker(false);
+                  setAndroidStep('date');
+                  setAndroidTempDate(null);
+                  return;
+                }
+                if (event.type === 'set' && date) {
+                  if (androidStep === 'date') {
+                    // Simpan tanggal sementara, lanjut ke time picker
+                    setAndroidTempDate(date);
+                    setAndroidStep('time');
+                  } else {
+                    // Gabungkan tanggal + waktu
+                    const combined = new Date(androidTempDate ?? date);
+                    combined.setHours(date.getHours(), date.getMinutes(), 0, 0);
+                    setScheduledAt(combined);
+                    setShowDatePicker(false);
+                    setAndroidStep('date');
+                    setAndroidTempDate(null);
+                  }
+                }
               } else if (date) {
                 setScheduledAt(date);
               }
