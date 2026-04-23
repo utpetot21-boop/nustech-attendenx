@@ -10,7 +10,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import {
   Users, UserPlus, Search, Pencil, KeyRound, UserX,
   Camera, Phone, Mail, BadgeCheck, Calendar,
-  X, Eye, EyeOff,
+  X, Eye, EyeOff, Lock,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -53,11 +53,12 @@ const labelCls = 'block text-xs font-semibold text-gray-500 dark:text-white/50 u
 
 // ── EmployeeCard (mobile) ─────────────────────────────────────────────────────
 function EmployeeCard({
-  user, onEdit, onReset, onDeactivate, deactivatingId,
+  user, onEdit, onReset, onResetPin, onDeactivate, deactivatingId,
 }: {
   user: User;
   onEdit: () => void;
   onReset: () => void;
+  onResetPin: () => void;
   onDeactivate: () => void;
   deactivatingId: string | null;
 }) {
@@ -117,6 +118,10 @@ function EmployeeCard({
             <button onClick={onReset}
               className="flex items-center gap-1 text-xs font-medium text-[#FF9500] px-2.5 py-1.5 rounded-xl bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.10)] border border-[#FED7AA] hover:bg-[#FEF0D3] transition">
               <KeyRound size={11} />Reset PW
+            </button>
+            <button onClick={onResetPin}
+              className="flex items-center gap-1 text-xs font-medium text-[#34C759] px-2.5 py-1.5 rounded-xl bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.10)] border border-[#BBF7D0] hover:bg-[#DCFCE7] transition">
+              <Lock size={11} />Reset PIN
             </button>
             {deactivatingId === user.id ? (
               <div className="flex gap-1 ml-auto">
@@ -200,6 +205,12 @@ export default function EmployeesPage() {
     mutationFn: (id: string) => apiClient.post(`/users/${id}/reset-password`),
     onSuccess: () => toast.success('Password berhasil direset ke ID Karyawan'),
     onError: (err) => toast.error(getErrorMessage(err, 'Gagal mereset password')),
+  });
+
+  const resetPinMut = useMutation({
+    mutationFn: (id: string) => apiClient.post(`/users/${id}/reset-pin`),
+    onSuccess: () => toast.success('PIN absensi dihapus — karyawan harus set ulang dari profil mobile'),
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal mereset PIN')),
   });
 
   const uploadAvatarMut = useMutation({
@@ -396,8 +407,14 @@ export default function EmployeesPage() {
                             {user.is_active && (
                               <>
                                 <button onClick={() => resetPasswordMut.mutate(user.id)}
+                                  title="Reset password ke ID karyawan"
                                   className="flex items-center gap-1 text-xs font-medium text-[#FF9500] px-2.5 py-1.5 rounded-xl bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.10)] border border-[#FED7AA] hover:bg-[#FEF0D3] transition">
-                                  <KeyRound size={11} />Reset
+                                  <KeyRound size={11} />PW
+                                </button>
+                                <button onClick={() => resetPinMut.mutate(user.id)}
+                                  title="Hapus PIN absensi — karyawan harus set ulang"
+                                  className="flex items-center gap-1 text-xs font-medium text-[#34C759] px-2.5 py-1.5 rounded-xl bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.10)] border border-[#BBF7D0] hover:bg-[#DCFCE7] transition">
+                                  <Lock size={11} />PIN
                                 </button>
                                 {deactivatingId === user.id ? (
                                   <div className="flex gap-1">
@@ -430,6 +447,7 @@ export default function EmployeesPage() {
                   user={user}
                   onEdit={() => openEdit(user)}
                   onReset={() => resetPasswordMut.mutate(user.id)}
+                  onResetPin={() => resetPinMut.mutate(user.id)}
                   onDeactivate={() => deactivatingId === user.id ? deactivateUser.mutate(user.id) : setDeactivatingId(user.id)}
                   deactivatingId={deactivatingId}
                 />
