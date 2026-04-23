@@ -44,6 +44,7 @@ import {
   CheckCircle2,
   XCircle,
   ClipboardList,
+  Lock,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -90,7 +91,9 @@ export default function ProfileScreen() {
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [pinForm, setPinForm] = useState({ pin: '', confirm: '' });
   const [editForm, setEditForm] = useState({ full_name: user?.full_name ?? '', phone: user?.phone ?? '' });
   const [avatarError, setAvatarError] = useState(false);
 
@@ -107,6 +110,7 @@ export default function ProfileScreen() {
       avatar_url?: string | null;
       full_name?: string;
       phone?: string | null;
+      has_pin?: boolean;
     }),
     staleTime: 60_000,
   });
@@ -197,6 +201,22 @@ export default function ProfileScreen() {
     onError: (err: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const msg = err?.response?.data?.message ?? err.message ?? 'Gagal memperbarui password.';
+      Alert.alert('Gagal', typeof msg === 'string' ? msg : JSON.stringify(msg));
+    },
+  });
+
+  const setPinMutation = useMutation({
+    mutationFn: () => api.post('/auth/set-pin', { pin: pinForm.pin }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowPinModal(false);
+      setPinForm({ pin: '', confirm: '' });
+      qc.invalidateQueries({ queryKey: ['auth-me'] });
+      Alert.alert('Berhasil', 'PIN absensi berhasil disimpan.');
+    },
+    onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const msg = err?.response?.data?.message ?? err.message ?? 'Gagal menyimpan PIN.';
       Alert.alert('Gagal', typeof msg === 'string' ? msg : JSON.stringify(msg));
     },
   });
@@ -406,17 +426,24 @@ export default function ProfileScreen() {
             overflow: 'hidden',
           }}>
             {([
-              { label: 'Klaim Biaya',      Icon: Receipt,     color: C.orange, route: '/(main)/expense-claims' as Href, roles: null as string[] | null },
-              { label: 'Berita Acara',     Icon: FileText,    color: C.teal,   route: '/(main)/service-reports' as Href, roles: null as string[] | null },
-              { label: 'Surat Tugas',      Icon: Briefcase,   color: C.indigo, route: '/(main)/business-trips' as Href, roles: null as string[] | null },
-              { label: 'Surat Peringatan', Icon: ShieldAlert, color: C.red,    route: '/(main)/warning-letters' as Href, roles: null as string[] | null },
-              { label: 'Pengumuman',       Icon: Megaphone,   color: C.blue,   route: '/(main)/announcements' as Href,  roles: ['admin', 'manager', 'super_admin'] as string[] },
-              { label: 'SOS Darurat',      Icon: ShieldAlert, color: C.red,    route: '/(main)/sos' as Href, roles: null as string[] | null },
+              { label: 'Klaim Biaya',      Icon: Receipt,     color: C.orange, route: '/(main)/expense-claims' as Href, roles: null as string[] | null, action: undefined as undefined | (() => void), subtitle: undefined as string | undefined },
+              { label: 'Berita Acara',     Icon: FileText,    color: C.teal,   route: '/(main)/service-reports' as Href, roles: null, action: undefined, subtitle: undefined },
+              { label: 'Surat Tugas',      Icon: Briefcase,   color: C.indigo, route: '/(main)/business-trips' as Href, roles: null, action: undefined, subtitle: undefined },
+              { label: 'Surat Peringatan', Icon: ShieldAlert, color: C.red,    route: '/(main)/warning-letters' as Href, roles: null, action: undefined, subtitle: undefined },
+              { label: 'Pengumuman',       Icon: Megaphone,   color: C.blue,   route: '/(main)/announcements' as Href,  roles: ['admin', 'manager', 'super_admin'] as string[], action: undefined, subtitle: undefined },
+              { label: 'SOS Darurat',      Icon: ShieldAlert, color: C.red,    route: '/(main)/sos' as Href, roles: null, action: undefined, subtitle: undefined },
+              {
+                label: meData?.has_pin ? 'Ganti PIN Absensi' : 'Set PIN Absensi',
+                Icon: Lock, color: C.green,
+                route: undefined as unknown as Href, roles: null,
+                action: () => { setPinForm({ pin: '', confirm: '' }); setShowPinModal(true); },
+                subtitle: meData?.has_pin ? 'PIN sudah aktif — tap untuk ganti' : 'Belum ada PIN — wajib jika biometrik gagal',
+              },
             ]).filter((item) => !item.roles || item.roles.includes(user?.role?.name ?? ''))
             .map((item, idx, arr) => (
               <TouchableOpacity
                 key={item.label}
-                onPress={() => item.route ? router.push(item.route) : setShowApprovalModal(true)}
+                onPress={() => item.action ? item.action() : item.route ? router.push(item.route) : setShowApprovalModal(true)}
                 activeOpacity={0.7}
                 style={{
                   flexDirection: 'row',
@@ -430,7 +457,14 @@ export default function ProfileScreen() {
                 <View style={{ width: 34, height: 34, borderRadius: R.xs + 2, backgroundColor: `${item.color}1F`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                   <item.Icon size={18} strokeWidth={1.8} color={item.color} />
                 </View>
-                <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: textPrimary }}>{item.label}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '500', color: textPrimary }}>{item.label}</Text>
+                  {item.subtitle && (
+                    <Text style={{ fontSize: 11, color: textSecondary, marginTop: 2 }} numberOfLines={1}>
+                      {item.subtitle}
+                    </Text>
+                  )}
+                </View>
                 <ChevronRight size={16} strokeWidth={1.8} color={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(60,60,67,0.25)'} />
               </TouchableOpacity>
             ))}
@@ -728,6 +762,92 @@ export default function ProfileScreen() {
                   ) : (
                     <Text style={{ fontSize: 16, fontWeight: '700', color: isPwFormInvalid ? disabledText : '#FFF' }}>
                       Simpan Password
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })()}
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Set/Ganti PIN modal */}
+      <Modal visible={showPinModal} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
+        <View style={{ flex: 1, padding: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.4 }}>
+              {meData?.has_pin ? 'Ganti PIN Absensi' : 'Set PIN Absensi'}
+            </Text>
+            <TouchableOpacity onPress={() => { setShowPinModal(false); setPinForm({ pin: '', confirm: '' }); }}>
+              <Text style={{ fontSize: 15, color: C.blue }}>Batal</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 80 }}
+          >
+            <Text style={{ fontSize: 13, color: lSecondary(isDark), marginBottom: 16, lineHeight: 18 }}>
+              PIN 6 digit angka. Dipakai sebagai fallback saat biometrik (sidik jari/Face ID) tidak tersedia atau gagal.
+            </Text>
+
+            {[
+              { key: 'pin', label: 'PIN Baru (6 digit)' },
+              { key: 'confirm', label: 'Konfirmasi PIN Baru' },
+            ].map(({ key, label }) => (
+              <View key={key} style={{ marginBottom: 14 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 6 }}>
+                  {label}
+                </Text>
+                <TextInput
+                  value={pinForm[key as keyof typeof pinForm]}
+                  onChangeText={(v) => setPinForm((f) => ({ ...f, [key]: v.replace(/\D/g, '').slice(0, 6) }))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  secureTextEntry
+                  placeholder="••••••"
+                  placeholderTextColor={lTertiary(isDark)}
+                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', padding: 12, fontSize: 18, color: lPrimary(isDark), letterSpacing: 4, textAlign: 'center' }}
+                />
+              </View>
+            ))}
+
+            {pinForm.pin && pinForm.confirm && pinForm.pin !== pinForm.confirm && (
+              <Text style={{ fontSize: 12, color: C.red, marginBottom: 12 }}>
+                PIN tidak cocok.
+              </Text>
+            )}
+
+            {(() => {
+              const isInvalid =
+                pinForm.pin.length !== 6 ||
+                pinForm.confirm.length !== 6 ||
+                pinForm.pin !== pinForm.confirm;
+              const disabledBg = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(60,60,67,0.10)';
+              const disabledText = lTertiary(isDark);
+              return (
+                <TouchableOpacity
+                  onPress={() => setPinMutation.mutate()}
+                  disabled={setPinMutation.isPending || isInvalid}
+                  style={{
+                    backgroundColor: isInvalid ? disabledBg : C.green,
+                    borderRadius: 14,
+                    padding: 16,
+                    alignItems: 'center',
+                    marginTop: 8,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {setPinMutation.isPending ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: isInvalid ? disabledText : '#FFF' }}>
+                      Simpan PIN
                     </Text>
                   )}
                 </TouchableOpacity>
