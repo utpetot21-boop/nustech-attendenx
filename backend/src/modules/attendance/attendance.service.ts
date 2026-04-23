@@ -214,11 +214,7 @@ export class AttendanceService {
 
   // ── Check-Out ─────────────────────────────────────────────────
   async checkOut(userId: string, dto: CheckOutDto): Promise<AttendanceEntity> {
-    const today = this.getTodayString();
-
-    const attendance = await this.attendanceRepo.findOne({
-      where: { user_id: userId, date: today },
-    });
+    const attendance = await this.findActiveAttendance(userId);
 
     if (!attendance?.check_in_at) {
       throw new BadRequestException('Anda belum check-in hari ini');
@@ -229,8 +225,9 @@ export class AttendanceService {
     }
 
     // Cek izin pulang awal approved — bypass lock 8 jam
+    // Gunakan attendance.date bukan today — shift malam bisa record dari kemarin
     const approvedEarly = await this.attendanceRequestRepo.findOne({
-      where: { user_id: userId, date: today, type: 'early_departure', status: 'approved' },
+      where: { user_id: userId, date: attendance.date, type: 'early_departure', status: 'approved' },
     });
 
     const now = new Date();
@@ -273,9 +270,7 @@ export class AttendanceService {
 
   // ── Ambil data hari ini ───────────────────────────────────────
   async getToday(userId: string): Promise<AttendanceEntity | null> {
-    return this.attendanceRepo.findOne({
-      where: { user_id: userId, date: this.getTodayString() },
-    });
+    return this.findActiveAttendance(userId);
   }
 
   // ── Riwayat absensi ───────────────────────────────────────────
@@ -413,8 +408,7 @@ export class AttendanceService {
     checkoutEarliest: Date | null;
     checkedOut: boolean;
   }> {
-    const today = this.getTodayString();
-    const att = await this.attendanceRepo.findOne({ where: { user_id: userId, date: today } });
+    const att = await this.findActiveAttendance(userId);
 
     if (!att?.check_in_at) {
       return { canCheckout: false, remainingSeconds: 0, checkoutEarliest: null, checkedOut: false };
@@ -425,8 +419,9 @@ export class AttendanceService {
     }
 
     // Izin pulang awal approved → bypass lock 8 jam (konsisten dgn checkOut())
+    // Gunakan att.date bukan today — shift malam bisa record dari kemarin
     const approvedEarly = await this.attendanceRequestRepo.findOne({
-      where: { user_id: userId, date: today, type: 'early_departure', status: 'approved' },
+      where: { user_id: userId, date: att.date, type: 'early_departure', status: 'approved' },
     });
     if (approvedEarly) {
       return {
@@ -456,6 +451,28 @@ export class AttendanceService {
     // toISOString() selalu UTC — jika dipakai, check-in antara 00:00-07:59 WITA
     // akan terekam di tanggal kemarin
     return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+  }
+
+  private getYesterdayString(): string {
+    const d = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+  }
+
+  // Cross-midnight: cari attendance aktif (sudah check-in, belum check-out).
+  // Shift malam yang check-in sebelum 00:00 dan belum checkout setelah 00:00
+  // akan ditemukan di record kemarin, bukan hari ini.
+  private async findActiveAttendance(userId: string): Promise<AttendanceEntity | null> {
+    const today = this.getTodayString();
+    const todayAtt = await this.attendanceRepo.findOne({ where: { user_id: userId, date: today } });
+    if (todayAtt?.check_in_at && !todayAtt.check_out_at) return todayAtt;
+    if (todayAtt?.check_in_at) return todayAtt; // sudah checkout, kembalikan hari ini
+
+    // Belum ada record hari ini — cek kemarin untuk shift malam yang masih aktif
+    const yesterday = this.getYesterdayString();
+    const yesterdayAtt = await this.attendanceRepo.findOne({ where: { user_id: userId, date: yesterday } });
+    if (yesterdayAtt?.check_in_at && !yesterdayAtt.check_out_at) return yesterdayAtt;
+
+    return todayAtt ?? null;
   }
 
   private calculateStatus(
