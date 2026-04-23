@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/redis.module';
@@ -79,6 +79,13 @@ export class AuthService {
 
     // Upsert FCM device token jika ada
     if (dto.fcm_token && dto.platform) {
+      // Nonaktifkan baris lama untuk token yang sama tapi user_id berbeda
+      // (kasus: device dipakai bergantian oleh user lain → cegah salah kirim notif)
+      await this.deviceRepo.update(
+        { fcm_token: dto.fcm_token, user_id: Not(user.id), is_active: true },
+        { is_active: false },
+      );
+
       await this.deviceRepo.upsert(
         {
           user_id: user.id,
@@ -130,6 +137,12 @@ export class AuthService {
     )
       ? (platform as 'android' | 'ios' | 'web')
       : 'android';
+
+    // Nonaktifkan baris lama untuk token yang sama tapi user_id berbeda
+    await this.deviceRepo.update(
+      { fcm_token, user_id: Not(userId), is_active: true },
+      { is_active: false },
+    );
 
     await this.deviceRepo.upsert(
       {
