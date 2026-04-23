@@ -96,7 +96,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get current authenticated user' })
-  me(@CurrentUser() user: UserEntity) {
+  async me(@CurrentUser() user: UserEntity) {
+    const has_pin = await this.authService.hasPinSet(user.id);
     return {
       id: user.id,
       employee_id: user.employee_id,
@@ -108,6 +109,7 @@ export class AuthController {
       role_id: user.role_id,
       department_id: user.department_id,
       is_active: user.is_active,
+      has_pin,
     };
   }
 

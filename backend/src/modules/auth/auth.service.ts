@@ -231,6 +231,15 @@ export class AuthService {
     this.redis.del(`user:${userId}`).catch(() => {});
   }
 
+  // ── Has PIN set? (untuk UI: tampilkan "Set PIN" vs "Ganti PIN")
+  async hasPinSet(userId: string): Promise<boolean> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: { id: true, pin_hash: true },
+    });
+    return !!user?.pin_hash;
+  }
+
   // ── Verify PIN (dipanggil saat check-in fallback) ─────────────
   async verifyPin(userId: string, pin: string): Promise<boolean> {
     const user = await this.userRepo.findOne({
