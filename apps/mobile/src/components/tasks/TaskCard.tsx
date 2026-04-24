@@ -1,4 +1,3 @@
-import { Component, type ReactNode } from 'react';
 import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
 import {
   AlertTriangle, ArrowDownCircle, MinusCircle, ArrowUpCircle,
@@ -8,23 +7,7 @@ import {
 import { C, R, B, cardBg, lPrimary, lSecondary, lTertiary, separator } from '@/constants/tokens';
 import type { TaskSummary } from '@/services/tasks.service';
 import { ConfirmCountdown } from './ConfirmCountdown';
-import MiniMap from './MiniMap';
 import NavigationButton from './NavigationButton';
-
-class MapErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
-  render() {
-    if (this.state.failed) {
-      return (
-        <View style={{ height: 120, borderRadius: 12, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: '#9CA3AF', fontSize: 12 }}>Peta tidak tersedia</Text>
-        </View>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 interface Props {
   task: TaskSummary;
@@ -75,7 +58,6 @@ const PRIORITY_STYLE: Record<string, {
   },
 };
 
-// L8: gunakan token C.* agar warna status konsisten dengan design system
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   unassigned:           { label: 'Belum Ditugaskan',    color: C.labelSecondary.light },
   pending_confirmation: { label: 'Menunggu Konfirmasi', color: C.orange  },
@@ -87,7 +69,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   cancelled:            { label: 'Dibatalkan',           color: C.red     },
 };
 
-export function TaskCard({ task, onPress, userLat, userLng }: Props) {
+export function TaskCard({ task, onPress, userLat: _userLat, userLng: _userLng }: Props) {
   const isDark = useColorScheme() === 'dark';
   const ps = PRIORITY_STYLE[task.priority] ?? PRIORITY_STYLE.normal;
   const ss = STATUS_LABELS[task.status] ?? { label: task.status, color: lSecondary(isDark) };
@@ -176,25 +158,14 @@ export function TaskCard({ task, onPress, userLat, userLng }: Props) {
         </View>
       )}
 
-      {/* MiniMap + Navigation */}
-      {task.client?.lat && task.client?.lng && userLat && userLng && (
+      {/* Navigation — buka Google Maps / Waze langsung, tanpa native MapView */}
+      {task.client?.lat && task.client?.lng && (
         <View style={{ marginTop: 12 }}>
-          <MapErrorBoundary>
-            <MiniMap
-              originLat={userLat}
-              originLng={userLng}
-              destLat={Number(task.client.lat)}
-              destLng={Number(task.client.lng)}
-              height={120}
-            />
-          </MapErrorBoundary>
-          <View style={{ marginTop: 8 }}>
-            <NavigationButton
-              lat={Number(task.client.lat)}
-              lng={Number(task.client.lng)}
-              label={`Navigasi ke ${task.client.name}`}
-            />
-          </View>
+          <NavigationButton
+            lat={Number(task.client.lat)}
+            lng={Number(task.client.lng)}
+            label={`Navigasi ke ${task.client.name}`}
+          />
         </View>
       )}
     </TouchableOpacity>
