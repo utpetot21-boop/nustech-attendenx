@@ -33,6 +33,7 @@ import {
   Trash2,
   LogIn,
   LogOut,
+  X,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -110,8 +111,11 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   task_accepted:                   '/(main)/tasks',
   task_rejected:                   '/(main)/tasks',
   sla_breach:                      '/(main)/tasks',
+  task_on_hold:                    '/(main)/tasks',
+  task_hold_approved:              '/(main)/tasks',
+  task_hold_rejected:              '/(main)/tasks',
   // Berita Acara
-  ba_generated:                    '/(main)/service-reports/index',
+  ba_generated:                    '/(main)/service-reports',
   // SOS
   sos:                             '/(main)/sos',
   sos_alert:                       '/(main)/sos-alert',
