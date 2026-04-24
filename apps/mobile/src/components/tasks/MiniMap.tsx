@@ -66,7 +66,6 @@ export default function MiniMap({ originLat, originLng, destLat, destLng, height
         zoomEnabled={false}
         rotateEnabled={false}
         pitchEnabled={false}
-        liteMode
       >
         {/* Origin pin */}
         <Marker coordinate={{ latitude: originLat, longitude: originLng }} pinColor="#22C55E" />
