@@ -21,6 +21,10 @@ import { api } from '@/services/api';
 
 const POSTED_FCM_TOKEN_KEY = 'posted_fcm_token';
 
+// Cold-start: simpan data notif yang di-tap sebelum auth selesai load.
+// Diproses oleh AuthGuard setelah user terkonfirmasi login.
+let _pendingColdStart: Record<string, string> | null = null;
+
 // ── Route whitelist untuk deep link dari push notification ──────────────────
 // Semua routing dari FCM/local notif WAJIB resolve ke salah satu route di sini.
 // Kalau backend kirim `data.route` arbitrary, hanya route yang match prefix
@@ -185,17 +189,18 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     const mustChangePw    = !!user?.must_change_password;
 
     if (!user && !inAuth) {
-      // Belum login → ke halaman login
       router.replace('/(auth)/login');
     } else if (user && mustChangePw) {
-      // Password harus diganti — paksa ke halaman ganti password
-      // (kecuali sudah di halaman itu)
-      if (!onChangePw) {
-        router.replace('/(auth)/change-password');
-      }
+      if (!onChangePw) router.replace('/(auth)/change-password');
     } else if (user && inAuth && !mustChangePw) {
-      // Sudah login + password oke, tapi masih di auth area → ke main
       router.replace('/(main)');
+    } else if (user && !mustChangePw && _pendingColdStart) {
+      // Cold-start: auth sudah siap, proses notif yang pending
+      const data = _pendingColdStart;
+      _pendingColdStart = null;
+      InteractionManager.runAfterInteractions(() => {
+        routeFromNotifData(data, (t) => router.push(t as Parameters<typeof router.push>[0]));
+      });
     }
   }, [ready, user, segments]);
 
@@ -229,23 +234,27 @@ export default function RootLayout() {
       if (__DEV__) console.warn('[Push] Registration error:', e);
     });
 
+    // Warm-start: app di background, user tap notif → auth sudah aktif, langsung navigate
     responseListenerRef.current = addNotificationResponseListener((response) => {
       const data = response.notification.request.content.data as Record<string, string> | undefined;
       if (!data) return;
       routeFromNotifData(data, (t) => router.push(t as Parameters<typeof router.push>[0]));
     });
 
-    // Cold-start: app dibuka dari notif saat killed
+    // Cold-start: app killed → simpan data, AuthGuard yang navigasi setelah auth siap
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return;
       const data = response.notification.request.content.data as Record<string, string> | undefined;
       if (!data) return;
-      InteractionManager.runAfterInteractions(() => {
-        routeFromNotifData(data, (t) => router.push(t as Parameters<typeof router.push>[0]));
-      });
+      _pendingColdStart = data;
     }).catch(() => null);
 
-    receivedListenerRef.current = addNotificationReceivedListener((_notification) => {});
+    // Notif masuk saat app foreground → invalidasi badge segera (tanpa tunggu interval)
+    receivedListenerRef.current = addNotificationReceivedListener(() => {
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['announcements', 'unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['ann-unread-count'] });
+    });
 
     return () => {
       responseListenerRef.current?.remove();
