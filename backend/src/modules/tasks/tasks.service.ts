@@ -418,6 +418,14 @@ export class TasksService {
     managerId: string,
     dto: ApproveHoldDto,
   ): Promise<TaskHoldEntity> {
+    const task = await this.taskRepo.findOneOrFail({
+      where: { id: taskId },
+      relations: ['creator'],
+    });
+    if (task.created_by !== managerId) {
+      throw new ForbiddenException('Hanya pemberi tugas yang dapat menyetujui penundaan.');
+    }
+
     const hold = await this.holdRepo.findOneOrFail({ where: { id: holdId, task_id: taskId } });
 
     if (hold.review_status !== 'pending') {
@@ -446,12 +454,12 @@ export class TasksService {
 
     await this.taskRepo.update(taskId, taskUpdate as never);
 
-    const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    const approverName = task.creator?.full_name ?? 'Manager';
     await this.notifications.send({
       userId: hold.held_by,
       type: 'task_hold_approved',
       title: 'Penundaan Disetujui',
-      body: `Penundaan tugas "${task?.title ?? ''}" disetujui.${dto.reschedule_date ? ` Dijadwal ulang: ${dto.reschedule_date}.` : ''}`,
+      body: `Penundaan tugas "${task.title}" disetujui oleh ${approverName}.${dto.reschedule_date ? ` Dijadwal ulang: ${dto.reschedule_date}.` : ''}`,
       data: { task_id: taskId },
     }).catch(() => null);
 
@@ -465,6 +473,14 @@ export class TasksService {
     managerId: string,
     dto: RejectHoldDto,
   ): Promise<TaskHoldEntity> {
+    const task = await this.taskRepo.findOneOrFail({
+      where: { id: taskId },
+      relations: ['creator'],
+    });
+    if (task.created_by !== managerId) {
+      throw new ForbiddenException('Hanya pemberi tugas yang dapat menolak penundaan.');
+    }
+
     const hold = await this.holdRepo.findOneOrFail({ where: { id: holdId, task_id: taskId } });
 
     if (hold.review_status !== 'pending') {
@@ -486,12 +502,12 @@ export class TasksService {
       await this.visitRepo.update(hold.visit_id, { status: 'ongoing' });
     }
 
-    const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    const rejecterName = task.creator?.full_name ?? 'Manager';
     await this.notifications.send({
       userId: hold.held_by,
       type: 'task_hold_rejected',
       title: 'Penundaan Ditolak',
-      body: `Penundaan tugas "${task?.title ?? ''}" ditolak. ${dto.reason ?? 'Lanjutkan pekerjaan.'}`,
+      body: `Penundaan tugas "${task.title}" ditolak oleh ${rejecterName}. ${dto.reason ?? 'Lanjutkan pekerjaan.'}`,
       data: { task_id: taskId },
     }).catch(() => null);
 
@@ -505,7 +521,7 @@ export class TasksService {
   async getOnHoldTasks() {
     const tasks = await this.taskRepo.find({
       where: { status: 'on_hold' },
-      relations: ['client', 'assignee'],
+      relations: ['client', 'assignee', 'creator'],
       order: { created_at: 'DESC' },
     });
     if (tasks.length === 0) return [];

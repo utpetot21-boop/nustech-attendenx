@@ -441,6 +441,7 @@ function TaskDetailInner() {
   const isCompleted = task.status === 'completed';
   const isCancelled = task.status === 'cancelled';
   const isAssignee  = task.assignee?.id === currentUserId;
+  const isCreator   = task.creator?.id === currentUserId;
   const cancellable = canCancelTask && !isInProgress && !isCompleted && !isCancelled;
   const assignable  = canAssignTask && task.status === 'unassigned';
 
@@ -685,8 +686,8 @@ function TaskDetailInner() {
                 </View>
               </View>
 
-              {/* Approve / Reject buttons — hanya untuk can_approve */}
-              {canApprove && (
+              {/* Approve / Reject buttons — hanya untuk pemberi tugas (creator) */}
+              {canApprove && isCreator && (
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity
                     onPress={() => Alert.alert(
@@ -722,6 +723,16 @@ function TaskDetailInner() {
                       : <XIcon size={18} strokeWidth={2.5} color={C.red} />}
                     <Text style={{ fontSize: 14, fontWeight: '700', color: C.red }}>Tolak</Text>
                   </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Info untuk manager lain yang bukan creator */}
+              {canApprove && !isCreator && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: isDark ? '#8E8E9326' : '#8E8E9314', borderRadius: 12, padding: 12 }}>
+                  <User size={14} strokeWidth={2} color={textSecondary} />
+                  <Text style={{ fontSize: 12, color: textSecondary, flex: 1 }}>
+                    Menunggu persetujuan dari {task.creator?.full_name ?? 'pemberi tugas'}
+                  </Text>
                 </View>
               )}
             </View>

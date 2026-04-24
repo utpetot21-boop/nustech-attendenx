@@ -32,6 +32,7 @@ interface Task {
 
 interface OnHoldTask {
   id: string; title: string; priority: string;
+  created_by?: string;
   assignee?: { full_name: string } | null;
   pending_hold?: { id: string; reason_type: string; reason_notes: string; auto_approve_at: string | null } | null;
 }
@@ -273,8 +274,11 @@ export default function TasksPage() {
   const [assignDeptId, setAssignDeptId] = useState('');
 
   const [userRole, setUserRole] = useState<string | undefined>(undefined);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
   useEffect(() => {
-    setUserRole(getAuthUser()?.role?.name);
+    const u = getAuthUser();
+    setUserRole(u?.role?.name);
+    setCurrentUserId(u?.id);
   }, []);
   const canCancel = userRole === 'admin' || userRole === 'super_admin';
   const canDelete = userRole === 'super_admin';
@@ -601,23 +605,29 @@ export default function TasksPage() {
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => t.pending_hold && approveHoldMut.mutate({ taskId: t.id, holdId: t.pending_hold.id })}
-                        disabled={approveHoldMut.isPending}
-                        title="Setujui penundaan"
-                        className="w-8 h-8 rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] flex items-center justify-center text-[#34C759] hover:bg-[#DCFCE7] transition"
-                      >
-                        <Check size={14} strokeWidth={2.5} />
-                      </button>
-                      <button
-                        onClick={() => t.pending_hold && rejectHoldMut.mutate({ taskId: t.id, holdId: t.pending_hold.id })}
-                        disabled={rejectHoldMut.isPending}
-                        title="Tolak penundaan"
-                        className="w-8 h-8 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center text-[#FF3B30] hover:bg-[#FEE2E2] transition"
-                      >
-                        <X size={14} strokeWidth={2.5} />
-                      </button>
+                    <div className="flex gap-1.5 flex-shrink-0 items-center">
+                      {t.created_by === currentUserId ? (
+                        <>
+                          <button
+                            onClick={() => t.pending_hold && approveHoldMut.mutate({ taskId: t.id, holdId: t.pending_hold!.id })}
+                            disabled={approveHoldMut.isPending}
+                            title="Setujui penundaan"
+                            className="w-8 h-8 rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] flex items-center justify-center text-[#34C759] hover:bg-[#DCFCE7] transition disabled:opacity-40"
+                          >
+                            <Check size={14} strokeWidth={2.5} />
+                          </button>
+                          <button
+                            onClick={() => t.pending_hold && rejectHoldMut.mutate({ taskId: t.id, holdId: t.pending_hold!.id })}
+                            disabled={rejectHoldMut.isPending}
+                            title="Tolak penundaan"
+                            className="w-8 h-8 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center text-[#FF3B30] hover:bg-[#FEE2E2] transition disabled:opacity-40"
+                          >
+                            <X size={14} strokeWidth={2.5} />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-gray-400 dark:text-white/30 italic">Bukan pemberi tugas</span>
+                      )}
                     </div>
                   </div>
                 </div>
