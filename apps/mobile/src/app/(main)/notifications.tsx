@@ -34,6 +34,8 @@ import {
   LogIn,
   LogOut,
   X,
+  Calendar,
+  Pause,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -198,9 +200,17 @@ export default function NotificationsScreen() {
   // Tipe pengumuman tidak ditampilkan di tab Notif — hanya ada di tab Pengumuman
   const visibleNotifs = (notifData?.items ?? []).filter((n) => !n.type?.startsWith('announcement'));
 
-  // Announcements
-  // L7: enabled hanya saat tab aktif — loading state muncul saat pertama kali buka tab,
-  //     dan tidak fetch sia-sia saat user sedang di tab Notifikasi
+  // Badge count selalu fetch — agar angka merah di tab terlihat meski tab belum diklik
+  const { data: unreadAnnCount = 0 } = useQuery<number>({
+    queryKey: ['ann-unread-count'],
+    queryFn: () => api.get('/announcements/me').then((r) =>
+      (r.data as Announcement[]).filter((a: Announcement) => !a.is_read).length
+    ),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  // Announcements — lazy load: hanya fetch detail saat tab aktif
   const { data: announcements = [], isLoading: annLoading, isRefetching: annRefetching, refetch: refetchAnn } = useQuery<Announcement[]>({
     queryKey: ['my-announcements'],
     queryFn: () => api.get('/announcements/me').then((r) => r.data),
@@ -220,9 +230,12 @@ export default function NotificationsScreen() {
 
   const isRefreshing = activeTab === 'notif' ? notifRefetching : annRefetching;
   const unread = visibleNotifs.filter((n) => !n.is_read).length;
-  const unreadAnn = announcements.filter((a) => !a.is_read).length;
+  // Gunakan data detail saat tab aktif; gunakan count query saat tab belum diklik
+  const unreadAnn = activeTab === 'ann'
+    ? announcements.filter((a) => !a.is_read).length
+    : unreadAnnCount;
 
-  const cardBg = (isRead: boolean) => isDark
+  const notifCardBg = (isRead: boolean) => isDark
     ? isRead ? 'rgba(255,255,255,0.06)' : 'rgba(0,122,255,0.15)'
     : isRead ? 'rgba(255,255,255,0.85)' : 'rgba(0,122,255,0.06)';
 
@@ -236,25 +249,49 @@ export default function NotificationsScreen() {
 
   // M4: NOTIF_ICON_MAP bergantung pada isDark — useMemo agar tidak dibuat ulang setiap render
   const NOTIF_ICON_MAP = useMemo((): Record<string, { Icon: LucideIconComponent; color: string; bg: string }> => ({
-    task_assigned:      { Icon: ClipboardList,  color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'    : '#EFF6FF' },
-    task_accepted:      { Icon: CheckCircle2,   color: C.green, bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
-    task_rejected:      { Icon: XCircle,        color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
-    alfa_detected:      { Icon: AlertTriangle,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'   : '#FFFBEB' },
-    leave_request:      { Icon: ClipboardList,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
-    leave_approved:     { Icon: Sun,            color: C.green, bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
-    leave_rejected:     { Icon: Ban,            color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
-    check_in_success:   { Icon: LogIn,          color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
-    check_out_success:  { Icon: LogOut,         color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
-    ba_generated:       { Icon: FileText,       color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'   : '#ECFEFF' },
-    sos:                { Icon: AlertCircle,    color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
-    attendance_request_submitted: { Icon: Clock,        color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)' : '#FFFBEB' },
-    attendance_request_approved:  { Icon: CheckCircle2, color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)' : '#DCFCE7' },
-    attendance_request_rejected:  { Icon: XCircle,      color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)' : '#FEF2F2' },
-    expense_claim_submitted:      { Icon: Receipt,      color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)' : '#FFFBEB' },
-    expense_claim_approved:       { Icon: CheckCircle2, color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)' : '#DCFCE7' },
-    expense_claim_rejected:       { Icon: XCircle,      color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)' : '#FEF2F2' },
-    expense_claim_paid:           { Icon: Wallet,       color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)' : '#DCFCE7' },
-    default:            { Icon: Bell,           color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'   : '#EFF6FF' },
+    // Tugas
+    task_assigned:             { Icon: ClipboardList,  color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
+    task_accepted:             { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    task_rejected:             { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    task_on_hold:              { Icon: Pause,          color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
+    task_hold_approved:        { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    task_hold_rejected:        { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    sla_breach:                { Icon: AlertTriangle,  color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    // Tukar Jadwal
+    swap_request_received:           { Icon: Calendar, color: C.purple, bg: isDark ? 'rgba(175,82,222,0.18)' : '#F5F3FF' },
+    swap_request_accepted_by_target: { Icon: Calendar, color: C.purple, bg: isDark ? 'rgba(175,82,222,0.18)' : '#F5F3FF' },
+    swap_request_approved:           { Icon: Calendar, color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    swap_request_rejected:           { Icon: Calendar, color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    swap_request_admin:              { Icon: Calendar, color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
+    // Cuti & Izin
+    leave_request:             { Icon: ClipboardList,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
+    leave_approved:            { Icon: Sun,            color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    leave_rejected:            { Icon: Ban,            color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    leave_expiry_reminder:     { Icon: AlertTriangle,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
+    collective_leave_deduction:{ Icon: Sun,            color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
+    // Absensi
+    check_in_success:          { Icon: LogIn,          color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    check_out_success:         { Icon: LogOut,         color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
+    sp_reminder:               { Icon: AlertTriangle,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
+    alfa_detected:             { Icon: AlertTriangle,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
+    late_arrival_approved:     { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    late_arrival_rejected:     { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    early_departure_approved:  { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    early_departure_rejected:  { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    attendance_request_submitted: { Icon: Clock,       color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
+    attendance_request_approved:  { Icon: CheckCircle2,color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    attendance_request_rejected:  { Icon: XCircle,     color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    // SOS
+    sos:                       { Icon: AlertCircle,    color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    sos_alert:                 { Icon: AlertCircle,    color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    // Klaim Biaya
+    expense_claim_submitted:   { Icon: Receipt,        color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
+    expense_claim_approved:    { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    expense_claim_rejected:    { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    expense_claim_paid:        { Icon: Wallet,         color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    // Berita Acara
+    ba_generated:              { Icon: FileText,       color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#ECFEFF' },
+    default:                   { Icon: Bell,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
   }), [isDark]);
 
   return (
