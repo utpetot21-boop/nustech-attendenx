@@ -302,12 +302,27 @@ function BaCard({ ba }: { ba: ServiceReport }) {
 
 // ── Detail Modal ───────────────────────────────────────────────────────────────
 function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: () => void; onReviewed: (updated: Visit) => void }) {
-  const [photoTab, setPhotoTab] = useState<'before' | 'during' | 'after'>('before');
+  const [photoTab, setPhotoTab] = useState<'before' | 'during' | 'after' | 'extra'>('before');
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(visit.review_rating ?? 5);
   const [reviewStatus, setReviewStatus] = useState(visit.review_status ?? 'approved');
   const [reviewNotes, setReviewNotes] = useState(visit.review_notes ?? '');
   const qc = useQueryClient();
+
+  const adminUploadMut = useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData();
+      fd.append('photo', file);
+      return apiClient.post(`/visits/${visit.id}/photos/admin`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-visits'] });
+      toast.success('Foto berhasil diupload');
+    },
+    onError: () => { toast.error('Gagal upload foto. Coba lagi.'); },
+  });
 
   const reviewMut = useMutation({
     mutationFn: () => apiClient.post(`/visits/${visit.id}/review`, {
@@ -326,8 +341,9 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
     before: visit.photos?.filter((p) => p.phase === 'before') ?? [],
     during: visit.photos?.filter((p) => p.phase === 'during') ?? [],
     after:  visit.photos?.filter((p) => p.phase === 'after') ?? [],
+    extra:  visit.photos?.filter((p) => p.phase === 'extra') ?? [],
   };
-  const photoCount = visit.photos?.length ?? 0;
+  const photoCount = visit.photos?.filter((p) => p.phase !== 'extra').length ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -386,23 +402,49 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
           {/* Photos */}
           <div>
             <p className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wide mb-2">Foto Kunjungan</p>
-            <div className="flex gap-1 mb-3 bg-gray-100 dark:bg-white/[0.06] rounded-xl p-1">
-              {(['before', 'during', 'after'] as const).map((phase) => (
+            <div className="flex gap-1 mb-3 bg-gray-100 dark:bg-white/[0.06] rounded-xl p-1 overflow-x-auto">
+              {(['before', 'during', 'after', 'extra'] as const).map((phase) => (
                 <button key={phase} onClick={() => setPhotoTab(phase)}
-                  className={`flex-1 py-1.5 rounded-[10px] text-[11px] font-semibold transition ${
+                  className={`flex-shrink-0 flex-1 py-1.5 rounded-[10px] text-[11px] font-semibold transition min-w-[60px] ${
                     photoTab === phase
                       ? 'bg-white dark:bg-white/[0.12] text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-500 dark:text-white/40'
                   }`}>
-                  {phase === 'before' ? 'Sebelum' : phase === 'during' ? 'Proses' : 'Sesudah'}
+                  {phase === 'before' ? 'Sebelum' : phase === 'during' ? 'Proses' : phase === 'after' ? 'Sesudah' : 'Dokumen'}
                   <span className="ml-1 opacity-60">({photosByPhase[phase].length})</span>
                 </button>
               ))}
             </div>
+
+            {/* Upload button — hanya di tab Dokumen */}
+            {photoTab === 'extra' && (
+              <label className={`flex items-center justify-center gap-2 w-full py-2.5 mb-3 rounded-xl border-2 border-dashed text-xs font-semibold transition cursor-pointer ${
+                adminUploadMut.isPending
+                  ? 'border-gray-200 dark:border-white/10 text-gray-300 dark:text-white/20 cursor-not-allowed'
+                  : 'border-[#007AFF]/40 text-[#007AFF] hover:bg-[#007AFF]/5'
+              }`}>
+                <Camera size={14} strokeWidth={2} />
+                {adminUploadMut.isPending ? 'Mengupload…' : 'Upload Foto Pendukung'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  disabled={adminUploadMut.isPending}
+                  onChange={(e) => {
+                    Array.from(e.target.files ?? []).forEach((file) => adminUploadMut.mutate(file));
+                    e.currentTarget.value = '';
+                  }}
+                />
+              </label>
+            )}
+
             {photosByPhase[photoTab].length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 bg-gray-50 dark:bg-white/[0.03] rounded-xl">
                 <ImageIcon size={24} className="text-gray-300 dark:text-white/20 mb-2" />
-                <p className="text-xs text-gray-400 dark:text-white/30">Belum ada foto</p>
+                <p className="text-xs text-gray-400 dark:text-white/30">
+                  {photoTab === 'extra' ? 'Belum ada dokumen tambahan' : 'Belum ada foto'}
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-4 gap-1.5">

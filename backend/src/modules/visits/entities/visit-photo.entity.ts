@@ -22,8 +22,8 @@ export class VisitPhotoEntity {
   @JoinColumn({ name: 'visit_id' })
   visit: VisitEntity;
 
-  @Column({ type: 'varchar', length: 10, enum: ['before', 'during', 'after'] })
-  phase: 'before' | 'during' | 'after';
+  @Column({ type: 'varchar', length: 10 })
+  phase: 'before' | 'during' | 'after' | 'extra';
 
   @Column({ type: 'integer', nullable: true })
   seq_number: number | null;
@@ -64,6 +64,10 @@ export class VisitPhotoEntity {
   @ManyToOne(() => TemplatePhotoRequirementEntity, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'photo_requirement_id' })
   photo_requirement: TemplatePhotoRequirementEntity | null;
+
+  // 'camera' = diambil langsung; 'gallery' = dari galeri HP (watermark berbeda); 'admin' = diupload admin web
+  @Column({ type: 'varchar', length: 10, default: 'camera' })
+  source: 'camera' | 'gallery' | 'admin';
 
   @CreateDateColumn()
   created_at: Date;

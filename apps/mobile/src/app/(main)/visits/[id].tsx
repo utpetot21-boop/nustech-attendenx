@@ -3,7 +3,7 @@
  * Check-in → 3-phase photo grid (before/during/after) → check-out form
  * iOS 26 Liquid Glass design
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  ActionSheetIOS,
+  AppState,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  copyToLocal,
+  enqueuePhoto,
+  getPendingCountForVisit,
+  isNetworkError,
+  processQueue,
+} from '@/services/offline-photo-queue.service';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -67,6 +77,10 @@ export default function VisitDetailScreen() {
   const [uploadingPhase, setUploadingPhase] = useState<Phase | null>(null);
   const [uploadingRequirementId, setUploadingRequirementId] = useState<string | null>(null);
   const [pendingRequirementId, setPendingRequirementId] = useState<string | null>(null);
+
+  // Offline queue state
+  const [offlinePendingCount, setOfflinePendingCount] = useState(0);
+  const isProcessingQueueRef = useRef(false);
 
   // Check-out form state
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
@@ -184,6 +198,51 @@ export default function VisitDetailScreen() {
     refetchInterval: 10000,
   });
 
+  // ── Offline queue helpers ────────────────────────────────────────────────────
+  const refreshOfflineCount = useCallback(async () => {
+    if (!visitId) return;
+    const count = await getPendingCountForVisit(visitId);
+    setOfflinePendingCount(count);
+  }, [visitId]);
+
+  const processOfflineQueue = useCallback(async () => {
+    if (!visitId || isProcessingQueueRef.current) return;
+    isProcessingQueueRef.current = true;
+    try {
+      await processQueue(async (record) => {
+        if (record.visitId !== visitId) return;
+        await visitsService.addPhoto(record.visitId, {
+          phase: record.phase,
+          lat: record.lat,
+          lng: record.lng,
+          photoUri: record.localPath,
+          requirement_id: record.requirementId,
+          source: record.source,
+          taken_at: record.takenAt,
+        });
+        qc.invalidateQueries({ queryKey: ['visit', visitId] });
+        qc.invalidateQueries({ queryKey: ['visit-photo-counts', visitId] });
+      });
+    } finally {
+      isProcessingQueueRef.current = false;
+      await refreshOfflineCount();
+    }
+  }, [visitId, qc, refreshOfflineCount]);
+
+  // Refresh count saat pertama kali buka
+  useEffect(() => {
+    void refreshOfflineCount();
+  }, [refreshOfflineCount]);
+
+  // Proses queue saat app kembali ke foreground (hanya jika kunjungan masih ongoing)
+  useEffect(() => {
+    if (visit?.status !== 'ongoing') return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void processOfflineQueue();
+    });
+    return () => sub.remove();
+  }, [visit?.status, processOfflineQueue]);
+
   // Add photo mutation
   const addPhotoMutation = useMutation({
     mutationFn: ({
@@ -192,14 +251,40 @@ export default function VisitDetailScreen() {
       lat,
       lng,
       requirementId,
-    }: { phase: Phase; uri: string; lat: number; lng: number; requirementId?: string }) =>
-      visitsService.addPhoto(visitId!, { phase, lat, lng, photoUri: uri, requirement_id: requirementId }),
+      source,
+    }: { phase: Phase; uri: string; lat: number; lng: number; requirementId?: string; source?: 'camera' | 'gallery' }) =>
+      visitsService.addPhoto(visitId!, { phase, lat, lng, photoUri: uri, requirement_id: requirementId, source }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['visit', visitId] });
       qc.invalidateQueries({ queryKey: ['visit-photo-counts', visitId] });
     },
-    onError: (err: Error) => {
-      Alert.alert('Gagal Upload', err.message ?? 'Terjadi kesalahan saat mengunggah foto.');
+    onError: async (err: Error, variables) => {
+      if (isNetworkError(err)) {
+        // Tidak ada sinyal → simpan ke queue lokal
+        try {
+          const localPath = await copyToLocal(variables.uri);
+          await enqueuePhoto({
+            visitId: visitId!,
+            phase: variables.phase,
+            lat: variables.lat,
+            lng: variables.lng,
+            localPath,
+            takenAt: new Date().toISOString(),
+            requirementId: variables.requirementId,
+            source: variables.source ?? 'camera',
+          });
+          await refreshOfflineCount();
+          Alert.alert(
+            'Disimpan Offline',
+            'Tidak ada sinyal. Foto akan diupload otomatis saat sinyal kembali.',
+            [{ text: 'OK' }],
+          );
+        } catch {
+          Alert.alert('Gagal Upload', 'Terjadi kesalahan saat menyimpan foto.');
+        }
+      } else {
+        Alert.alert('Gagal Upload', err.message ?? 'Terjadi kesalahan saat mengunggah foto.');
+      }
     },
     onSettled: () => {
       setUploadingPhase(null);
@@ -246,9 +331,65 @@ export default function VisitDetailScreen() {
       setUploadingRequirementId(pendingRequirementId);
       setCameraPhase(null);
       setPendingRequirementId(null);
-      addPhotoMutation.mutate({ phase: cameraPhase, uri, lat, lng, requirementId: pendingRequirementId ?? undefined });
+      addPhotoMutation.mutate({ phase: cameraPhase, uri, lat, lng, requirementId: pendingRequirementId ?? undefined, source: 'camera' });
     },
     [cameraPhase, pendingRequirementId, addPhotoMutation],
+  );
+
+  const handleGalleryPick = useCallback(
+    async (phase: Phase, requirementId?: string) => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Izin Diperlukan', 'Izinkan akses galeri di Pengaturan untuk menggunakan fitur ini.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.9,
+        allowsEditing: false,
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const uri = result.assets[0].uri;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setUploadingPhase(phase);
+      setUploadingRequirementId(requirementId ?? null);
+      addPhotoMutation.mutate({ phase, uri, lat: 0, lng: 0, requirementId, source: 'gallery' });
+    },
+    [addPhotoMutation],
+  );
+
+  const handleAddPhotoTap = useCallback(
+    (phase: Phase, requirementId?: string) => {
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          { options: ['Batal', 'Kamera', 'Dari Galeri'], cancelButtonIndex: 0 },
+          (index) => {
+            if (index === 1) {
+              setPendingRequirementId(requirementId ?? null);
+              setCameraPhase(phase);
+            } else if (index === 2) {
+              void handleGalleryPick(phase, requirementId);
+            }
+          },
+        );
+      } else {
+        Alert.alert('Tambah Foto', 'Pilih sumber foto', [
+          { text: 'Batal', style: 'cancel' },
+          {
+            text: 'Kamera',
+            onPress: () => {
+              setPendingRequirementId(requirementId ?? null);
+              setCameraPhase(phase);
+            },
+          },
+          {
+            text: 'Dari Galeri',
+            onPress: () => { void handleGalleryPick(phase, requirementId); },
+          },
+        ]);
+      }
+    },
+    [handleGalleryPick],
   );
 
   const handleCheckOut = useCallback(async () => {
@@ -404,6 +545,36 @@ export default function VisitDetailScreen() {
               </View>
             </View>
 
+            {/* Banner offline pending photos */}
+            {offlinePendingCount > 0 && (
+              <TouchableOpacity
+                onPress={() => void processOfflineQueue()}
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 12,
+                  backgroundColor: isDark ? 'rgba(255,149,0,0.18)' : '#FFF7ED',
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(255,149,0,0.35)' : 'rgba(255,149,0,0.3)',
+                  padding: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 18 }}>📷</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#FF9500' }}>
+                    {offlinePendingCount} foto menunggu upload
+                  </Text>
+                  <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.5)' : '#9A3412' }}>
+                    Ketuk untuk upload ulang sekarang
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
             {/* Location info card */}
             {visit.check_in_address && (
               <View
@@ -488,10 +659,7 @@ export default function VisitDetailScreen() {
                     counts: photoCounts[phase],
                   }))}
                   photoCounts={photoCounts}
-                  onAddPhoto={(phase, requirementId) => {
-                    setPendingRequirementId(requirementId ?? null);
-                    setCameraPhase(phase);
-                  }}
+                  onAddPhoto={(phase, requirementId) => handleAddPhotoTap(phase, requirementId)}
                   isUploading={addPhotoMutation.isPending}
                   uploadingPhase={uploadingPhase}
                   uploadingRequirementId={uploadingRequirementId}

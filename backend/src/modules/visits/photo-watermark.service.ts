@@ -10,6 +10,7 @@ export interface WatermarkInput {
   district: string;
   province: string;
   locationName: string; // client name or location label
+  source?: 'camera' | 'gallery' | 'admin'; // affects watermark content
 }
 
 export interface WatermarkResult {
@@ -61,10 +62,18 @@ export class PhotoWatermarkService {
     const fontSize = Math.max(Math.round(width * 0.022), 18);
     ctx.font = `${fontSize}px 'DejaVu Sans', sans-serif`;
 
-    const witaDate = this.toWITA(input.takenAt);
+    const isGallery = input.source === 'gallery';
+    const isAdmin   = input.source === 'admin';
+    const witaDate  = this.toWITA(input.takenAt);
     const lines = [
-      `📅 ${witaDate}`,
-      `📍 ${input.lat.toFixed(6)}, ${input.lng.toFixed(6)}`,
+      isGallery || isAdmin
+        ? `📅 Upload: ${witaDate}`
+        : `📅 ${witaDate}`,
+      isGallery
+        ? '📷 DARI GALERI — GPS tidak tersedia'
+        : isAdmin
+        ? '👤 Diupload oleh Admin'
+        : `📍 ${input.lat.toFixed(6)}, ${input.lng.toFixed(6)}`,
       `🏘 ${input.district || '-'}`,
       `🗺 ${input.province || '-'}`,
       `📌 ${input.locationName}`,

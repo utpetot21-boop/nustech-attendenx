@@ -12,8 +12,10 @@ export interface AddPhotoPayload {
   lat: number;
   lng: number;
   caption?: string;
-  photoUri: string; // local file URI from camera
+  photoUri: string; // local file URI from camera or gallery
   requirement_id?: string;
+  source?: 'camera' | 'gallery';
+  taken_at?: string; // ISO string — waktu asli capture (untuk offline queue)
 }
 
 export interface CheckOutPayload {
@@ -78,6 +80,8 @@ export const visitsService = {
     formData.append('lng', String(payload.lng));
     if (payload.caption) formData.append('caption', payload.caption);
     if (payload.requirement_id) formData.append('requirement_id', payload.requirement_id);
+    if (payload.source) formData.append('source', payload.source);
+    if (payload.taken_at) formData.append('taken_at', payload.taken_at);
 
     // Append the photo file
     const filename = payload.photoUri.split('/').pop() ?? 'photo.jpg';

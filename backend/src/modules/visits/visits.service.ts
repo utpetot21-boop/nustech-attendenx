@@ -169,20 +169,26 @@ export class VisitsService {
       }
     }
 
-    // Reverse geocode photo location
-    const geo = await this.nominatim.reverse(dto.lat, dto.lng);
+    // Reverse geocode photo location (skip jika tidak ada GPS — foto dari galeri)
+    const hasGps = dto.lat !== 0 || dto.lng !== 0;
+    const geo = hasGps
+      ? await this.nominatim.reverse(dto.lat, dto.lng)
+      : { address: null, district: null, province: null };
 
-    // Watermark + upload
-    const takenAt = new Date();
+    // Gunakan taken_at dari client jika ada (offline queue), else waktu server
+    const takenAt = dto.taken_at ? new Date(dto.taken_at) : new Date();
+    const source = dto.source ?? 'camera';
+
     const { originalBuffer, watermarkedBuffer, thumbnailBuffer, fileSizeKb } =
       await this.watermark.process({
         imageBuffer: fileBuffer,
         takenAt,
         lat: dto.lat,
         lng: dto.lng,
-        district: geo.district,
-        province: geo.province,
+        district: geo.district ?? '',
+        province: geo.province ?? '',
         locationName: (await this.clientRepo.findOneOrFail({ where: { id: visit.client_id } })).name,
+        source,
       });
 
     const folder = `visits/${visitId}/${dto.phase}`;
@@ -202,12 +208,68 @@ export class VisitsService {
       thumbnail_url: thumbnailUrl,
       caption: dto.caption ?? null,
       taken_at: takenAt,
-      lat: dto.lat,
-      lng: dto.lng,
-      district: geo.district,
-      province: geo.province,
+      lat: hasGps ? dto.lat : null,
+      lng: hasGps ? dto.lng : null,
+      district: geo.district ?? null,
+      province: geo.province ?? null,
       file_size_kb: fileSizeKb,
       photo_requirement_id: dto.requirement_id ?? null,
+      source,
+    });
+
+    return this.photoRepo.save(photo);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // ADD PHOTO — ADMIN (dokumentasi tambahan, tidak perlu visit ongoing)
+  // ────────────────────────────────────────────────────────────────────────────
+  async addAdminPhoto(
+    adminId: string,
+    visitId: string,
+    fileBuffer: Buffer,
+  ): Promise<VisitPhotoEntity> {
+    const visit = await this.visitRepo.findOne({ where: { id: visitId } });
+    if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
+
+    const takenAt = new Date();
+    const client = await this.clientRepo.findOneOrFail({ where: { id: visit.client_id } });
+
+    const { originalBuffer, watermarkedBuffer, thumbnailBuffer, fileSizeKb } =
+      await this.watermark.process({
+        imageBuffer: fileBuffer,
+        takenAt,
+        lat: 0,
+        lng: 0,
+        district: '',
+        province: '',
+        locationName: client.name,
+        source: 'admin',
+      });
+
+    const folder = `visits/${visitId}/extra`;
+    const [originalUrl, watermarkedUrl, thumbnailUrl] = await Promise.all([
+      this.storage.upload(`${folder}/original`, 'jpg', originalBuffer),
+      this.storage.upload(`${folder}/watermarked`, 'jpg', watermarkedBuffer),
+      this.storage.upload(`${folder}/thumbnail`, 'jpg', thumbnailBuffer),
+    ]);
+
+    const seqCount = await this.photoRepo.count({ where: { visit_id: visitId, phase: 'extra' } });
+    const photo = this.photoRepo.create({
+      visit_id: visitId,
+      phase: 'extra',
+      seq_number: seqCount + 1,
+      original_url: originalUrl,
+      watermarked_url: watermarkedUrl,
+      thumbnail_url: thumbnailUrl,
+      caption: null,
+      taken_at: takenAt,
+      lat: null,
+      lng: null,
+      district: null,
+      province: null,
+      file_size_kb: fileSizeKb,
+      photo_requirement_id: null,
+      source: 'admin',
     });
 
     return this.photoRepo.save(photo);

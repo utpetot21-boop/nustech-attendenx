@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsEnum, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class AddPhotoDto {
   @IsEnum(['before', 'during', 'after'])
@@ -21,4 +21,12 @@ export class AddPhotoDto {
   @IsUUID()
   @IsOptional()
   requirement_id?: string;
+
+  @IsEnum(['camera', 'gallery'])
+  @IsOptional()
+  source?: 'camera' | 'gallery';
+
+  @IsISO8601()
+  @IsOptional()
+  taken_at?: string;
 }

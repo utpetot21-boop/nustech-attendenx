@@ -154,6 +154,30 @@ export class VisitsController {
     return this.visitsService.getFormResponses(visitId);
   }
 
+  // POST /visits/:id/photos/admin — upload foto dokumentasi tambahan oleh admin
+  @Post(':id/photos/admin')
+  @RequirePermission('task:assign')
+  @UseInterceptors(
+    FileInterceptor('photo', {
+      limits: { fileSize: 15 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          cb(new Error('Hanya file gambar yang diizinkan.'), false);
+        } else {
+          cb(null, true);
+        }
+      },
+    }),
+  )
+  addAdminPhoto(
+    @CurrentUser('id') adminId: string,
+    @Param('id', ParseUUIDPipe) visitId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new Error('File foto wajib diunggah.');
+    return this.visitsService.addAdminPhoto(adminId, visitId, file.buffer);
+  }
+
   // POST /visits/:id/review — evaluasi kunjungan selesai (admin/manager)
   @Post(':id/review')
   @RequirePermission('task:assign')
