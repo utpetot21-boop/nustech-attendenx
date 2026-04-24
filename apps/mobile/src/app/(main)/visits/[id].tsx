@@ -45,6 +45,14 @@ const PHASE_LABELS: Record<Phase, string> = {
   after: 'Sesudah',
 };
 
+const VISIT_STATUS_META: Record<string, { label: string; color: string; bgLight: string; bgDark: string }> = {
+  ongoing:     { label: 'Berlangsung',    color: '#007AFF', bgLight: '#EFF6FF', bgDark: 'rgba(0,122,255,0.2)'   },
+  completed:   { label: 'Selesai',        color: '#34C759', bgLight: '#F0FDF4', bgDark: 'rgba(52,199,89,0.2)'   },
+  on_hold:     { label: 'Ditunda',        color: '#FF9500', bgLight: '#FFF7ED', bgDark: 'rgba(255,149,0,0.2)'   },
+  rescheduled: { label: 'Dijadwal Ulang', color: '#AF52DE', bgLight: '#F5F3FF', bgDark: 'rgba(175,82,222,0.2)'  },
+  cancelled:   { label: 'Dibatalkan',     color: '#FF3B30', bgLight: '#FEF2F2', bgDark: 'rgba(255,59,48,0.2)'   },
+};
+
 export default function VisitDetailScreen() {
   const { id: visitId } = useLocalSearchParams<{ id: string }>();
   const isDark = useColorScheme() === 'dark';
@@ -76,12 +84,12 @@ export default function VisitDetailScreen() {
   // Queries
   const { data: visit, isLoading } = useQuery({
     queryKey: ['visit', visitId],
-    queryFn: () => visitsService.getDetail(visitId!) as Promise<ReturnType<typeof visitsService.getDetail> extends Promise<infer T> ? T & { template_id?: string | null } : never>,
+    queryFn: () => visitsService.getDetail(visitId!),
     enabled: !!visitId,
     refetchInterval: (query) => (query.state.data?.status === 'ongoing' ? 15000 : false),
   });
 
-  const templateId = (visit as any)?.template_id as string | null | undefined;
+  const templateId = visit?.template_id;
 
   const { data: template } = useQuery<TTemplate>({
     queryKey: ['template', templateId],
@@ -290,6 +298,7 @@ export default function VisitDetailScreen() {
   }
 
   const isOngoing = visit.status === 'ongoing';
+  const visitStatusMeta = VISIT_STATUS_META[visit.status] ?? VISIT_STATUS_META.ongoing;
   const canCheckout =
     isOngoing &&
     photoCounts &&
@@ -365,9 +374,7 @@ export default function VisitDetailScreen() {
               >
                 <View
                   style={{
-                    backgroundColor: isOngoing
-                      ? isDark ? 'rgba(0,122,255,0.2)' : '#EFF6FF'
-                      : isDark ? 'rgba(52,199,89,0.2)' : '#F0FDF4',
+                    backgroundColor: isDark ? visitStatusMeta.bgDark : visitStatusMeta.bgLight,
                     borderRadius: 10,
                     paddingHorizontal: 10,
                     paddingVertical: 4,
@@ -377,10 +384,10 @@ export default function VisitDetailScreen() {
                     style={{
                       fontSize: 12,
                       fontWeight: '600',
-                      color: isOngoing ? '#007AFF' : '#34C759',
+                      color: visitStatusMeta.color,
                     }}
                   >
-                    {isOngoing ? 'Berlangsung' : 'Selesai'}
+                    {visitStatusMeta.label}
                   </Text>
                 </View>
                 <Text
@@ -812,8 +819,8 @@ export default function VisitDetailScreen() {
               </View>
             )}
 
-            {/* Berita Acara button — after visit completed */}
-            {!isOngoing && (
+            {/* Berita Acara button — hanya untuk kunjungan selesai */}
+            {visit.status === 'completed' && (
               <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
                 <TouchableOpacity
                   onPress={() => router.push({ pathname: '/(main)/service-reports', params: { visit_id: visitId } } as Href)}

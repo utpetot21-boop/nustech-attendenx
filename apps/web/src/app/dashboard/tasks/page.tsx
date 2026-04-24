@@ -15,7 +15,7 @@ import { getAuthUser } from '@/lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
-type TaskStatus   = 'unassigned' | 'pending_confirmation' | 'assigned' | 'on_hold' | 'rescheduled' | 'completed' | 'cancelled';
+type TaskStatus   = 'unassigned' | 'pending_confirmation' | 'assigned' | 'in_progress' | 'on_hold' | 'rescheduled' | 'completed' | 'cancelled';
 
 interface Task {
   id: string; title: string; description?: string; type?: string;
@@ -50,20 +50,23 @@ const PRIORITY_MAP: Record<TaskPriority, { label: string; dot: string; bg: strin
 };
 
 const STATUS_MAP: Record<TaskStatus, { label: string; Icon: typeof CircleDot; color: string; bg: string; ring: string }> = {
-  unassigned:           { label: 'Belum Ditugaskan',    Icon: CircleDot,    color: 'text-gray-400',    bg: 'bg-gray-50 dark:bg-white/[0.04]',             ring: 'border-gray-200' },
-  pending_confirmation: { label: 'Menunggu Konfirmasi', Icon: Clock,        color: 'text-[#FF9500]',   bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.12)]', ring: 'border-[#FED7AA]' },
-  assigned:             { label: 'Ditugaskan',          Icon: CheckCircle2, color: 'text-[#007AFF]',   bg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.12)]', ring: 'border-[#BFDBFE]' },
-  on_hold:              { label: 'Ditunda',             Icon: PauseCircle,  color: 'text-[#FF9500]',   bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.12)]', ring: 'border-[#FED7AA]' },
-  rescheduled:          { label: 'Dijadwal Ulang',      Icon: RefreshCw,    color: 'text-[#AF52DE]',   bg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.12)]',ring: 'border-[#DDD6FE]' },
-  completed:            { label: 'Selesai',             Icon: CheckCircle2, color: 'text-[#34C759]',   bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.12)]', ring: 'border-[#BBF7D0]' },
-  cancelled:            { label: 'Dibatalkan',          Icon: Ban,          color: 'text-[#FF3B30]',   bg: 'bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.12)]', ring: 'border-[#FECACA]' },
+  unassigned:           { label: 'Belum Ditugaskan',    Icon: CircleDot,    color: 'text-gray-400',    bg: 'bg-gray-50 dark:bg-white/[0.04]',              ring: 'border-gray-200'  },
+  pending_confirmation: { label: 'Menunggu Konfirmasi', Icon: Clock,        color: 'text-[#FF9500]',   bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.12)]',  ring: 'border-[#FED7AA]' },
+  assigned:             { label: 'Ditugaskan',          Icon: CheckCircle2, color: 'text-[#007AFF]',   bg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.12)]',  ring: 'border-[#BFDBFE]' },
+  in_progress:          { label: 'Dikerjakan',          Icon: Radio,        color: 'text-[#34C759]',   bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.12)]',  ring: 'border-[#BBF7D0]' },
+  on_hold:              { label: 'Ditunda',             Icon: PauseCircle,  color: 'text-[#FF9500]',   bg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.12)]',  ring: 'border-[#FED7AA]' },
+  rescheduled:          { label: 'Dijadwal Ulang',      Icon: RefreshCw,    color: 'text-[#AF52DE]',   bg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.12)]', ring: 'border-[#DDD6FE]' },
+  completed:            { label: 'Selesai',             Icon: CheckCircle2, color: 'text-[#34C759]',   bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.12)]',  ring: 'border-[#BBF7D0]' },
+  cancelled:            { label: 'Dibatalkan',          Icon: Ban,          color: 'text-[#FF3B30]',   bg: 'bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.12)]',  ring: 'border-[#FECACA]' },
 };
 
 const BOARD_COLUMNS: { key: TaskStatus[]; label: string; accent: string; headerBg: string }[] = [
-  { key: ['unassigned'],             label: 'Belum Ditugaskan',    accent: 'border-t-gray-400',   headerBg: 'bg-gray-50 dark:bg-white/[0.03]'              },
-  { key: ['pending_confirmation'],   label: 'Menunggu Konfirmasi', accent: 'border-t-[#FF9500]',  headerBg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.07)]' },
-  { key: ['assigned'],               label: 'Ditugaskan',          accent: 'border-t-[#007AFF]',  headerBg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.07)]' },
-  { key: ['on_hold', 'rescheduled'], label: 'Ditunda / Dijadwal',  accent: 'border-t-[#AF52DE]',  headerBg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.07)]'},
+  { key: ['unassigned'],             label: 'Belum Ditugaskan',    accent: 'border-t-gray-400',   headerBg: 'bg-gray-50 dark:bg-white/[0.03]'               },
+  { key: ['pending_confirmation'],   label: 'Menunggu Konfirmasi', accent: 'border-t-[#FF9500]',  headerBg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.07)]'  },
+  { key: ['assigned'],               label: 'Ditugaskan',          accent: 'border-t-[#007AFF]',  headerBg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.07)]'  },
+  { key: ['in_progress'],            label: 'Dikerjakan',          accent: 'border-t-[#34C759]',  headerBg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.07)]'  },
+  { key: ['on_hold', 'rescheduled'], label: 'Ditunda / Dijadwal',  accent: 'border-t-[#AF52DE]',  headerBg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.07)]' },
+  { key: ['completed'],              label: 'Selesai',             accent: 'border-t-[#34C759]',  headerBg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.07)]'  },
 ];
 
 // ── KanbanCard ─────────────────────────────────────────────────────────────────
@@ -443,6 +446,7 @@ export default function TasksPage() {
               { value: 'unassigned',            label: 'Belum' },
               { value: 'pending_confirmation',  label: 'Menunggu' },
               { value: 'assigned',              label: 'Ditugaskan' },
+              { value: 'in_progress',           label: 'Dikerjakan' },
               { value: 'on_hold',               label: 'Ditunda' },
               { value: 'rescheduled',           label: 'Dijadwal Ulang' },
               { value: 'completed',             label: 'Selesai' },

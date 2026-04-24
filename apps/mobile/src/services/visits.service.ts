@@ -30,7 +30,7 @@ export interface VisitSummary {
   client: { id: string; name: string; pic_name?: string };
   check_in_at: string;
   check_out_at: string | null;
-  status: 'ongoing' | 'completed' | 'on_hold' | 'rescheduled';
+  status: 'ongoing' | 'completed' | 'on_hold' | 'rescheduled' | 'cancelled';
   gps_valid: boolean;
   gps_deviation_meter: number | null;
   duration_minutes: number | null;
@@ -109,6 +109,7 @@ export const visitsService = {
   async getDetail(visitId: string) {
     const res = await api.get(`/visits/${visitId}`);
     return res.data as VisitSummary & {
+      template_id?: string | null;
       check_in_address?: string;
       check_in_district?: string;
       check_in_province?: string;
