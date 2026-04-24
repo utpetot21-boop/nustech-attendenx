@@ -34,9 +34,10 @@ export class ReportsController {
   @Get('attendance/export/excel')
   async attendanceExcel(
     @Query('month') month: string,
+    @Query('dept_id') deptId?: string,
     @Res() res: Response,
   ) {
-    const rows = await this.reports.getAttendanceReport({ month: month ?? this.currentMonth() });
+    const rows = await this.reports.getAttendanceReport({ month: month ?? this.currentMonth(), deptId });
     const buf = this.excel.exportAttendance(rows);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="kehadiran-${month}.xlsx"`);

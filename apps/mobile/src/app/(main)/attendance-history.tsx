@@ -23,6 +23,7 @@ import {
   Hourglass,
   FileX,
   ShieldCheck,
+  Sun,
 } from 'lucide-react-native';
 import { C, R, B, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -122,9 +123,17 @@ function RecordCard({ rec, isDark }: { rec: AttendanceRecord; isDark: boolean })
       {/* Header: date + status */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <View style={{ flex: 1, marginRight: 10 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark) }}>
-            {weekday}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark) }}>
+              {weekday}
+            </Text>
+            {rec.is_holiday_work && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.orange + '18', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                <Sun size={10} strokeWidth={2.2} color={C.orange} />
+                <Text style={{ fontSize: 10, fontWeight: '700', color: C.orange }}>Hari Libur</Text>
+              </View>
+            )}
+          </View>
           <Text style={{ fontSize: 15, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.2 }}>
             {date}
           </Text>

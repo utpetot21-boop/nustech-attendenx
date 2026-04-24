@@ -202,7 +202,7 @@ export default function AttendanceScreen() {
   const [requestEstTime, setRequestEstTime] = useState('');
   const [showHistory, setShowHistory] = useState(false);
 
-  const { verify: verifyBiometric } = useBiometric();
+  const { verify: verifyBiometric, failCount: biometricFailCount } = useBiometric();
 
   // Queries
   const { data: attendance, isLoading: loadingAttendance } = useQuery<AttendanceRecord | null>({
@@ -609,9 +609,27 @@ export default function AttendanceScreen() {
               <Text style={{ fontSize: 18, fontWeight: '600', color: lPrimary(isDark), marginBottom: 6, letterSpacing: -0.3 }}>
                 Face ID / Fingerprint
               </Text>
-              <Text style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280', textAlign: 'center', marginBottom: 28 }}>
+              <Text style={{ fontSize: 15, color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280', textAlign: 'center', marginBottom: biometricFailCount > 0 ? 14 : 28 }}>
                 Verifikasi identitas untuk check-in kantor
               </Text>
+
+              {/* Biometric attempt dots */}
+              {biometricFailCount > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                  {[0, 1, 2].map((i) => (
+                    <View
+                      key={i}
+                      style={{
+                        width: 10, height: 10, borderRadius: 5,
+                        backgroundColor: i < biometricFailCount ? C.red : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+                      }}
+                    />
+                  ))}
+                  <Text style={{ fontSize: 12, color: C.red, fontWeight: '600', marginLeft: 4 }}>
+                    {3 - biometricFailCount} percobaan tersisa
+                  </Text>
+                </View>
+              )}
 
               {/* FAB check-in — hold press */}
               <HoldButton
@@ -1047,6 +1065,48 @@ export default function AttendanceScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* Constraint info */}
+            {requestModalType === 'late_arrival' && lateDeadlineInfo && (
+              <View style={{
+                backgroundColor: lateDeadlineInfo.passed
+                  ? (isDark ? `${C.red}14` : '#FFF1F2')
+                  : (isDark ? `${C.orange}14` : '#FFF7ED'),
+                borderRadius: R.md, borderWidth: B.default,
+                borderColor: lateDeadlineInfo.passed
+                  ? (isDark ? `${C.red}28` : `${C.red}22`)
+                  : (isDark ? `${C.orange}28` : `${C.orange}22`),
+                padding: 10, marginBottom: 14,
+                flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+              }}>
+                <View style={{ marginTop: 1 }}>
+                  <AlarmClock size={14} strokeWidth={2} color={lateDeadlineInfo.passed ? C.red : C.orange} />
+                </View>
+                <Text style={{ flex: 1, fontSize: 12, color: lateDeadlineInfo.passed
+                  ? (isDark ? '#FCA5A5' : '#991B1B')
+                  : (isDark ? '#FCD34D' : '#92400E'), lineHeight: 17 }}>
+                  {lateDeadlineInfo.passed
+                    ? `Batas pengajuan telah lewat (sebelum ${lateDeadlineInfo.deadlineStr} WITA). Permohonan kemungkinan ditolak oleh admin.`
+                    : `Ajukan sebelum pukul ${lateDeadlineInfo.deadlineStr} WITA (15 menit sebelum shift). Permohonan yang masuk tepat waktu lebih mudah disetujui.`}
+                </Text>
+              </View>
+            )}
+            {requestModalType === 'early_departure' && (
+              <View style={{
+                backgroundColor: isDark ? `${C.purple}14` : '#FAF5FF',
+                borderRadius: R.md, borderWidth: B.default,
+                borderColor: isDark ? `${C.purple}28` : `${C.purple}22`,
+                padding: 10, marginBottom: 14,
+                flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+              }}>
+                <View style={{ marginTop: 1 }}>
+                  <LogOut size={14} strokeWidth={2} color={C.purple} />
+                </View>
+                <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#E9D5FF' : '#6B21A8', lineHeight: 17 }}>
+                  Permohonan izin pulang awal perlu disetujui admin sebelum checkout. Pastikan alasan valid dan estimasi waktu diisi.
+                </Text>
+              </View>
+            )}
 
             {/* Alasan */}
             <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark), marginBottom: 8 }}>

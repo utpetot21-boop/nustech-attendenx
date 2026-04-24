@@ -1315,6 +1315,13 @@ export default function AttendancePage() {
   const [search,        setSearch]        = useState('');
   const [showFilters,   setShowFilters]   = useState(false);
   const [correctModal,  setCorrectModal]  = useState<AttendanceRecord | null>(null);
+  const [deptId,        setDeptId]        = useState('');
+
+  const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['departments'],
+    queryFn: () => apiClient.get('/departments').then((r) => r.data),
+    staleTime: 5 * 60_000,
+  });
 
   const { data: pendingCount } = useQuery<{ count: number }>({
     queryKey: ['attendance-requests-pending-count'],
@@ -1347,9 +1354,12 @@ export default function AttendancePage() {
     refetchInterval: 60_000,
   });
 
+  const selectedDeptName = departments.find((d) => d.id === deptId)?.name;
+
   const filtered = records.filter((r) => {
     if (search && !r.user?.full_name?.toLowerCase().includes(search.toLowerCase())) return false;
     if (isDerivedFilter && displayStatus(r) !== statusFilter) return false;
+    if (deptId && selectedDeptName && r.user?.department?.name !== selectedDeptName) return false;
     return true;
   });
 
@@ -1429,7 +1439,7 @@ export default function AttendancePage() {
             ))}
           </div>
           {/* Export */}
-          <a href={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/reports/attendance/export/excel?month=${month}`}
+          <a href={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/reports/attendance/export/excel?month=${month}${deptId ? `&dept_id=${deptId}` : ''}`}
             target="_blank" rel="noreferrer"
             className="h-9 px-3 rounded-xl text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5">
             <Download size={13} /> Export
@@ -1499,8 +1509,15 @@ export default function AttendancePage() {
               className="w-full h-9 pl-8 pr-3 rounded-lg text-[12px] bg-gray-50 dark:bg-white/10 border border-black/[0.07] dark:border-white/12 text-gray-700 dark:text-white placeholder-gray-300 dark:placeholder-white/25 focus:outline-none focus:border-[#007AFF]" />
           </div>
 
-          {/* Status filter + filter toggle */}
+          {/* Status filter + dept filter + filter toggle */}
           <div className="flex gap-2">
+            <select value={deptId} onChange={(e) => setDeptId(e.target.value)}
+              className="h-9 px-2.5 rounded-lg text-[12px] bg-gray-50 dark:bg-white/10 border border-black/[0.07] dark:border-white/12 text-gray-700 dark:text-white focus:outline-none focus:border-[#007AFF] flex-shrink-0">
+              <option value="">Semua Dept</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
               className="h-9 px-2.5 rounded-lg text-[12px] bg-gray-50 dark:bg-white/10 border border-black/[0.07] dark:border-white/12 text-gray-700 dark:text-white focus:outline-none focus:border-[#007AFF] flex-shrink-0">
               <option value="">Semua Status</option>
@@ -1517,7 +1534,7 @@ export default function AttendancePage() {
               <Filter size={12} /> Filter
             </button>
             {/* Export — di sini agar tetap terlihat saat row wrap di viewport medium */}
-            <a href={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/reports/attendance/export/excel?month=${month}`}
+            <a href={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/reports/attendance/export/excel?month=${month}${deptId ? `&dept_id=${deptId}` : ''}`}
               target="_blank" rel="noreferrer"
               className="h-9 px-3 rounded-lg text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5 flex-shrink-0">
               <Download size={13} /> Excel
