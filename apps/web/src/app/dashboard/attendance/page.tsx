@@ -338,6 +338,7 @@ function RecordCard({ r, showDate, onCorrect }: { r: AttendanceRecord; showDate?
           {r.check_out_method && (
             <p className="text-[9px] text-gray-400 dark:text-white/30 mt-0.5">{METHOD_LABEL[r.check_out_method] ?? r.check_out_method}</p>
           )}
+          {r.check_out_at && <div className="mt-1"><GpsBadge valid={r.check_out_gps_valid ?? null} /></div>}
         </div>
       </div>
 
@@ -1624,6 +1625,7 @@ export default function AttendancePage() {
                       {r.check_out_method && (
                         <p className="text-[9px] text-gray-400 dark:text-white/30 mt-0.5">{METHOD_LABEL[r.check_out_method] ?? r.check_out_method}</p>
                       )}
+                      {r.check_out_at && <div className="mt-1"><GpsBadge valid={r.check_out_gps_valid ?? null} /></div>}
                     </td>
                     <td className="px-4 py-3">
                       {r.late_minutes > 0

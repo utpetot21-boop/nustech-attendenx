@@ -4,7 +4,7 @@
  * Jika biometrik gagal 3x → PIN 6 digit fallback
  * Checkout terkunci sampai 8 jam sejak check-in
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -476,6 +476,20 @@ export default function AttendanceScreen() {
   const alreadyCheckedIn = !!attendance?.check_in_at;
   const alreadyCheckedOut = !!attendance?.check_out_at;
 
+  // Hitung deadline pengajuan izin terlambat (15 menit sebelum shift)
+  const lateDeadlineInfo = useMemo(() => {
+    if (alreadyCheckedIn) return null;
+    const shiftStart = attendance?.shift_start ?? todaySchedule?.start_time ?? null;
+    if (!shiftStart) return null;
+    const [h, m] = shiftStart.split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    const deadline = new Date();
+    deadline.setHours(h, m - 15, 0, 0);
+    const passed = new Date() > deadline;
+    const deadlineStr = deadline.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Makassar' });
+    return { passed, deadlineStr };
+  }, [attendance, todaySchedule, alreadyCheckedIn]);
+
   return (
     <View style={{ flex: 1 }}>
       {/* Background */}
@@ -711,6 +725,17 @@ export default function AttendanceScreen() {
             request={lateRequest}
             disabled={alreadyCheckedIn}
             onPress={() => {
+              if (lateDeadlineInfo?.passed) {
+                Alert.alert(
+                  'Batas Waktu Terlewat',
+                  `Izin terlambat hanya bisa diajukan sebelum pukul ${lateDeadlineInfo.deadlineStr} (15 menit sebelum shift). Pengajuan sekarang kemungkinan akan ditolak.`,
+                  [
+                    { text: 'Batal', style: 'cancel' },
+                    { text: 'Tetap Ajukan', onPress: () => { setRequestModalType('late_arrival'); setRequestReason(''); setRequestEstTime(''); setShowRequestModal(true); } },
+                  ],
+                );
+                return;
+              }
               setRequestModalType('late_arrival');
               setRequestReason('');
               setRequestEstTime('');
@@ -718,6 +743,17 @@ export default function AttendanceScreen() {
             }}
             isDark={isDark}
           />
+          {/* Hint deadline — tampil hanya jika belum check-in dan ada jadwal */}
+          {!alreadyCheckedIn && lateDeadlineInfo && !lateRequest && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5, paddingHorizontal: 4 }}>
+              <AlarmClock size={11} strokeWidth={2} color={lateDeadlineInfo.passed ? C.red : lTertiary(isDark)} />
+              <Text style={{ fontSize: 11, color: lateDeadlineInfo.passed ? C.red : lTertiary(isDark), fontWeight: lateDeadlineInfo.passed ? '700' : '400' }}>
+                {lateDeadlineInfo.passed
+                  ? `Batas pengajuan terlewat (sebelum ${lateDeadlineInfo.deadlineStr})`
+                  : `Ajukan sebelum pukul ${lateDeadlineInfo.deadlineStr} WITA`}
+              </Text>
+            </View>
+          )}
 
           {/* Card: Izin Pulang Awal */}
           <View style={{ marginTop: 8 }}>

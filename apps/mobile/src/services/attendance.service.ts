@@ -21,6 +21,9 @@ export interface AttendanceRecord {
   overtime_minutes: number;
   is_holiday_work: boolean;
   gps_valid?: boolean | null;
+  check_out_gps_valid?: boolean | null;
+  late_approved?: boolean;
+  early_departure_approved?: boolean;
 }
 
 export interface CheckoutInfo {

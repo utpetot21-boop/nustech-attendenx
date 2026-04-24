@@ -22,6 +22,7 @@ import {
   AlarmClock,
   Hourglass,
   FileX,
+  ShieldCheck,
 } from 'lucide-react-native';
 import { C, R, B, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -96,8 +97,16 @@ function getMonthOptions(count = 6) {
 
 function RecordCard({ rec, isDark }: { rec: AttendanceRecord; isDark: boolean }) {
   const { weekday, date } = fmtDayDate(rec.date);
-  const statusColor = STATUS_COLOR[rec.status] ?? C.orange;
-  const statusLabel = STATUS_LABEL[rec.status] ?? rec.status;
+  // Tampilkan status izin jika ada flag persetujuan
+  const effectiveStatus = rec.late_approved ? 'izin_terlambat'
+    : rec.early_departure_approved ? 'izin_pulang_awal'
+    : rec.status;
+  const statusColor = effectiveStatus === 'izin_terlambat' ? C.indigo
+    : effectiveStatus === 'izin_pulang_awal' ? C.teal
+    : STATUS_COLOR[rec.status] ?? C.orange;
+  const statusLabel = effectiveStatus === 'izin_terlambat' ? 'Izin Terlambat'
+    : effectiveStatus === 'izin_pulang_awal' ? 'Izin Pulang Awal'
+    : STATUS_LABEL[rec.status] ?? rec.status;
 
   return (
     <View
@@ -192,10 +201,16 @@ function RecordCard({ rec, isDark }: { rec: AttendanceRecord; isDark: boolean })
           )}
           {rec.late_minutes > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <AlarmClock size={11} strokeWidth={2} color={C.orange} />
-              <Text style={{ fontSize: 11, color: C.orange, fontWeight: '700' }}>
-                Terlambat {rec.late_minutes}m
+              <AlarmClock size={11} strokeWidth={2} color={rec.late_approved ? C.indigo : C.orange} />
+              <Text style={{ fontSize: 11, color: rec.late_approved ? C.indigo : C.orange, fontWeight: '700' }}>
+                {rec.late_approved ? `Izin terlambat ${rec.late_minutes}m` : `Terlambat ${rec.late_minutes}m`}
               </Text>
+            </View>
+          )}
+          {rec.early_departure_approved && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <ShieldCheck size={11} strokeWidth={2} color={C.teal} />
+              <Text style={{ fontSize: 11, color: C.teal, fontWeight: '700' }}>Izin pulang awal</Text>
             </View>
           )}
           {rec.overtime_minutes > 0 && (
