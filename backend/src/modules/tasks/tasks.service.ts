@@ -348,6 +348,10 @@ export class TasksService {
   async holdTask(taskId: string, userId: string, dto: HoldTaskDto): Promise<TaskHoldEntity> {
     const task = await this.findOne(taskId);
 
+    if (task.assigned_to !== userId) {
+      throw new ForbiddenException('Hanya pemegang tugas yang dapat mengajukan penundaan.');
+    }
+
     if (!['assigned', 'pending_confirmation', 'in_progress'].includes(task.status)) {
       throw new BadRequestException('Tugas tidak dalam status aktif untuk di-hold.');
     }
@@ -451,6 +455,7 @@ export class TasksService {
       data: { task_id: taskId },
     }).catch(() => null);
 
+    this.realtime?.emitTaskUpdated(taskId, { status: 'rescheduled' });
     return this.holdRepo.findOneOrFail({ where: { id: holdId } });
   }
 
@@ -488,6 +493,7 @@ export class TasksService {
       data: { task_id: taskId },
     }).catch(() => null);
 
+    this.realtime?.emitTaskUpdated(taskId, { status: 'assigned' });
     return this.holdRepo.findOneOrFail({ where: { id: holdId } });
   }
 

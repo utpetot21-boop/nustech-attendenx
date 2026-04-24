@@ -313,6 +313,10 @@ export default function VisitDetailScreen() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['task-detail'] });
       setShowCheckoutForm(false);
+      setWorkDescription('');
+      setFindings('');
+      setRecommendations('');
+      setMaterials([]);
       Alert.alert('Kunjungan Selesai', 'Laporan telah tersimpan.', [
         { text: 'OK', onPress: () => router.back() },
       ]);

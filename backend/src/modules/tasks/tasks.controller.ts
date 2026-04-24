@@ -163,6 +163,8 @@ export class TasksController {
 
   // ── ACCEPT / REJECT ──────────────────────────────────────────────────────────
   @Post(':id/accept')
+  @UseGuards(RolesGuard)
+  @RequirePermission('task:own')
   accept(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
@@ -171,6 +173,8 @@ export class TasksController {
   }
 
   @Post(':id/reject')
+  @UseGuards(RolesGuard)
+  @RequirePermission('task:own')
   reject(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
@@ -181,6 +185,8 @@ export class TasksController {
 
   // ── HANDOVER (delegasi darurat — immediate, no approval) ─────────────────────
   @Post(':id/handover')
+  @UseGuards(RolesGuard)
+  @RequirePermission('task:own')
   handover(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
@@ -191,6 +197,8 @@ export class TasksController {
 
   // ── DELEGATE ─────────────────────────────────────────────────────────────────
   @Post(':id/delegate')
+  @UseGuards(RolesGuard)
+  @RequirePermission('task:own')
   delegate(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
@@ -201,6 +209,8 @@ export class TasksController {
 
   // ── SWAP REQUEST ─────────────────────────────────────────────────────────────
   @Post(':id/swap-request')
+  @UseGuards(RolesGuard)
+  @RequirePermission('task:own')
   swapRequest(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,
@@ -211,6 +221,8 @@ export class TasksController {
 
   // ── ON HOLD ──────────────────────────────────────────────────────────────────
   @Post(':id/hold')
+  @UseGuards(RolesGuard)
+  @RequirePermission('task:own')
   holdTask(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') userId: string,

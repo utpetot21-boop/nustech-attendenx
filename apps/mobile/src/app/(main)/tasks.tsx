@@ -19,7 +19,9 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Toast } from '@/components/ui/Toast';
 import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'expo-router';
@@ -34,6 +36,9 @@ import {
   ClipboardList,
   Search,
   User,
+  Camera,
+  ImagePlus,
+  X as XIcon,
 } from 'lucide-react-native';
 import { C, R, B, T, S, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { FilterChips } from '@/components/ui/FilterChips';
@@ -62,6 +67,7 @@ const HOLD_REASONS = [
 
 const STATUS_FILTERS = [
   { label: 'Semua',          value: undefined               },
+  { label: 'Belum Diambil',  value: 'unassigned'            },
   { label: 'Menunggu',       value: 'pending_confirmation'  },
   { label: 'Ditugaskan',     value: 'assigned'              },
   { label: 'Dikerjakan',     value: 'in_progress'           },
@@ -106,6 +112,9 @@ export default function TasksScreen() {
   const [rejectReason, setRejectReason] = useState('');
   const [holdReasonType, setHoldReasonType] = useState('client_absent');
   const [holdNotes, setHoldNotes] = useState('');
+  const [holdEvidenceUris, setHoldEvidenceUris] = useState<string[]>([]);
+  const [holdEvidenceUrls, setHoldEvidenceUrls] = useState<string[]>([]);
+  const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [delegateEmployee, setDelegateEmployee] = useState<EmployeeOption | null>(null);
   const [delegateSearch, setDelegateSearch] = useState('');
   const [delegatePickerOpen, setDelegatePickerOpen] = useState(false);
@@ -161,6 +170,8 @@ export default function TasksScreen() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setShowHoldModal(false);
       setHoldNotes('');
+      setHoldEvidenceUris([]);
+      setHoldEvidenceUrls([]);
       toastWarning('Permintaan penundaan dikirim ke manajer.');
     },
     onError: (err: Error) => {
@@ -209,6 +220,10 @@ export default function TasksScreen() {
 
   const handleHoldOpen = (task: TaskSummary) => {
     setSelectedTask(task);
+    setHoldReasonType('client_absent');
+    setHoldNotes('');
+    setHoldEvidenceUris([]);
+    setHoldEvidenceUrls([]);
     setShowHoldModal(true);
   };
 
@@ -746,13 +761,81 @@ export default function TasksScreen() {
                 }}
               />
 
-              <Text style={{ fontSize: 12, color: lTertiary(isDark), marginBottom: 12 }}>
-                ℹ Foto bukti perlu diupload via halaman detail kunjungan (min 1, max 5).
+              {/* Foto Bukti */}
+              <Text style={{ fontSize: 12, fontWeight: '700', color: lTertiary(isDark), textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                Foto Bukti <Text style={{ fontWeight: '400', textTransform: 'none' }}>(opsional, maks. 3)</Text>
               </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                <TouchableOpacity
+                  disabled={holdEvidenceUris.length >= 3 || evidenceUploading}
+                  onPress={async () => {
+                    const perm = await ImagePicker.requestCameraPermissionsAsync();
+                    if (!perm.granted) { Alert.alert('Izin Diperlukan', 'Akses kamera diperlukan.'); return; }
+                    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.75 });
+                    if (result.canceled || !result.assets[0]) return;
+                    const uri = result.assets[0].uri;
+                    setEvidenceUploading(true);
+                    try {
+                      const url = await tasksService.uploadEvidence(uri);
+                      setHoldEvidenceUris((p) => [...p, uri]);
+                      setHoldEvidenceUrls((p) => [...p, url]);
+                    } catch { Alert.alert('Gagal Upload', 'Foto tidak bisa diunggah. Coba lagi.'); }
+                    finally { setEvidenceUploading(false); }
+                  }}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6', opacity: holdEvidenceUris.length >= 3 ? 0.4 : 1 }}
+                >
+                  <Camera size={15} strokeWidth={2} color={lSecondary(isDark)} />
+                  <Text style={{ fontSize: 13, color: lPrimary(isDark), fontWeight: '600' }}>Kamera</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={holdEvidenceUris.length >= 3 || evidenceUploading}
+                  onPress={async () => {
+                    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (!perm.granted) { Alert.alert('Izin Diperlukan', 'Akses galeri diperlukan.'); return; }
+                    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75 });
+                    if (result.canceled || !result.assets[0]) return;
+                    const uri = result.assets[0].uri;
+                    setEvidenceUploading(true);
+                    try {
+                      const url = await tasksService.uploadEvidence(uri);
+                      setHoldEvidenceUris((p) => [...p, uri]);
+                      setHoldEvidenceUrls((p) => [...p, url]);
+                    } catch { Alert.alert('Gagal Upload', 'Foto tidak bisa diunggah. Coba lagi.'); }
+                    finally { setEvidenceUploading(false); }
+                  }}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6', opacity: holdEvidenceUris.length >= 3 ? 0.4 : 1 }}
+                >
+                  <ImagePlus size={15} strokeWidth={2} color={lSecondary(isDark)} />
+                  <Text style={{ fontSize: 13, color: lPrimary(isDark), fontWeight: '600' }}>Galeri</Text>
+                </TouchableOpacity>
+                {evidenceUploading && <ActivityIndicator color={C.orange} style={{ marginLeft: 4 }} />}
+              </View>
+              {holdEvidenceUris.length > 0 && (
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                  {holdEvidenceUris.map((uri, idx) => (
+                    <View key={idx} style={{ position: 'relative' }}>
+                      <Image source={{ uri }} style={{ width: 68, height: 68, borderRadius: 10 }} />
+                      <TouchableOpacity
+                        onPress={() => {
+                          setHoldEvidenceUris((p) => p.filter((_, i) => i !== idx));
+                          setHoldEvidenceUrls((p) => p.filter((_, i) => i !== idx));
+                        }}
+                        style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <XIcon size={11} strokeWidth={2.5} color="#FFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity
-                  onPress={() => setShowHoldModal(false)}
+                  onPress={() => {
+                    setShowHoldModal(false);
+                    setHoldEvidenceUris([]);
+                    setHoldEvidenceUrls([]);
+                  }}
                   style={{
                     flex: 1,
                     padding: 14,
@@ -773,10 +856,10 @@ export default function TasksScreen() {
                       id: selectedTask.id,
                       reason_type: holdReasonType,
                       reason_notes: holdNotes.trim(),
-                      evidence_urls: [], // user uploads via visit detail page
+                      evidence_urls: holdEvidenceUrls,
                     });
                   }}
-                  disabled={holdMutation.isPending || !holdNotes.trim()}
+                  disabled={holdMutation.isPending || !holdNotes.trim() || evidenceUploading}
                   style={{
                     flex: 1,
                     padding: 14,
