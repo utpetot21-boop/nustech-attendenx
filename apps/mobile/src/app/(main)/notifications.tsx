@@ -115,6 +115,10 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   expense_claim_approved:          '/(main)/expense-claims',
   expense_claim_rejected:          '/(main)/expense-claims',
   expense_claim_paid:              '/(main)/expense-claims',
+  // FYI — informasi hasil review untuk manager/admin/super_admin
+  leave_fyi:                       '/(main)/notifications',
+  attendance_request_fyi:          '/(main)/attendance-requests-admin',
+  expense_claim_fyi:               '/(main)/expense-claims',
   // Tugas
   task_assigned:                   '/(main)/tasks',
   task_accepted:                   '/(main)/tasks',
@@ -296,6 +300,10 @@ export default function NotificationsScreen() {
     expense_claim_approved:    { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
     expense_claim_rejected:    { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
     expense_claim_paid:        { Icon: Wallet,         color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    // FYI — informasi hasil review untuk manager/admin/super_admin
+    leave_fyi:                 { Icon: Info,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
+    attendance_request_fyi:    { Icon: Info,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
+    expense_claim_fyi:         { Icon: Info,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
     // Berita Acara
     ba_generated:              { Icon: FileText,       color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#ECFEFF' },
     default:                   { Icon: Bell,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },

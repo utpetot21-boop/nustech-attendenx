@@ -146,16 +146,10 @@ export class LeaveService {
 
     const saved = await this.requestRepo.save(request);
 
-    // Notifikasi ke semua approver (can_approve=true), kecuali pemohon sendiri
+    // Notifikasi ke Direktur (jabatan DIREKTUR) saja, kecuali pemohon sendiri
     try {
       const requester = await this.userRepo.findOne({ where: { id: userId } });
-      const approvers = await this.userRepo.find({
-        where: { is_active: true },
-        relations: ['role'],
-      });
-      const approverIds = approvers
-        .filter((u) => u.role?.can_approve && u.id !== userId)
-        .map((u) => u.id);
+      const approverIds = await this.notifService.getApproversByPosition('DIREKTUR', userId);
       this.logger.log(
         `[leave_request] saved=${saved.id} requester=${userId} approvers=${approverIds.length}`,
       );
@@ -168,7 +162,7 @@ export class LeaveService {
           `${requester?.full_name ?? 'Karyawan'} mengajukan ${typeLabel} ${dto.start_date === dto.end_date ? dto.start_date : `${dto.start_date} s/d ${dto.end_date}`}`,
           { leave_request_id: saved.id },
         );
-        this.logger.log(`[leave_request] notif terkirim ke ${approverIds.length} approver`);
+        this.logger.log(`[leave_request] notif terkirim ke ${approverIds.length} direktur`);
       }
     } catch (err) {
       this.logger.error(`[leave_request] notif gagal: ${err}`);
@@ -238,13 +232,33 @@ export class LeaveService {
 
     const approved = await this.findRequest(requestId);
     const typeLabel = LEAVE_TYPE_LABEL[approved.type] ?? approved.type;
-    this.notifService
-      .send({
-        userId: approved.user_id,
-        type: 'leave_approved',
-        title: `${typeLabel} Disetujui`,
-        body: `Pengajuan ${typeLabel} Anda ${approved.start_date === approved.end_date ? approved.start_date : `${approved.start_date} s/d ${approved.end_date}`} telah disetujui.`,
-        data: { leave_request_id: approved.id },
+    const approverUser = await this.userRepo.findOne({ where: { id: managerId }, select: { id: true, full_name: true } });
+    const approverName = approverUser?.full_name ?? 'Direktur';
+    const requesterName = approved.user?.full_name ?? 'Karyawan';
+    const dateRange = approved.start_date === approved.end_date
+      ? approved.start_date
+      : `${approved.start_date} s/d ${approved.end_date}`;
+
+    // Notif ke pemohon
+    this.notifService.send({
+      userId: approved.user_id,
+      type: 'leave_approved',
+      title: `${typeLabel} Disetujui`,
+      body: `Pengajuan ${typeLabel} Anda ${dateRange} telah disetujui.`,
+      data: { leave_request_id: approved.id },
+    }).catch(() => null);
+
+    // FYI ke manager/admin/super_admin (kecuali approver & pemohon)
+    this.notifService.getFyiViewerIds([managerId, approved.user_id])
+      .then((viewerIds) => {
+        if (viewerIds.length === 0) return;
+        return this.notifService.sendMany(
+          viewerIds,
+          'leave_fyi',
+          `${typeLabel} Disetujui`,
+          `${approverName} menyetujui ${typeLabel.toLowerCase()} ${requesterName} (${dateRange}).`,
+          { leave_request_id: approved.id },
+        );
       })
       .catch(() => null);
 
@@ -269,13 +283,33 @@ export class LeaveService {
 
     const rejected = await this.findRequest(requestId);
     const typeLabel = LEAVE_TYPE_LABEL[rejected.type] ?? rejected.type;
-    this.notifService
-      .send({
-        userId: rejected.user_id,
-        type: 'leave_rejected',
-        title: `${typeLabel} Ditolak`,
-        body: `Pengajuan ${typeLabel} Anda ${rejected.start_date === rejected.end_date ? rejected.start_date : `${rejected.start_date} s/d ${rejected.end_date}`} ditolak. Alasan: ${dto.reason}`,
-        data: { leave_request_id: rejected.id },
+    const approverUser = await this.userRepo.findOne({ where: { id: managerId }, select: { id: true, full_name: true } });
+    const approverName = approverUser?.full_name ?? 'Direktur';
+    const requesterName = rejected.user?.full_name ?? 'Karyawan';
+    const dateRange = rejected.start_date === rejected.end_date
+      ? rejected.start_date
+      : `${rejected.start_date} s/d ${rejected.end_date}`;
+
+    // Notif ke pemohon
+    this.notifService.send({
+      userId: rejected.user_id,
+      type: 'leave_rejected',
+      title: `${typeLabel} Ditolak`,
+      body: `Pengajuan ${typeLabel} Anda ${dateRange} ditolak. Alasan: ${dto.reason}`,
+      data: { leave_request_id: rejected.id },
+    }).catch(() => null);
+
+    // FYI ke manager/admin/super_admin (kecuali approver & pemohon)
+    this.notifService.getFyiViewerIds([managerId, rejected.user_id])
+      .then((viewerIds) => {
+        if (viewerIds.length === 0) return;
+        return this.notifService.sendMany(
+          viewerIds,
+          'leave_fyi',
+          `${typeLabel} Ditolak`,
+          `${approverName} menolak ${typeLabel.toLowerCase()} ${requesterName} (${dateRange}).`,
+          { leave_request_id: rejected.id },
+        );
       })
       .catch(() => null);
 

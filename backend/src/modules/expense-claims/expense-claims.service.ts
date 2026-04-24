@@ -83,16 +83,10 @@ export class ExpenseClaimsService {
     const number = await this.generateClaimNumber(saved.id);
     saved.claim_number = number;
 
-    // Notifikasi ke semua approver (role.can_approve=true), kecuali pemohon sendiri
+    // Notifikasi ke Accounting (jabatan ACCOUNTING) saja, kecuali pemohon sendiri
     try {
       const requester = await this.userRepo.findOne({ where: { id: userId } });
-      const approvers = await this.userRepo.find({
-        where: { is_active: true },
-        relations: ['role'],
-      });
-      const approverIds = approvers
-        .filter((u) => u.role?.can_approve && u.id !== userId)
-        .map((u) => u.id);
+      const approverIds = await this.notifications.getApproversByPosition('ACCOUNTING', userId);
 
       if (approverIds.length > 0) {
         const catLabel = CATEGORY_LABEL[dto.category] ?? dto.category;
@@ -104,7 +98,7 @@ export class ExpenseClaimsService {
           { expense_claim_id: saved.id, category: dto.category },
         );
         this.logger.log(
-          `[expense_claim_submitted] saved=${saved.id} requester=${userId} approvers=${approverIds.length}`,
+          `[expense_claim_submitted] saved=${saved.id} requester=${userId} accounting=${approverIds.length}`,
         );
       }
     } catch (err) {
@@ -215,11 +209,15 @@ export class ExpenseClaimsService {
     claim.reviewed_at = new Date();
     const saved = await this.claimRepo.save(claim);
 
-    // Notifikasi ke pemohon
+    // Notifikasi ke pemohon + FYI ke manager/admin/super_admin
     try {
       const catLabel = CATEGORY_LABEL[saved.category] ?? saved.category;
       const claimNumber = saved.claim_number ?? '';
       const amountStr = `Rp ${Number(saved.amount).toLocaleString('id-ID')}`;
+      const reviewerUser = await this.userRepo.findOne({ where: { id: reviewerId }, select: { id: true, full_name: true } });
+      const reviewerName = reviewerUser?.full_name ?? 'Accounting';
+      const requesterUser = await this.userRepo.findOne({ where: { id: saved.user_id }, select: { id: true, full_name: true } });
+      const requesterName = requesterUser?.full_name ?? 'Karyawan';
 
       if (dto.action === ReviewAction.APPROVE) {
         await this.notifications.send({
@@ -229,6 +227,15 @@ export class ExpenseClaimsService {
           body: `Klaim ${catLabel} ${claimNumber} (${amountStr}) telah disetujui.`,
           data: { expense_claim_id: saved.id, category: saved.category },
         });
+        this.notifications.getFyiViewerIds([reviewerId, saved.user_id])
+          .then((viewerIds) => {
+            if (viewerIds.length === 0) return;
+            return this.notifications.sendMany(
+              viewerIds, 'expense_claim_fyi', 'Klaim Biaya Disetujui',
+              `${reviewerName} menyetujui klaim ${catLabel} ${requesterName} (${amountStr}).`,
+              { expense_claim_id: saved.id, category: saved.category },
+            );
+          }).catch(() => null);
       } else if (dto.action === ReviewAction.REJECT) {
         await this.notifications.send({
           userId: saved.user_id,
@@ -239,6 +246,15 @@ export class ExpenseClaimsService {
             : `Klaim ${catLabel} ${claimNumber} ditolak.`,
           data: { expense_claim_id: saved.id, category: saved.category },
         });
+        this.notifications.getFyiViewerIds([reviewerId, saved.user_id])
+          .then((viewerIds) => {
+            if (viewerIds.length === 0) return;
+            return this.notifications.sendMany(
+              viewerIds, 'expense_claim_fyi', 'Klaim Biaya Ditolak',
+              `${reviewerName} menolak klaim ${catLabel} ${requesterName} (${amountStr}).`,
+              { expense_claim_id: saved.id, category: saved.category },
+            );
+          }).catch(() => null);
       } else if (dto.action === ReviewAction.PAID) {
         await this.notifications.send({
           userId: saved.user_id,
@@ -247,6 +263,15 @@ export class ExpenseClaimsService {
           body: `Klaim ${catLabel} ${claimNumber} (${amountStr}) telah dibayarkan.`,
           data: { expense_claim_id: saved.id, category: saved.category },
         });
+        this.notifications.getFyiViewerIds([reviewerId, saved.user_id])
+          .then((viewerIds) => {
+            if (viewerIds.length === 0) return;
+            return this.notifications.sendMany(
+              viewerIds, 'expense_claim_fyi', 'Klaim Biaya Dibayarkan',
+              `${reviewerName} membayarkan klaim ${catLabel} ${requesterName} (${amountStr}).`,
+              { expense_claim_id: saved.id, category: saved.category },
+            );
+          }).catch(() => null);
       }
     } catch (err) {
       this.logger.error(`[expense_claim_review] notif gagal: ${err}`);

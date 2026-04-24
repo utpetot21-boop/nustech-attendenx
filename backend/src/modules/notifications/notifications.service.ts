@@ -151,12 +151,41 @@ export class NotificationsService {
     });
   }
 
+  // ── Helpers untuk targeting notif berdasarkan jabatan / role ─────────────────
+
+  /** Kembalikan user IDs yang memiliki jabatan (position.name) tertentu. */
+  async getApproversByPosition(positionName: string, excludeUserId?: string): Promise<string[]> {
+    const users = await this.userRepo
+      .createQueryBuilder('u')
+      .innerJoin('u.position', 'p')
+      .where('UPPER(p.name) = :name', { name: positionName.toUpperCase() })
+      .andWhere('u.is_active = true')
+      .select('u.id')
+      .getMany();
+    return users.map((u) => u.id).filter((id) => id !== excludeUserId);
+  }
+
+  /** Kembalikan user IDs dari role manager/admin/super_admin untuk notif FYI, kecuali excludeIds. */
+  async getFyiViewerIds(excludeIds: string[]): Promise<string[]> {
+    const users = await this.userRepo
+      .createQueryBuilder('u')
+      .innerJoin('u.role', 'r')
+      .where('r.name IN (:...roles)', { roles: ['manager', 'admin', 'super_admin'] })
+      .andWhere('u.is_active = true')
+      .select('u.id')
+      .getMany();
+    const excluded = new Set(excludeIds.filter(Boolean));
+    return users.map((u) => u.id).filter((id) => !excluded.has(id));
+  }
+
   private autoChannels(type: string): ('push' | 'whatsapp' | 'email')[] {
     const critical = ['task_assigned', 'alfa_detected', 'task_hold_submitted', 'sos'];
     const push = [
       'leave_approved', 'leave_rejected', 'delegation_request', 'ba_generated',
       'attendance_request_submitted', 'attendance_request_approved', 'attendance_request_rejected',
       'expense_claim_submitted', 'expense_claim_approved', 'expense_claim_rejected', 'expense_claim_paid',
+      // FYI ke manager/admin/super_admin setelah review
+      'leave_fyi', 'attendance_request_fyi', 'expense_claim_fyi',
     ];
     if (critical.includes(type)) return ['push', 'whatsapp'];
     if (push.includes(type)) return ['push'];

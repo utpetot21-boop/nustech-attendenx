@@ -78,6 +78,10 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   expense_claim_approved:          '/(main)/expense-claims',
   expense_claim_rejected:          '/(main)/expense-claims',
   expense_claim_paid:              '/(main)/expense-claims',
+  // FYI — informasi hasil review untuk manager/admin/super_admin
+  leave_fyi:                       '/(main)/notifications',
+  attendance_request_fyi:          '/(main)/attendance-requests-admin',
+  expense_claim_fyi:               '/(main)/expense-claims',
   // Pengumuman
   announcement_approved:           ANN_TAB,
   announcement_rejected:           ANN_TAB,

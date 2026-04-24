@@ -110,16 +110,10 @@ export class AttendanceRequestsService {
 
     const saved = await this.requestRepo.save(request);
 
-    // Notifikasi ke semua approver (role.can_approve=true), kecuali pemohon sendiri
+    // Notifikasi ke Direktur (jabatan DIREKTUR) saja, kecuali pemohon sendiri
     try {
       const requester = await this.userRepo.findOne({ where: { id: userId } });
-      const approvers = await this.userRepo.find({
-        where: { is_active: true },
-        relations: ['role'],
-      });
-      const approverIds = approvers
-        .filter((u) => u.role?.can_approve && u.id !== userId)
-        .map((u) => u.id);
+      const approverIds = await this.notificationsService.getApproversByPosition('DIREKTUR', userId);
 
       if (approverIds.length > 0) {
         const label = dto.type === 'late_arrival' ? 'Izin Terlambat' : 'Izin Pulang Awal';
@@ -131,7 +125,7 @@ export class AttendanceRequestsService {
           { attendance_request_id: saved.id, type: dto.type },
         );
         this.logger.log(
-          `[attendance_request_submitted] saved=${saved.id} requester=${userId} approvers=${approverIds.length}`,
+          `[attendance_request_submitted] saved=${saved.id} requester=${userId} direktur=${approverIds.length}`,
         );
       }
     } catch (err) {
@@ -180,6 +174,23 @@ export class AttendanceRequestsService {
       body: `Permohonan ${label.toLowerCase()} Anda untuk hari ini telah disetujui.`,
     });
 
+    // FYI ke manager/admin/super_admin
+    const approverUser = await this.userRepo.findOne({ where: { id: adminId }, select: { id: true, full_name: true } });
+    const approverName = approverUser?.full_name ?? 'Direktur';
+    const requesterName = request.user?.full_name ?? 'Karyawan';
+    this.notificationsService.getFyiViewerIds([adminId, request.user_id])
+      .then((viewerIds) => {
+        if (viewerIds.length === 0) return;
+        return this.notificationsService.sendMany(
+          viewerIds,
+          'attendance_request_fyi',
+          `${label} Disetujui`,
+          `${approverName} menyetujui ${label.toLowerCase()} ${requesterName}.`,
+          { attendance_request_id: id, type: request.type },
+        );
+      })
+      .catch(() => null);
+
     return this.requestRepo.findOne({ where: { id }, relations: ['user', 'reviewer'] }) as Promise<AttendanceRequestEntity>;
   }
 
@@ -210,6 +221,23 @@ export class AttendanceRequestsService {
         ? `Permohonan ${label.toLowerCase()} Anda ditolak. Alasan: ${dto.reviewer_note}`
         : `Permohonan ${label.toLowerCase()} Anda ditolak.`,
     });
+
+    // FYI ke manager/admin/super_admin
+    const approverUser = await this.userRepo.findOne({ where: { id: adminId }, select: { id: true, full_name: true } });
+    const approverName = approverUser?.full_name ?? 'Direktur';
+    const requesterName = request.user?.full_name ?? 'Karyawan';
+    this.notificationsService.getFyiViewerIds([adminId, request.user_id])
+      .then((viewerIds) => {
+        if (viewerIds.length === 0) return;
+        return this.notificationsService.sendMany(
+          viewerIds,
+          'attendance_request_fyi',
+          `${label} Ditolak`,
+          `${approverName} menolak ${label.toLowerCase()} ${requesterName}.`,
+          { attendance_request_id: id, type: request.type },
+        );
+      })
+      .catch(() => null);
 
     return this.requestRepo.findOne({ where: { id }, relations: ['user', 'reviewer'] }) as Promise<AttendanceRequestEntity>;
   }
