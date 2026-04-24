@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from 'react';
 import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
 import {
   AlertTriangle, ArrowDownCircle, MinusCircle, ArrowUpCircle,
@@ -9,6 +10,21 @@ import type { TaskSummary } from '@/services/tasks.service';
 import { ConfirmCountdown } from './ConfirmCountdown';
 import MiniMap from './MiniMap';
 import NavigationButton from './NavigationButton';
+
+class MapErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (this.state.failed) {
+      return (
+        <View style={{ height: 120, borderRadius: 12, backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#9CA3AF', fontSize: 12 }}>Peta tidak tersedia</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface Props {
   task: TaskSummary;
@@ -163,13 +179,15 @@ export function TaskCard({ task, onPress, userLat, userLng }: Props) {
       {/* MiniMap + Navigation */}
       {task.client?.lat && task.client?.lng && userLat && userLng && (
         <View style={{ marginTop: 12 }}>
-          <MiniMap
-            originLat={userLat}
-            originLng={userLng}
-            destLat={Number(task.client.lat)}
-            destLng={Number(task.client.lng)}
-            height={120}
-          />
+          <MapErrorBoundary>
+            <MiniMap
+              originLat={userLat}
+              originLng={userLng}
+              destLat={Number(task.client.lat)}
+              destLng={Number(task.client.lng)}
+              height={120}
+            />
+          </MapErrorBoundary>
           <View style={{ marginTop: 8 }}>
             <NavigationButton
               lat={Number(task.client.lat)}
