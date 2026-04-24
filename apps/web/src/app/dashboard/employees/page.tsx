@@ -282,7 +282,7 @@ export default function EmployeesPage() {
         </div>
 
         {/* ── Stat cards ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           {[
             { label: 'Total',    value: users.length,  Icon: Users,      bg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)]',    color: 'text-[#007AFF]'  },
             { label: 'Aktif',    value: totalActive,   Icon: BadgeCheck,  bg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.15)]',    color: 'text-[#34C759]'  },

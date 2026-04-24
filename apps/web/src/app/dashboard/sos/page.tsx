@@ -343,7 +343,7 @@ export default function SosPage() {
         </div>
 
         {/* ── Stats row ─────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           {[
             { label: 'SOS Aktif',    value: active.length,                                       Icon: Siren,       bg: active.length > 0 ? 'bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.15)]' : 'bg-gray-100 dark:bg-white/[0.06]', color: active.length > 0 ? 'text-[#FF3B30]' : 'text-gray-400 dark:text-white/30' },
             { label: 'Direspons',    value: history.filter((h) => h.status === 'responded').length, Icon: PhoneCall,  bg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)]',    color: 'text-[#007AFF]' },
