@@ -1,22 +1,26 @@
 /**
  * Halaman admin — persetujuan izin terlambat & izin pulang awal
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, useColorScheme,
   RefreshControl, StatusBar, ActivityIndicator, TextInput, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import {
   ClipboardList, CheckCircle2, XCircle, Clock, LogIn, LogOut,
-  User, ChevronDown, ChevronUp,
+  User, ChevronDown, ChevronUp, ShieldOff,
 } from 'lucide-react-native';
 import { C, R, B, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { attendanceRequestsService, type AttendanceRequestAdmin } from '@/services/attendance-requests.service';
+import { useAuthStore } from '@/stores/auth.store';
 import * as Haptics from 'expo-haptics';
+
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin'] as const;
 
 type FilterStatus = 'pending' | 'approved' | 'rejected';
 type FilterType   = 'all' | 'late_arrival' | 'early_departure';
@@ -164,6 +168,18 @@ export default function AttendanceRequestsAdminScreen() {
   const isDark  = useColorScheme() === 'dark';
   const insets  = useSafeAreaInsets();
   const qc      = useQueryClient();
+  const user    = useAuthStore((s) => s.user);
+
+  const isApprover = APPROVER_ROLES.includes(
+    (user?.role?.name ?? '') as typeof APPROVER_ROLES[number],
+  );
+
+  // Guard: redirect non-approver keluar dari halaman ini
+  useEffect(() => {
+    if (user !== undefined && !isApprover) {
+      router.replace('/(main)/attendance' as never);
+    }
+  }, [isApprover, user]);
 
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
   const [filterType,   setFilterType]   = useState<FilterType>('all');
@@ -221,6 +237,16 @@ export default function AttendanceRequestsAdminScreen() {
 
   const bg = pageBg(isDark);
   const isActing = approveMut.isPending || rejectMut.isPending;
+
+  // Tampilkan layar kosong saat redirect berjalan (user bukan approver)
+  if (!isApprover) {
+    return (
+      <View style={{ flex: 1, backgroundColor: pageBg(isDark), alignItems: 'center', justifyContent: 'center' }}>
+        <ShieldOff size={40} strokeWidth={1.5} color={lTertiary(isDark)} />
+        <Text style={{ marginTop: 12, fontSize: 14, color: lTertiary(isDark) }}>Akses tidak diizinkan</Text>
+      </View>
+    );
+  }
 
   const STATUS_FILTERS: FilterStatus[] = ['pending', 'approved', 'rejected'];
   const TYPE_FILTERS: { key: FilterType; label: string }[] = [
