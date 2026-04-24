@@ -80,7 +80,7 @@ const STATUS_MAP: Record<string, {
   bg: string; text: string; dot: string;
   ring: string; lightBg: string;
 }> = {
-  ongoing:     { label: 'Berjalan',       Icon: Activity,      bg: 'bg-[#EFF6FF]', lightBg: 'bg-[#EFF6FF]', text: 'text-[#1D4ED8]', dot: 'bg-[#3B82F6]', ring: 'border-[#3B82F6]/30' },
+  ongoing:     { label: 'Berlangsung',    Icon: Activity,      bg: 'bg-[#EFF6FF]', lightBg: 'bg-[#EFF6FF]', text: 'text-[#1D4ED8]', dot: 'bg-[#3B82F6]', ring: 'border-[#3B82F6]/30' },
   completed:   { label: 'Selesai',        Icon: CheckCircle2,  bg: 'bg-[#F0FDF4]', lightBg: 'bg-[#F0FDF4]', text: 'text-[#166534]', dot: 'bg-[#34C759]', ring: 'border-[#34C759]/30' },
   on_hold:     { label: 'Ditunda',        Icon: Pause,         bg: 'bg-[#FFF7ED]', lightBg: 'bg-[#FFF7ED]', text: 'text-[#9A3412]', dot: 'bg-[#FF9500]', ring: 'border-[#FF9500]/30' },
   rescheduled: { label: 'Dijadwal Ulang', Icon: RefreshCw,     bg: 'bg-[#FAF5FF]', lightBg: 'bg-[#FAF5FF]', text: 'text-[#6B21A8]', dot: 'bg-[#AF52DE]', ring: 'border-[#AF52DE]/30' },
@@ -662,7 +662,7 @@ export default function VisitsPage() {
       {/* Stat Cards */}
       <div className="px-4 sm:px-6 grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <StatCard icon={MapPin}       label="Total Kunjungan" value={visits.length}   color="text-[#007AFF]" bg="bg-[#007AFF]/10" />
-        <StatCard icon={Activity}     label="Berjalan"        value={ongoingCount}    color="text-[#34C759]" bg="bg-[#34C759]/10" />
+        <StatCard icon={Activity}     label="Berlangsung"        value={ongoingCount}    color="text-[#34C759]" bg="bg-[#34C759]/10" />
         <StatCard icon={CheckCircle2} label="Selesai"         value={completedCount}  color="text-[#166534]" bg="bg-[#34C759]/15" />
         <StatCard icon={Pause}        label="Ditunda"         value={onHoldVisits.length} color="text-[#FF9500]" bg="bg-[#FF9500]/10" />
       </div>
@@ -710,7 +710,7 @@ export default function VisitsPage() {
                   className="bg-transparent text-sm text-gray-700 dark:text-white/80 outline-none cursor-pointer"
                 >
                   <option value="">Semua Status</option>
-                  <option value="ongoing">Berjalan</option>
+                  <option value="ongoing">Berlangsung</option>
                   <option value="completed">Selesai</option>
                   <option value="on_hold">Ditunda</option>
                   <option value="rescheduled">Dijadwal Ulang</option>

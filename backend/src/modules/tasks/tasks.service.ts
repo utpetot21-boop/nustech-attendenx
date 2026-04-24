@@ -6,7 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { TaskEntity } from './entities/task.entity';
 import { TaskAssignmentEntity } from './entities/task-assignment.entity';
@@ -501,11 +501,18 @@ export class TasksService {
   // MANAGER DASHBOARDS
   // ────────────────────────────────────────────────────────────────────────────
   async getOnHoldTasks() {
-    return this.taskRepo.find({
+    const tasks = await this.taskRepo.find({
       where: { status: 'on_hold' },
       relations: ['client', 'assignee'],
       order: { created_at: 'DESC' },
     });
+    if (tasks.length === 0) return [];
+    const holds = await this.holdRepo.find({
+      where: { task_id: In(tasks.map((t) => t.id)), review_status: 'pending' },
+      order: { created_at: 'ASC' },
+    });
+    const holdMap = new Map(holds.map((h) => [h.task_id, h]));
+    return tasks.map((t) => ({ ...t, pending_hold: holdMap.get(t.id) ?? null }));
   }
 
   async getRescheduledTasks() {

@@ -140,7 +140,8 @@ function TaskDetailInner() {
   const [delegateSearch, setDelegateSearch] = useState('');
   const [cancelReason, setCancelReason] = useState('');
 
-  const userRole     = useAuthStore((s) => s.user?.role?.name);
+  const userRole      = useAuthStore((s) => s.user?.role?.name);
+  const canApprove    = useAuthStore((s) => s.user?.role?.can_approve ?? false);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const canCancelTask = userRole === 'admin' || userRole === 'super_admin';
   const canDeleteTask = userRole === 'super_admin';
@@ -339,6 +340,37 @@ function TaskDetailInner() {
         .then((r) => r.data?.items ?? r.data ?? []),
     enabled: showDelegateModal && delegatePickerOpen,
     staleTime: 30_000,
+  });
+
+  // ── Manager: Approve / Reject hold ───────────────────────────────────────
+  const approveHoldMut = useMutation({
+    mutationFn: (holdId: string) => tasksService.approveHold(id!, holdId),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['task-detail', id] });
+      qc.invalidateQueries({ queryKey: ['task-holds', id] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      Alert.alert('Disetujui', 'Penundaan disetujui. Tugas dijadwal ulang.');
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message);
+    },
+  });
+
+  const rejectHoldMut = useMutation({
+    mutationFn: (holdId: string) => tasksService.rejectHold(id!, holdId),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      qc.invalidateQueries({ queryKey: ['task-detail', id] });
+      qc.invalidateQueries({ queryKey: ['task-holds', id] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      Alert.alert('Ditolak', 'Penundaan ditolak. Teknisi diminta melanjutkan pekerjaan.');
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message);
+    },
   });
 
   // ── Check-in Visit (mulai kunjungan) ──────────────────────────────────────
@@ -628,7 +660,7 @@ function TaskDetailInner() {
           </View>
         )}
 
-        {/* ── On Hold — countdown auto-approve ─────── */}
+        {/* ── On Hold — countdown / manager actions ─── */}
         {isOnHold && (() => {
           const pendingHold = holds.find((h) => h.review_status === 'pending');
           if (!pendingHold) return null;
@@ -639,7 +671,8 @@ function TaskDetailInner() {
             ? `${hLeft > 0 ? `${hLeft} jam ` : ''}${mLeft} menit lagi`
             : 'segera';
           return (
-            <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+            <View style={{ paddingHorizontal: 20, marginBottom: 14, gap: 10 }}>
+              {/* Countdown banner — ditampilkan ke semua user */}
               <View style={{ backgroundColor: isDark ? C.orange + '1A' : C.orange + '0D', borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: C.orange + '4D', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Clock size={20} strokeWidth={2} color={C.orange} />
                 <View style={{ flex: 1 }}>
@@ -651,6 +684,46 @@ function TaskDetailInner() {
                   </Text>
                 </View>
               </View>
+
+              {/* Approve / Reject buttons — hanya untuk can_approve */}
+              {canApprove && (
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert(
+                      'Setujui Penundaan?',
+                      'Tugas akan dijadwal ulang dan teknisi dinotifikasi.',
+                      [
+                        { text: 'Batal', style: 'cancel' },
+                        { text: 'Setujui', onPress: () => approveHoldMut.mutate(pendingHold.id) },
+                      ],
+                    )}
+                    disabled={approveHoldMut.isPending || rejectHoldMut.isPending}
+                    style={{ flex: 1, backgroundColor: isDark ? C.green + '1F' : C.green + '14', borderRadius: 16, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.green + '4D', opacity: approveHoldMut.isPending ? 0.6 : 1 }}
+                  >
+                    {approveHoldMut.isPending
+                      ? <ActivityIndicator size="small" color={C.green} />
+                      : <Check size={18} strokeWidth={2.5} color={C.green} />}
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: C.green }}>Setujui</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert(
+                      'Tolak Penundaan?',
+                      'Teknisi diminta melanjutkan pekerjaan.',
+                      [
+                        { text: 'Batal', style: 'cancel' },
+                        { text: 'Tolak', style: 'destructive', onPress: () => rejectHoldMut.mutate(pendingHold.id) },
+                      ],
+                    )}
+                    disabled={approveHoldMut.isPending || rejectHoldMut.isPending}
+                    style={{ flex: 1, backgroundColor: isDark ? C.red + '1F' : C.red + '0D', borderRadius: 16, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.red + '4D', opacity: rejectHoldMut.isPending ? 0.6 : 1 }}
+                  >
+                    {rejectHoldMut.isPending
+                      ? <ActivityIndicator size="small" color={C.red} />
+                      : <XIcon size={18} strokeWidth={2.5} color={C.red} />}
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: C.red }}>Tolak</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           );
         })()}

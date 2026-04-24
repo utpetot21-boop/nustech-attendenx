@@ -30,6 +30,12 @@ interface Task {
   canceller?: { id: string; full_name: string } | null;
 }
 
+interface OnHoldTask {
+  id: string; title: string; priority: string;
+  assignee?: { full_name: string } | null;
+  pending_hold?: { id: string; reason_type: string; reason_notes: string; auto_approve_at: string | null } | null;
+}
+
 interface Delegation {
   id: string; type: 'delegate' | 'swap' | null; reason: string; status: string;
   task?: { id: string; title: string; client?: { name: string } };
@@ -300,6 +306,37 @@ export default function TasksPage() {
     refetchInterval: 15000,
   });
 
+  const { data: onHoldTasks = [] } = useQuery<OnHoldTask[]>({
+    queryKey: ['tasks-on-hold'],
+    queryFn: () => apiClient.get('/tasks/on-hold').then((r) => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? []);
+    }),
+    refetchInterval: 15000,
+    enabled: canAssign,
+  });
+
+  const approveHoldMut = useMutation({
+    mutationFn: ({ taskId, holdId }: { taskId: string; holdId: string }) =>
+      apiClient.post(`/tasks/${taskId}/holds/${holdId}/approve`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks-on-hold'] });
+      qc.invalidateQueries({ queryKey: ['tasks-web'] });
+      toast.success('Penundaan disetujui — tugas dijadwal ulang');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyetujui penundaan')),
+  });
+
+  const rejectHoldMut = useMutation({
+    mutationFn: ({ taskId, holdId }: { taskId: string; holdId: string }) =>
+      apiClient.post(`/tasks/${taskId}/holds/${holdId}/reject`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks-on-hold'] });
+      qc.invalidateQueries({ queryKey: ['tasks-web'] });
+      toast.success('Penundaan ditolak — tugas kembali aktif');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menolak penundaan')),
+  });
+
   const createMut = useMutation({
     mutationFn: () => apiClient.post('/tasks', {
       ...form,
@@ -524,6 +561,59 @@ export default function TasksPage() {
                       <button
                         onClick={() => rejectDelegMut.mutate(d.id)}
                         disabled={rejectDelegMut.isPending}
+                        className="w-8 h-8 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center text-[#FF3B30] hover:bg-[#FEE2E2] transition"
+                      >
+                        <X size={14} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── On Hold approvals banner ──────────────────────────────────────── */}
+      {canAssign && onHoldTasks.filter((t) => t.pending_hold).length > 0 && (
+        <div className="px-4 sm:px-6 mb-4">
+          <div className="bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.12)] border border-[#FED7AA] dark:border-[rgba(255,149,0,0.30)] rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-[8px] bg-[#FF9500]/20 flex items-center justify-center">
+                <PauseCircle size={14} className="text-[#FF9500]" />
+              </div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                {onHoldTasks.filter((t) => t.pending_hold).length} Permintaan Penundaan Tugas
+              </p>
+            </div>
+            <div className="space-y-2">
+              {onHoldTasks.filter((t) => t.pending_hold).map((t) => (
+                <div key={t.id} className="bg-white/70 dark:bg-white/[0.05] rounded-xl border border-[#FED7AA] dark:border-white/[0.08] p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-gray-900 dark:text-white line-clamp-1">{t.title}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-white/40 mt-0.5">
+                        {t.assignee?.full_name ?? '—'}
+                      </p>
+                      {t.pending_hold?.reason_notes && (
+                        <p className="text-[11px] text-gray-400 dark:text-white/30 mt-1 italic line-clamp-2">
+                          &ldquo;{t.pending_hold.reason_notes}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => t.pending_hold && approveHoldMut.mutate({ taskId: t.id, holdId: t.pending_hold.id })}
+                        disabled={approveHoldMut.isPending}
+                        title="Setujui penundaan"
+                        className="w-8 h-8 rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] flex items-center justify-center text-[#34C759] hover:bg-[#DCFCE7] transition"
+                      >
+                        <Check size={14} strokeWidth={2.5} />
+                      </button>
+                      <button
+                        onClick={() => t.pending_hold && rejectHoldMut.mutate({ taskId: t.id, holdId: t.pending_hold.id })}
+                        disabled={rejectHoldMut.isPending}
+                        title="Tolak penundaan"
                         className="w-8 h-8 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center text-[#FF3B30] hover:bg-[#FEE2E2] transition"
                       >
                         <X size={14} strokeWidth={2.5} />

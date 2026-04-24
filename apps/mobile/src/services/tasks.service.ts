@@ -108,6 +108,16 @@ export const tasksService = {
     }[];
   },
 
+  async approveHold(taskId: string, holdId: string, body?: { reschedule_date?: string; reschedule_note?: string }) {
+    const res = await api.post(`/tasks/${taskId}/holds/${holdId}/approve`, body ?? {});
+    return res.data;
+  },
+
+  async rejectHold(taskId: string, holdId: string, body?: { reason?: string }) {
+    const res = await api.post(`/tasks/${taskId}/holds/${holdId}/reject`, body ?? {});
+    return res.data;
+  },
+
   async createVisitTask(payload: {
     title: string;
     assigned_to: string;
