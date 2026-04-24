@@ -9,6 +9,9 @@ import {
   ExternalLink, Image as ImageIcon, Star, ThumbsUp, AlertCircle, Send,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { toast } from 'sonner';
+
+const PHOTO_MIN_TOTAL = 16;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Visit = {
@@ -175,8 +178,8 @@ function VisitCard({ v, onClick }: { v: Visit; onClick: () => void }) {
           <p className="text-[10px] text-gray-400 dark:text-white/30">Durasi</p>
         </div>
         <div className="bg-gray-50 dark:bg-white/[0.04] rounded-xl p-2.5 text-center">
-          <Camera size={12} className={photoCount >= 16 ? 'text-[#34C759] mx-auto mb-1' : 'text-[#FF9500] mx-auto mb-1'} />
-          <p className={`text-xs font-semibold ${photoCount >= 16 ? 'text-[#166534]' : 'text-[#9A3412]'}`}>{photoCount}/16</p>
+          <Camera size={12} className={photoCount >= PHOTO_MIN_TOTAL ? 'text-[#34C759] mx-auto mb-1' : 'text-[#FF9500] mx-auto mb-1'} />
+          <p className={`text-xs font-semibold ${photoCount >= PHOTO_MIN_TOTAL ? 'text-[#166534]' : 'text-[#9A3412]'}`}>{photoCount}/{PHOTO_MIN_TOTAL}</p>
           <p className="text-[10px] text-gray-400 dark:text-white/30">Foto</p>
         </div>
       </div>
@@ -294,6 +297,7 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
     onSuccess: (updated: Visit) => {
       qc.invalidateQueries({ queryKey: ['admin-visits'] });
       onReviewed(updated);
+      toast.success('Evaluasi berhasil disimpan');
     },
   });
 
@@ -331,9 +335,10 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
           {/* Meta grid */}
           <div className="grid grid-cols-2 gap-2.5">
             {[
-              { label: 'Check-in', value: visit.check_in_at ? new Date(visit.check_in_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) : '—', Icon: Clock },
+              { label: 'Check-in',  value: visit.check_in_at  ? new Date(visit.check_in_at).toLocaleTimeString('id-ID',  { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) : '—', Icon: Clock },
+              { label: 'Check-out', value: visit.check_out_at ? new Date(visit.check_out_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' }) : '—', Icon: Clock },
               { label: 'Durasi', value: durFmt(visit.duration_minutes), Icon: Clock },
-              { label: 'Foto', value: `${photoCount}/16`, Icon: Camera, valueClass: photoCount >= 16 ? 'text-[#166534]' : 'text-[#9A3412]' },
+              { label: 'Foto', value: `${photoCount}/${PHOTO_MIN_TOTAL}`, Icon: Camera, valueClass: photoCount >= PHOTO_MIN_TOTAL ? 'text-[#166534]' : 'text-[#9A3412]' },
               {
                 label: 'GPS',
                 value: visit.gps_valid
@@ -706,9 +711,9 @@ export default function VisitsPage() {
                           </td>
                           <td className="px-4 py-3 text-gray-500 dark:text-white/50 text-xs">{durFmt(v.duration_minutes)}</td>
                           <td className="px-4 py-3">
-                            <span className={`flex items-center gap-1 text-xs font-semibold ${photoCount >= 16 ? 'text-[#166534]' : 'text-[#9A3412]'}`}>
+                            <span className={`flex items-center gap-1 text-xs font-semibold ${photoCount >= PHOTO_MIN_TOTAL ? 'text-[#166534]' : 'text-[#9A3412]'}`}>
                               <Camera size={12} />
-                              {photoCount}/16
+                              {photoCount}/{PHOTO_MIN_TOTAL}
                             </span>
                           </td>
                           <td className="px-4 py-3">

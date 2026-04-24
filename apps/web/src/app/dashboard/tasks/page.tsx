@@ -509,6 +509,9 @@ export default function TasksPage() {
                           {d.type === 'swap' ? '(Swap)' : '(Delegasi)'}
                         </span>
                       </p>
+                      {d.reason && (
+                        <p className="text-[11px] text-gray-400 dark:text-white/30 mt-1 italic line-clamp-2">"{d.reason}"</p>
+                      )}
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
