@@ -167,6 +167,13 @@ function TaskDetailInner() {
     enabled: !!id && (task?.status === 'on_hold' || task?.status === 'assigned'),
   });
 
+  // Countdown auto-approve — tick per menit
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
   // Cek apakah task ini sedang dalam kunjungan berlangsung — tombol "Mulai Kunjungan"
   // diganti "Lanjutkan Kunjungan" agar tidak dobel check-in.
   const { data: ongoingVisitsData } = useQuery({
@@ -620,6 +627,33 @@ function TaskDetailInner() {
             </View>
           </View>
         )}
+
+        {/* ── On Hold — countdown auto-approve ─────── */}
+        {isOnHold && (() => {
+          const pendingHold = holds.find((h) => h.review_status === 'pending');
+          if (!pendingHold) return null;
+          const msLeft = new Date(pendingHold.auto_approve_at).getTime() - now;
+          const hLeft  = Math.max(0, Math.floor(msLeft / 3_600_000));
+          const mLeft  = Math.max(0, Math.floor((msLeft % 3_600_000) / 60_000));
+          const countdownStr = msLeft > 0
+            ? `${hLeft > 0 ? `${hLeft} jam ` : ''}${mLeft} menit lagi`
+            : 'segera';
+          return (
+            <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+              <View style={{ backgroundColor: isDark ? C.orange + '1A' : C.orange + '0D', borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: C.orange + '4D', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Clock size={20} strokeWidth={2} color={C.orange} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: C.orange }}>Menunggu Persetujuan Manajer</Text>
+                  <Text style={{ fontSize: 13, color: textSecondary, marginTop: 3 }}>
+                    {msLeft > 0
+                      ? `Auto-approve ${countdownStr}`
+                      : 'Permintaan akan segera disetujui otomatis'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* ── In Progress Banner ───────────────────── */}
         {isInProgress && (
