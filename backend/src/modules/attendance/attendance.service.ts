@@ -15,6 +15,7 @@ import { NationalHolidayEntity } from '../schedule/entities/national-holiday.ent
 import { UserEntity } from '../users/entities/user.entity';
 import { CompanyAttendanceConfigEntity } from '../settings/entities/company-attendance-config.entity';
 import { AttendanceRequestEntity } from '../attendance-requests/entities/attendance-request.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { CorrectAttendanceDto } from './dto/correct-attendance.dto';
@@ -39,6 +40,7 @@ export class AttendanceService {
     private configRepo: Repository<CompanyAttendanceConfigEntity>,
     @InjectRepository(AttendanceRequestEntity)
     private attendanceRequestRepo: Repository<AttendanceRequestEntity>,
+    private notificationsService: NotificationsService,
   ) {}
 
   // ── Ambil titik geofence efektif untuk user (personal > global) ───────
@@ -166,6 +168,8 @@ export class AttendanceService {
     });
     const isHolidayWork = !!holiday;
 
+    let saved: AttendanceEntity;
+
     if (existing) {
       // Update row yang sudah ada (row mungkin dibuat oleh alfa-detector)
       await this.attendanceRepo.update(existing.id, {
@@ -186,31 +190,47 @@ export class AttendanceService {
         tolerance_minutes: schedule.tolerance_minutes,
         notes: dto.notes ?? null,
       });
-      return this.attendanceRepo.findOne({ where: { id: existing.id } }) as Promise<AttendanceEntity>;
+      saved = (await this.attendanceRepo.findOne({ where: { id: existing.id } })) as AttendanceEntity;
+    } else {
+      saved = await this.attendanceRepo.save(
+        this.attendanceRepo.create({
+          user_id: userId,
+          user_schedule_id: schedule.id,
+          date: today,
+          schedule_type: schedule.schedule_type as any,
+          shift_start: schedule.start_time,
+          shift_end: schedule.end_time,
+          tolerance_minutes: schedule.tolerance_minutes,
+          check_in_at: checkInAt,
+          check_in_method: dto.method as any,
+          check_in_lat: dto.lat,
+          check_in_lng: dto.lng,
+          gps_valid: gpsValid,
+          checkout_earliest: checkoutEarliest,
+          status: status as any,
+          late_minutes: lateMinutes,
+          late_approved: !!approvedLate,
+          is_holiday_work: isHolidayWork,
+          notes: dto.notes ?? null,
+        }),
+      );
     }
 
-    return this.attendanceRepo.save(
-      this.attendanceRepo.create({
-        user_id: userId,
-        user_schedule_id: schedule.id,
-        date: today,
-        schedule_type: schedule.schedule_type as any,
-        shift_start: schedule.start_time,
-        shift_end: schedule.end_time,
-        tolerance_minutes: schedule.tolerance_minutes,
-        check_in_at: checkInAt,
-        check_in_method: dto.method as any,
-        check_in_lat: dto.lat,
-        check_in_lng: dto.lng,
-        gps_valid: gpsValid,
-        checkout_earliest: checkoutEarliest,
-        status: status as any,
-        late_minutes: lateMinutes,
-        late_approved: !!approvedLate,
-        is_holiday_work: isHolidayWork,
-        notes: dto.notes ?? null,
-      }),
-    );
+    // Kirim push notification konfirmasi check-in
+    const checkInTimeStr = checkInAt.toLocaleTimeString('id-ID', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar',
+    });
+    const notifBody = lateMinutes > 0 && !approvedLate
+      ? `Check-in pukul ${checkInTimeStr} WITA — terlambat ${lateMinutes} menit.`
+      : `Check-in berhasil pukul ${checkInTimeStr} WITA.`;
+    this.notificationsService.send({
+      userId,
+      type: 'check_in_success',
+      title: isHolidayWork ? 'Check-In (Hari Libur)' : 'Check-In Berhasil',
+      body: notifBody,
+    }).catch(() => { /* non-critical — jangan gagalkan check-in */ });
+
+    return saved;
   }
 
   // ── Check-Out ─────────────────────────────────────────────────
@@ -305,6 +325,20 @@ export class AttendanceService {
       overtime_minutes: overtimeMinutes,
       early_departure_approved: !!approvedEarly,
     });
+
+    // Kirim push notification konfirmasi check-out
+    const checkOutTimeStr = checkOutAt.toLocaleTimeString('id-ID', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar',
+    });
+    const checkOutBody = overtimeMinutes > 0
+      ? `Check-out pukul ${checkOutTimeStr} WITA — lembur ${overtimeMinutes} menit.`
+      : `Check-out berhasil pukul ${checkOutTimeStr} WITA. Sampai jumpa besok!`;
+    this.notificationsService.send({
+      userId,
+      type: 'check_out_success',
+      title: 'Check-Out Berhasil',
+      body: checkOutBody,
+    }).catch(() => { /* non-critical */ });
 
     return this.attendanceRepo.findOne({ where: { id: attendance.id } }) as Promise<AttendanceEntity>;
   }

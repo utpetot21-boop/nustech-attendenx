@@ -27,13 +27,12 @@ import {
   XCircle,
   ClipboardList,
   Ban,
-  Hand,
-  Repeat2,
   Clock,
   Receipt,
   Wallet,
-  X,
   Trash2,
+  LogIn,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -88,16 +87,19 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   leave_rejected:                  '/(main)/leave',
   leave_expiry_reminder:           '/(main)/leave',
   collective_leave_deduction:      '/(main)/leave',
-  // Absensi / SP / Izin
+  // Absensi check-in/out
+  check_in_success:                '/(main)/attendance',
+  check_out_success:               '/(main)/attendance',
+  // Absensi permohonan — tambah param openHistory agar auto-buka riwayat
   sp_reminder:                     '/(main)/attendance',
   alfa_detected:                   '/(main)/attendance',
-  late_arrival_approved:           '/(main)/attendance',
-  late_arrival_rejected:           '/(main)/attendance',
-  early_departure_approved:        '/(main)/attendance',
-  early_departure_rejected:        '/(main)/attendance',
+  late_arrival_approved:           '__attendance_history__',
+  late_arrival_rejected:           '__attendance_history__',
+  early_departure_approved:        '__attendance_history__',
+  early_departure_rejected:        '__attendance_history__',
   attendance_request_submitted:    '/(main)/attendance',
-  attendance_request_approved:     '/(main)/attendance',
-  attendance_request_rejected:     '/(main)/attendance',
+  attendance_request_approved:     '__attendance_history__',
+  attendance_request_rejected:     '__attendance_history__',
   // Klaim Biaya
   expense_claim_submitted:         '/(main)/expense-claims',
   expense_claim_approved:          '/(main)/expense-claims',
@@ -113,8 +115,7 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   // SOS
   sos:                             '/(main)/sos',
   sos_alert:                       '/(main)/sos-alert',
-  // Pengumuman — navigasi ke halaman notifikasi dengan tab ann
-  // (route khusus, ditangani lewat params bukan string biasa)
+  // Pengumuman
   announcement_approved:           '__ann__',
   announcement_rejected:           '__ann__',
   announcement_pending:            '__ann__',
@@ -238,8 +239,8 @@ export default function NotificationsScreen() {
     leave_request:      { Icon: ClipboardList,  color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
     leave_approved:     { Icon: Sun,            color: C.green, bg: isDark ? 'rgba(52,199,89,0.18)'   : '#DCFCE7' },
     leave_rejected:     { Icon: Ban,            color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
-    objection_pending:  { Icon: Hand,           color: C.purple, bg: isDark ? 'rgba(175,82,222,0.18)'  : '#F5F3FF' },
-    delegation_request: { Icon: Repeat2,        color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'   : '#FFF7ED' },
+    check_in_success:   { Icon: LogIn,          color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    check_out_success:  { Icon: LogOut,         color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
     ba_generated:       { Icon: FileText,       color: C.blue, bg: isDark ? 'rgba(0,122,255,0.18)'   : '#ECFEFF' },
     sos:                { Icon: AlertCircle,    color: C.red, bg: isDark ? 'rgba(255,59,48,0.18)'   : '#FEF2F2' },
     attendance_request_submitted: { Icon: Clock,        color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)' : '#FFFBEB' },
@@ -364,6 +365,14 @@ export default function NotificationsScreen() {
                       const route = NOTIF_ROUTE_MAP[notif.type];
                       if (route === '__ann__') {
                         setActiveTab('ann');
+                        return;
+                      }
+                      // Absensi permohonan approved/rejected → buka attendance + riwayat
+                      if (route === '__attendance_history__') {
+                        router.push({
+                          pathname: '/(main)/attendance',
+                          params: { openHistory: '1' },
+                        });
                         return;
                       }
                       if (!route) return;

@@ -246,7 +246,7 @@ export default function AttendanceHistoryScreen() {
   const monthOptions = useMemo(() => getMonthOptions(6), []);
   const [month, setMonth] = useState<string | undefined>(monthOptions[0]?.value);
 
-  const { data, isLoading, isRefetching, refetch } = useQuery<AttendanceRecord[]>({
+  const { data, isLoading, isFetching, isRefetching, refetch } = useQuery<AttendanceRecord[]>({
     queryKey: ['attendance-history', month],
     queryFn: () => attendanceService.getHistory(month ? { month } : {}),
     staleTime: 60_000,
@@ -325,7 +325,7 @@ export default function AttendanceHistoryScreen() {
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
-        {isLoading ? (
+        {(isLoading || isFetching) ? (
           <ActivityIndicator color={C.blue} style={{ marginTop: 48 }} />
         ) : records.length === 0 ? (
           <EmptyState

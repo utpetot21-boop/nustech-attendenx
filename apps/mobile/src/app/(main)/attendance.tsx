@@ -26,7 +26,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -184,6 +184,9 @@ export default function AttendanceScreen() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
 
+  // Terima param dari notifikasi tap (openHistory=1 → auto-expand riwayat permohonan)
+  const { openHistory: openHistoryParam } = useLocalSearchParams<{ openHistory?: string }>();
+
   const [uiState, setUiState] = useState<UIState>('idle');
   const [pendingMethod, setPendingMethod] = useState<string>('face_id');
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -200,7 +203,8 @@ export default function AttendanceScreen() {
   const [requestModalType, setRequestModalType] = useState<AttendanceRequestType>('late_arrival');
   const [requestReason, setRequestReason] = useState('');
   const [requestEstTime, setRequestEstTime] = useState('');
-  const [showHistory, setShowHistory] = useState(false);
+  // openHistoryParam dari notifikasi tap auto-expand riwayat
+  const [showHistory, setShowHistory] = useState(openHistoryParam === '1');
 
   const { verify: verifyBiometric, failCount: biometricFailCount } = useBiometric();
 
@@ -239,7 +243,7 @@ export default function AttendanceScreen() {
   const lateRequest  = todayRequests.find(r => r.type === 'late_arrival')    ?? null;
   const earlyRequest = todayRequests.find(r => r.type === 'early_departure') ?? null;
 
-  const { data: historyRequests = [] } = useQuery<AttendanceRequest[]>({
+  const { data: historyRequests = [], isLoading: historyLoading } = useQuery<AttendanceRequest[]>({
     queryKey: ['attendance-requests-history'],
     queryFn: () => attendanceRequestsService.getMyRequests(),
     enabled: showHistory,
@@ -643,7 +647,7 @@ export default function AttendanceScreen() {
               />
 
               <TouchableOpacity
-                onPress={() => setUiState('show_pin')}
+                onPress={() => { setPinError(undefined); setUiState('show_pin'); }}
                 style={{ marginTop: 8 }}
               >
                 <Text style={{ fontSize: 15, color: C.blue }}>
@@ -815,7 +819,9 @@ export default function AttendanceScreen() {
           {/* Riwayat list */}
           {showHistory && (
             <View style={{ marginTop: 10, gap: 8 }}>
-              {historyRequests.length === 0 ? (
+              {historyLoading ? (
+                <ActivityIndicator color={C.blue} style={{ paddingVertical: 16 }} />
+              ) : historyRequests.length === 0 ? (
                 <Text style={{ fontSize: 13, color: lTertiary(isDark), textAlign: 'center', paddingVertical: 16 }}>
                   Belum ada permohonan.
                 </Text>
