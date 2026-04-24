@@ -317,7 +317,21 @@ export default function AttendanceScreen() {
   });
 
   const checkOutMutation = useMutation({
-    mutationFn: () => attendanceService.checkOut({ method: 'manual' }),
+    mutationFn: async () => {
+      let lat: number | undefined;
+      let lng: number | undefined;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        }
+      } catch {
+        // GPS tidak tersedia — kirim tanpa koordinat, backend tetap proses
+      }
+      return attendanceService.checkOut({ method: 'manual', lat, lng });
+    },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['attendance-today'] });
@@ -332,7 +346,8 @@ export default function AttendanceScreen() {
         const m = Math.floor((data.remainingSeconds % 3600) / 60);
         Alert.alert('Belum Bisa Checkout', `Tersedia dalam ${h}j ${m}m lagi.`);
       } else {
-        Alert.alert('Gagal', 'Checkout gagal. Coba lagi.');
+        const msg = data?.message ?? 'Checkout gagal. Coba lagi.';
+        Alert.alert('Gagal', typeof msg === 'string' ? msg : 'Checkout gagal. Coba lagi.');
       }
     },
   });

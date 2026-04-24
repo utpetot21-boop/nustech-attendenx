@@ -56,6 +56,8 @@ class TaskDetailErrorBoundary extends Component<
   { children: ReactNode; onBack: () => void },
   { hasError: boolean; error: string }
 > {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  refs: Record<string, any> = {};
   state = { hasError: false, error: '' };
   static getDerivedStateFromError(e: Error) {
     return { hasError: true, error: e?.message ?? 'Unknown error' };
@@ -95,12 +97,14 @@ const HOLD_REASON_LABELS: Record<string, string> = {
 const HOLD_REASONS = Object.entries(HOLD_REASON_LABELS).map(([value, label]) => ({ value, label }));
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ErrorBoundaryCompat = TaskDetailErrorBoundary as any;
 export default function TaskDetailScreen() {
   const _router = useRouter();
   return (
-    <TaskDetailErrorBoundary onBack={() => _router.back()}>
+    <ErrorBoundaryCompat onBack={() => _router.back()}>
       <TaskDetailInner />
-    </TaskDetailErrorBoundary>
+    </ErrorBoundaryCompat>
   );
 }
 

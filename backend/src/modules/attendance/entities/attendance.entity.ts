@@ -71,6 +71,15 @@ export class AttendanceEntity {
   @Column({ type: 'varchar', length: 10, nullable: true })
   check_out_method: CheckoutMethod | null;
 
+  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true })
+  check_out_lat: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true })
+  check_out_lng: number | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  check_out_gps_valid: boolean | null;
+
   // checkout_earliest = check_in_at + 8 jam
   // Tidak pakai generated column karena check_in_at nullable saat row dibuat
   @Column({ type: 'timestamptz', nullable: true })

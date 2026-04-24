@@ -249,6 +249,43 @@ export class AttendanceService {
       }
     }
 
+    // Validasi GPS geofence saat check-out — cermin check-in
+    let checkOutGpsValid: boolean | null = null;
+    if (dto.lat != null && dto.lng != null) {
+      const user = await this.userRepo.findOne({
+        where: { id: userId },
+        relations: ['location'],
+      });
+      const loc = (user as any)?.location;
+
+      let refLat: number | null = null;
+      let refLng: number | null = null;
+      let radiusMeter = 100;
+
+      if (loc?.lat != null && loc?.lng != null && loc?.radius_meter > 0) {
+        refLat = Number(loc.lat);
+        refLng = Number(loc.lng);
+        radiusMeter = loc.radius_meter;
+      } else {
+        const cfgs = await this.configRepo.find({ order: { effective_date: 'DESC' }, take: 1 });
+        const cfg = cfgs[0];
+        if (cfg?.office_lat != null && cfg?.office_lng != null) {
+          refLat = Number(cfg.office_lat);
+          refLng = Number(cfg.office_lng);
+          radiusMeter = cfg.check_in_radius_meter ?? 100;
+        }
+      }
+
+      if (refLat !== null && refLng !== null) {
+        checkOutGpsValid = isWithinGeofence(dto.lat, dto.lng, refLat, refLng, radiusMeter);
+        if (!checkOutGpsValid) {
+          throw new BadRequestException(
+            `Anda berada di luar area kantor (radius ${radiusMeter} meter). Pastikan GPS aktif dan Anda berada di lokasi yang benar.`,
+          );
+        }
+      }
+    }
+
     const checkOutAt = now;
 
     // Hitung overtime: actual_checkout - shift_end_time
@@ -261,6 +298,9 @@ export class AttendanceService {
     await this.attendanceRepo.update(attendance.id, {
       check_out_at: checkOutAt,
       check_out_method: dto.method as any,
+      check_out_lat: dto.lat ?? null,
+      check_out_lng: dto.lng ?? null,
+      check_out_gps_valid: checkOutGpsValid,
       overtime_minutes: overtimeMinutes,
       early_departure_approved: !!approvedEarly,
     });
