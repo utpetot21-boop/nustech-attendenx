@@ -222,10 +222,11 @@ function SosCard({
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function SosPage() {
   const qc = useQueryClient();
-  const [tab,          setTab]          = useState<Tab>('active');
-  const [resolveNote,  setResolveNote]  = useState('');
-  const [addContact,   setAddContact]   = useState(false);
-  const [newContact,   setNewContact]   = useState({ name: '', role: '', phone: '', priority: '1' });
+  const [tab,              setTab]          = useState<Tab>('active');
+  const [resolveNote,      setResolveNote]  = useState('');
+  const [addContact,       setAddContact]   = useState(false);
+  const [newContact,       setNewContact]   = useState({ name: '', role: '', phone: '', priority: '1' });
+  const [deleteContactId,  setDeleteContactId] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -294,9 +295,13 @@ export default function SosPage() {
     onError: (err) => toast.error(getErrorMessage(err, 'Gagal menghapus kontak')),
   });
 
-  const handleRemoveContact = (id: string, name: string) => {
-    if (!window.confirm(`Hapus kontak "${name}" dari daftar darurat?`)) return;
-    removeContactMut.mutate(id);
+  const handleRemoveContact = (id: string) => {
+    if (deleteContactId === id) {
+      removeContactMut.mutate(id);
+      setDeleteContactId(null);
+    } else {
+      setDeleteContactId(id);
+    }
   };
 
   // Real-time — listen via /realtime namespace (web dashboard socket)
@@ -608,14 +613,32 @@ export default function SosPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleRemoveContact(c.id, c.name)}
-                            disabled={removeContactMut.isPending}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FEF2F2] hover:bg-[#FEE2E2] dark:bg-[rgba(255,59,48,0.10)] dark:hover:bg-[rgba(255,59,48,0.18)] text-[#FF3B30] rounded-xl text-xs font-medium transition border border-[#FECACA] dark:border-[rgba(255,59,48,0.25)]"
-                          >
-                            <Trash2 size={12} />
-                            Hapus
-                          </button>
+                          {deleteContactId === c.id ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleRemoveContact(c.id)}
+                                disabled={removeContactMut.isPending}
+                                className="px-2.5 py-1.5 bg-[#FF3B30] hover:bg-[#D70015] text-white rounded-xl text-xs font-semibold transition"
+                              >
+                                Yakin?
+                              </button>
+                              <button
+                                onClick={() => setDeleteContactId(null)}
+                                className="px-2.5 py-1.5 bg-gray-100 dark:bg-white/[0.08] text-gray-600 dark:text-white/60 rounded-xl text-xs font-medium transition"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleRemoveContact(c.id)}
+                              disabled={removeContactMut.isPending}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FEF2F2] hover:bg-[#FEE2E2] dark:bg-[rgba(255,59,48,0.10)] dark:hover:bg-[rgba(255,59,48,0.18)] text-[#FF3B30] rounded-xl text-xs font-medium transition border border-[#FECACA] dark:border-[rgba(255,59,48,0.25)]"
+                            >
+                              <Trash2 size={12} />
+                              Hapus
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -644,12 +667,30 @@ export default function SosPage() {
                           {c.role && <p className="text-xs text-gray-500 dark:text-white/40">{c.role}</p>}
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleRemoveContact(c.id, c.name)}
-                        className="w-8 h-8 rounded-xl bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.10)] flex items-center justify-center text-[#FF3B30] hover:bg-[#FEE2E2] transition border border-[#FECACA] dark:border-[rgba(255,59,48,0.20)]"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {deleteContactId === c.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleRemoveContact(c.id)}
+                            disabled={removeContactMut.isPending}
+                            className="px-2 py-1 bg-[#FF3B30] text-white rounded-lg text-[11px] font-semibold"
+                          >
+                            Hapus
+                          </button>
+                          <button
+                            onClick={() => setDeleteContactId(null)}
+                            className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/[0.08] flex items-center justify-center text-gray-500"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleRemoveContact(c.id)}
+                          className="w-8 h-8 rounded-xl bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.10)] flex items-center justify-center text-[#FF3B30] hover:bg-[#FEE2E2] transition border border-[#FECACA] dark:border-[rgba(255,59,48,0.20)]"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <span className="flex items-center gap-1 text-xs font-mono text-gray-700 dark:text-white/60 bg-gray-50 dark:bg-white/[0.05] px-2.5 py-1 rounded-full border border-gray-200 dark:border-white/[0.08]">

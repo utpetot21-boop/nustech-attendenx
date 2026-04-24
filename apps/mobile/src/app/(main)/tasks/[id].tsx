@@ -165,7 +165,7 @@ function TaskDetailInner() {
   const { data: holds = [] } = useQuery({
     queryKey: ['task-holds', id],
     queryFn: () => tasksService.getHolds(id!),
-    enabled: !!id && (task?.status === 'on_hold' || task?.status === 'assigned'),
+    enabled: !!id && ['on_hold', 'assigned', 'in_progress'].includes(task?.status ?? ''),
   });
 
   // Countdown auto-approve — tick per menit

@@ -478,8 +478,10 @@ export class TasksService {
       reject_reason: dto.reason,
     });
 
-    // Return task to assigned/ongoing
-    await this.taskRepo.update(taskId, { status: 'assigned' });
+    // Hold dari in_progress (ada visit aktif) → kembalikan ke in_progress,
+    // bukan assigned, agar status task konsisten dengan visit yang sedang berjalan
+    const restoreStatus = hold.visit_id ? 'in_progress' : 'assigned';
+    await this.taskRepo.update(taskId, { status: restoreStatus });
     if (hold.visit_id) {
       await this.visitRepo.update(hold.visit_id, { status: 'ongoing' });
     }
@@ -493,7 +495,7 @@ export class TasksService {
       data: { task_id: taskId },
     }).catch(() => null);
 
-    this.realtime?.emitTaskUpdated(taskId, { status: 'assigned' });
+    this.realtime?.emitTaskUpdated(taskId, { status: restoreStatus });
     return this.holdRepo.findOneOrFail({ where: { id: holdId } });
   }
 
