@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -17,6 +18,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AttendanceService } from './attendance.service';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
+import { CorrectAttendanceDto } from './dto/correct-attendance.dto';
 
 @ApiTags('Attendance')
 @ApiBearerAuth()
@@ -107,6 +109,18 @@ export class AttendanceController {
     @Query('status') status?: string,
   ) {
     return this.attendanceService.getAttendanceList({ date, month, status });
+  }
+
+  // ── Admin: koreksi data absensi ──────────────────────────────
+  @Patch(':id/correct')
+  @RequirePermission('attendance:manage')
+  @ApiOperation({ summary: 'Koreksi data absensi karyawan (admin) — jam, status, catatan' })
+  correctAttendance(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminId: string,
+    @Body() dto: CorrectAttendanceDto,
+  ) {
+    return this.attendanceService.correctAttendance(adminId, id, dto);
   }
 
   // ── Laporan ───────────────────────────────────────────────────

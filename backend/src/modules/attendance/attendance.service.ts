@@ -17,6 +17,7 @@ import { CompanyAttendanceConfigEntity } from '../settings/entities/company-atte
 import { AttendanceRequestEntity } from '../attendance-requests/entities/attendance-request.entity';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
+import { CorrectAttendanceDto } from './dto/correct-attendance.dto';
 import { isWithinGeofence } from '@nustech/shared';
 
 @Injectable()
@@ -483,6 +484,53 @@ export class AttendanceService {
       : Math.ceil((att.checkout_earliest.getTime() - now.getTime()) / 1000);
 
     return { canCheckout, remainingSeconds, checkoutEarliest: att.checkout_earliest, checkedOut: false };
+  }
+
+  // ── Koreksi oleh Admin ────────────────────────────────────────
+  async correctAttendance(
+    adminId: string,
+    attendanceId: string,
+    dto: CorrectAttendanceDto,
+  ): Promise<AttendanceEntity> {
+    const record = await this.attendanceRepo.findOne({ where: { id: attendanceId } });
+    if (!record) throw new NotFoundException('Data absensi tidak ditemukan');
+
+    const updates: Partial<Pick<AttendanceEntity,
+      'check_in_at' | 'check_out_at' | 'checkout_earliest' |
+      'status' | 'late_minutes' | 'overtime_minutes' | 'notes'
+    >> = {};
+
+    if (dto.check_in_at !== undefined) {
+      const newCheckIn = new Date(dto.check_in_at);
+      updates.check_in_at = newCheckIn;
+      updates.checkout_earliest = new Date(newCheckIn.getTime() + 8 * 60 * 60 * 1000);
+
+      if (record.shift_start) {
+        const { status: rawStatus, lateMinutes } = this.calculateStatus(
+          newCheckIn,
+          record.shift_start,
+          record.tolerance_minutes,
+        );
+        if (!dto.status) updates.status = rawStatus as any;
+        updates.late_minutes = lateMinutes;
+      }
+    }
+
+    if (dto.check_out_at !== undefined) {
+      const newCheckOut = new Date(dto.check_out_at);
+      updates.check_out_at = newCheckOut;
+      updates.overtime_minutes = this.calculateOvertime(newCheckOut, record.shift_end, record.date);
+    }
+
+    if (dto.status) updates.status = dto.status as any;
+
+    const corrNote = `[Koreksi ${new Date().toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} oleh admin]: ${dto.correction_reason}`;
+    const existingNotes = record.notes ? record.notes.split('\n').filter((l) => !l.startsWith('[Koreksi')).join('\n').trim() : '';
+    const adminNotes = dto.notes?.trim() ? `\nCatatan: ${dto.notes.trim()}` : '';
+    updates.notes = [existingNotes, corrNote + adminNotes].filter(Boolean).join('\n');
+
+    await this.attendanceRepo.update(attendanceId, updates);
+    return this.attendanceRepo.findOne({ where: { id: attendanceId } }) as Promise<AttendanceEntity>;
   }
 
   // ── Helpers ───────────────────────────────────────────────────

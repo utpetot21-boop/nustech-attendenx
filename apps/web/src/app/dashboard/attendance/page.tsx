@@ -13,6 +13,7 @@ import {
   ChevronLeft, ChevronRight, Filter,
   AlertTriangle, ShieldAlert, FileWarning, Plus, X, ExternalLink, FileText,
   AlarmClock, LogOut, Hourglass, MessageSquare, CheckCheck, Ban, ChevronDown, Check,
+  Pencil,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -39,6 +40,8 @@ type AttendanceRecord = {
   shift_end?: string | null;
   check_in_lat?: number | string | null;
   check_in_lng?: number | string | null;
+  check_out_gps_valid?: boolean | null;
+  notes?: string | null;
   user: {
     id: string;
     full_name: string;
@@ -146,8 +149,153 @@ function GpsBadge({ valid }: { valid: boolean | null }) {
     : <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-1.5 py-0.5 rounded-full"><MapPinOff size={9} />Offset</span>;
 }
 
+// ── Koreksi Modal ─────────────────────────────────────────────────────────────
+const STATUS_OPTIONS = ['hadir', 'terlambat', 'alfa', 'izin', 'sakit', 'dinas'] as const;
+const inputCls = 'w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#2C2C2E] px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30';
+const labelCls = 'block text-xs font-semibold text-gray-500 dark:text-white/50 uppercase tracking-wide mb-1.5';
+
+function toLocalTime(iso: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar', hour12: false });
+}
+
+function buildIso(date: string, hhmm: string): string {
+  // date = 'YYYY-MM-DD' (WITA date), hhmm = 'HH:MM' — hasilkan ISO dengan offset +08:00
+  return `${date}T${hhmm}:00+08:00`;
+}
+
+function CorrectAttendanceModal({
+  record,
+  onClose,
+  onSaved,
+}: {
+  record: AttendanceRecord;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [checkInTime,       setCheckInTime]       = useState(toLocalTime(record.check_in_at));
+  const [checkOutTime,      setCheckOutTime]       = useState(toLocalTime(record.check_out_at));
+  const [status,            setStatus]            = useState(record.status);
+  const [notes,             setNotes]             = useState(record.notes ?? '');
+  const [correctionReason,  setCorrectionReason]  = useState('');
+  const [saving,            setSaving]            = useState(false);
+  const [error,             setError]             = useState('');
+
+  const handleSave = async () => {
+    if (!correctionReason.trim()) { setError('Alasan koreksi wajib diisi.'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const body: Record<string, string> = { correction_reason: correctionReason.trim() };
+      if (checkInTime)  body.check_in_at  = buildIso(record.date, checkInTime);
+      if (checkOutTime) body.check_out_at = buildIso(record.date, checkOutTime);
+      if (status !== record.status) body.status = status;
+      if (notes.trim() !== (record.notes ?? '').trim()) body.notes = notes.trim();
+
+      await apiClient.patch(`/attendance/${record.id}/correct`, body);
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'Gagal menyimpan koreksi.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full sm:max-w-md bg-white dark:bg-[#1C1C1E] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="w-7 h-7 rounded-lg bg-[#007AFF]/10 flex items-center justify-center">
+                <Pencil size={13} className="text-[#007AFF]" />
+              </div>
+              <h3 className="text-[16px] font-bold text-gray-900 dark:text-white">Koreksi Absensi</h3>
+            </div>
+            <p className="text-[12px] text-gray-400 dark:text-white/40 ml-9">
+              {record.user?.full_name} · {new Date(record.date).toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', timeZone: 'Asia/Makassar' })}
+            </p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+
+          {/* Jam check-in / check-out */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Jam Check-in</label>
+              <input type="time" value={checkInTime} onChange={(e) => setCheckInTime(e.target.value)} className={inputCls} />
+              {record.check_in_at && (
+                <p className="text-[10px] text-gray-400 mt-1">Saat ini: {toLocalTime(record.check_in_at)} WITA</p>
+              )}
+            </div>
+            <div>
+              <label className={labelCls}>Jam Check-out</label>
+              <input type="time" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} className={inputCls} />
+              {record.check_out_at && (
+                <p className="text-[10px] text-gray-400 mt-1">Saat ini: {toLocalTime(record.check_out_at)} WITA</p>
+              )}
+            </div>
+          </div>
+
+          {/* Status override */}
+          <div>
+            <label className={labelCls}>Status Kehadiran</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{STATUS_CONFIG[s]?.label ?? s}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Catatan admin */}
+          <div>
+            <label className={labelCls}>Catatan Tambahan <span className="normal-case font-normal text-gray-400">(opsional)</span></label>
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="Catatan tambahan dari admin…" className={`${inputCls} resize-none`} />
+          </div>
+
+          {/* Alasan koreksi — wajib */}
+          <div>
+            <label className={labelCls}>Alasan Koreksi <span className="text-red-500">*</span></label>
+            <textarea rows={3} value={correctionReason} onChange={(e) => setCorrectionReason(e.target.value)}
+              placeholder="Jelaskan alasan perubahan data absensi ini…" className={`${inputCls} resize-none`} />
+            <p className="text-[10px] text-gray-400 mt-1">Dicatat sebagai audit trail perubahan data.</p>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+              <AlertTriangle size={13} className="text-red-500 flex-shrink-0" />
+              <p className="text-[12px] text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-5 py-4 border-t border-black/[0.06] dark:border-white/[0.08]">
+          <button onClick={onClose} disabled={saving}
+            className="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] text-gray-700 dark:text-gray-300 text-sm font-semibold disabled:opacity-50">
+            Batal
+          </button>
+          <button onClick={handleSave} disabled={saving || !correctionReason.trim()}
+            className="flex-1 py-2.5 rounded-xl bg-[#007AFF] hover:bg-[#0071e3] disabled:opacity-50 text-white text-sm font-semibold transition-colors">
+            {saving ? 'Menyimpan…' : 'Simpan Koreksi'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Card view untuk mobile
-function RecordCard({ r, showDate }: { r: AttendanceRecord; showDate?: boolean }) {
+function RecordCard({ r, showDate, onCorrect }: { r: AttendanceRecord; showDate?: boolean; onCorrect?: () => void }) {
   return (
     <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.06] dark:border-white/10 p-4">
       <div className="flex items-start gap-3">
@@ -208,6 +356,14 @@ function RecordCard({ r, showDate }: { r: AttendanceRecord; showDate?: boolean }
           )}
           <GpsBadge valid={r.gps_valid} />
         </div>
+      )}
+
+      {/* Tombol Koreksi */}
+      {onCorrect && (
+        <button onClick={onCorrect}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold text-[#007AFF] bg-[#007AFF]/08 dark:bg-[#007AFF]/15 hover:bg-[#007AFF]/15 transition-colors">
+          <Pencil size={11} /> Koreksi Data
+        </button>
       )}
     </div>
   );
@@ -1149,6 +1305,7 @@ function PermohonanSection() {
 type PageTab = 'absensi' | 'permohonan' | 'pelanggaran';
 
 export default function AttendancePage() {
+  const queryClient = useQueryClient();
   const [activeTab,     setActiveTab]     = useState<PageTab>('absensi');
   const [viewMode,      setViewMode]      = useState<ViewMode>('daily');
   const [date,          setDate]          = useState(today());
@@ -1156,6 +1313,7 @@ export default function AttendancePage() {
   const [statusFilter,  setStatusFilter]  = useState('');
   const [search,        setSearch]        = useState('');
   const [showFilters,   setShowFilters]   = useState(false);
+  const [correctModal,  setCorrectModal]  = useState<AttendanceRecord | null>(null);
 
   const { data: pendingCount } = useQuery<{ count: number }>({
     queryKey: ['attendance-requests-pending-count'],
@@ -1420,7 +1578,7 @@ export default function AttendancePage() {
                     ...(viewMode === 'monthly' ? ['Tanggal'] : []),
                     'Karyawan', 'Departemen', 'Check-in', 'Check-out', 'Terlambat', 'Lembur',
                     ...(viewMode === 'daily' ? ['GPS'] : ['Metode']),
-                    'Status',
+                    'Status', '',
                   ].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.4px] text-gray-400 dark:text-white/35 bg-white dark:bg-[#1C1C1E]">
                       {h}
@@ -1484,6 +1642,12 @@ export default function AttendancePage() {
                       : <td className="px-4 py-3 text-[11px] text-gray-400 dark:text-white/35 capitalize">{r.check_in_method ? (METHOD_LABEL[r.check_in_method] ?? r.check_in_method) : '—'}</td>
                     }
                     <td className="px-4 py-3"><StatusBadge status={displayStatus(r)} /></td>
+                    <td className="px-2 py-3">
+                      <button onClick={() => setCorrectModal(r)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-[#007AFF] hover:bg-[#007AFF]/10 transition-colors">
+                        <Pencil size={10} /> Koreksi
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1493,7 +1657,7 @@ export default function AttendancePage() {
           {/* Mobile: cards */}
           <div className="md:hidden space-y-2.5">
             {filtered.map((r) => (
-              <RecordCard key={r.id} r={r} showDate={viewMode === 'monthly'} />
+              <RecordCard key={r.id} r={r} showDate={viewMode === 'monthly'} onCorrect={() => setCorrectModal(r)} />
             ))}
           </div>
         </>
@@ -1516,6 +1680,18 @@ export default function AttendancePage() {
         </div>
       )}
       </>)}
+
+      {/* ── Modal Koreksi Absensi ─────────────────────────────────── */}
+      {correctModal && (
+        <CorrectAttendanceModal
+          record={correctModal}
+          onClose={() => setCorrectModal(null)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ['admin-attendance'] });
+            toast.success('Data absensi berhasil dikoreksi');
+          }}
+        />
+      )}
     </div>
   );
 }
