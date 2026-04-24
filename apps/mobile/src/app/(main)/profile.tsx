@@ -26,6 +26,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import * as Updates from 'expo-updates';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import {
@@ -625,6 +626,29 @@ export default function ProfileScreen() {
             </View>
           </View>
         )}
+
+        {/* ── Versi Info ────────────────────────────────────────────── */}
+        <View style={{ marginHorizontal: 20, marginBottom: 8, alignItems: 'center', gap: 3 }}>
+          <Text style={{ fontSize: 12, color: lTertiary(isDark), fontWeight: '500' }}>
+            Nustech-AttendenX v1.0.0
+          </Text>
+          <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>
+            {Updates.isEmbeddedLaunch
+              ? 'Bundle bawaan (belum ada OTA)'
+              : `OTA: ${(Updates.updateId ?? '—').slice(0, 8)}…`}
+          </Text>
+          <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>
+            Channel: {Updates.channel ?? (Updates.isEmbeddedLaunch ? 'embedded' : '—')}
+          </Text>
+          {!Updates.isEmbeddedLaunch && Updates.createdAt && (
+            <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>
+              Diperbarui: {new Date(Updates.createdAt).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar',
+              })} WITA
+            </Text>
+          )}
+        </View>
 
         <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
