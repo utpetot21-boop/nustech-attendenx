@@ -170,9 +170,8 @@ export default function AttendanceRequestsAdminScreen() {
   const qc      = useQueryClient();
   const user    = useAuthStore((s) => s.user);
 
-  const isApprover = APPROVER_ROLES.includes(
-    (user?.role?.name ?? '') as typeof APPROVER_ROLES[number],
-  );
+  const isApprover = !!user?.role?.can_approve
+    || APPROVER_ROLES.includes((user?.role?.name ?? '') as typeof APPROVER_ROLES[number]);
 
   // Guard: redirect non-approver keluar dari halaman ini
   useEffect(() => {

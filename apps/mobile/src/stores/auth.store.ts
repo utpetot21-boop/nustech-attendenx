@@ -9,7 +9,13 @@ export interface AuthUser {
   email: string;
   phone?: string | null;
   employee_id: string;
-  role: { name: string };
+  role: {
+    name: string;
+    can_approve?: boolean;
+    can_delegate?: boolean;
+    permissions?: string[] | null;
+  };
+  department_id?: string | null;
   avatar_url?: string | null;
   must_change_password?: boolean;
 }

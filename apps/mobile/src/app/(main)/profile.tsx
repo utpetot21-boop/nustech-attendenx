@@ -103,11 +103,11 @@ export default function ProfileScreen() {
   const [rejectId, setRejectId]     = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  // Cek can_approve dari /auth/me (selalu fresh, tidak bergantung SecureStore)
+  // Cek has_pin + sinkron avatar/role dari /auth/me
   const { data: meData } = useQuery({
     queryKey: ['auth-me'],
     queryFn: () => api.get('/auth/me').then((r) => r.data as {
-      role?: { name?: string; can_approve?: boolean };
+      role?: { name?: string; can_approve?: boolean; can_delegate?: boolean; permissions?: string[] | null };
       avatar_url?: string | null;
       full_name?: string;
       phone?: string | null;
@@ -115,9 +115,10 @@ export default function ProfileScreen() {
     }),
     staleTime: 60_000,
   });
-  const isApprover = !!meData?.role?.can_approve
-    || APPROVER_ROLES.includes(meData?.role?.name ?? '')
-    || APPROVER_ROLES.includes(typeof user?.role === 'string' ? user.role : (user?.role?.name ?? ''));
+
+  // Gunakan can_approve dari store (tersimpan saat login) — fallback ke role name
+  const isApprover = !!user?.role?.can_approve
+    || APPROVER_ROLES.includes(user?.role?.name ?? '');
 
   const { data: pendingData, isLoading: pendingLoading, refetch: refetchPending } = useQuery({
     queryKey: ['leave-requests-pending'],
@@ -144,16 +145,17 @@ export default function ProfileScreen() {
     onError: (e: any) => Alert.alert('Gagal', e?.response?.data?.message ?? 'Gagal menolak'),
   });
 
-  // ── Sync user.role + avatar_url dari /auth/me ke store ─────────────
+  // ── Sync role (full object) + avatar_url dari /auth/me ke store ─────
   useEffect(() => {
     if (!meData) return;
     const patch: Partial<typeof user & Record<string, unknown>> = {};
-    if (meData.role) patch.role = { name: meData.role.name ?? '' };
+    // Simpan full role object (termasuk can_approve) agar tersedia di semua screen
+    if (meData.role) patch.role = meData.role;
     if (meData.avatar_url !== undefined && meData.avatar_url !== user?.avatar_url) {
       patch.avatar_url = meData.avatar_url;
     }
-    if (Object.keys(patch).length > 0) updateUser(patch);
-  }, [meData?.role?.name, meData?.avatar_url]);
+    if (Object.keys(patch).length > 0) updateUser(patch as Partial<import('@/stores/auth.store').AuthUser>);
+  }, [meData?.role?.name, meData?.role?.can_approve, meData?.avatar_url]);
 
   // ── Pengingat Check-in ─────────────────────────────────────────────
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
