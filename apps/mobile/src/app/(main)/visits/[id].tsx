@@ -873,7 +873,7 @@ export default function VisitDetailScreen() {
                     >
                       {photoCounts.has_requirements
                         ? `${photoCounts.requirements.filter((r) => r.is_required && r.count > 0).length}/${photoCounts.requirements.filter((r) => r.is_required).length} foto wajib terisi`
-                        : `Before ${photoCounts.before.count}/${photoCounts.before.min} · During ${photoCounts.during.count}/${photoCounts.during.min} · After ${photoCounts.after.count}/${photoCounts.after.min}`
+                        : `Sebelum ${photoCounts.before.count}/${photoCounts.before.min} · Selama ${photoCounts.during.count}/${photoCounts.during.min} · Sesudah ${photoCounts.after.count}/${photoCounts.after.min}`
                       }
                     </Text>
                   )}

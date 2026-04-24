@@ -550,18 +550,21 @@ export default function VisitsPage() {
     },
   });
 
+  // Tab 'onhold' selalu request status=on_hold, tidak ikut statusFilter user
+  const effectiveStatus = tab === 'onhold' ? 'on_hold' : (statusFilter || undefined);
+
   const { data: result, isLoading } = useQuery({
-    queryKey: ['admin-visits', statusFilter, dateFilter],
+    queryKey: ['admin-visits', tab === 'onhold' ? 'on_hold' : statusFilter, dateFilter],
     queryFn: () =>
       apiClient.get('/visits', {
-        params: { status: statusFilter || undefined, date: dateFilter || undefined, limit: 100 },
+        params: { status: effectiveStatus, date: dateFilter || undefined, limit: 100 },
       }).then((r) => r.data),
     enabled: tab === 'visits' || tab === 'onhold',
     refetchInterval: 30_000,
   });
 
   const visits: Visit[] = result?.items ?? [];
-  const onHoldVisits = visits.filter((v) => v.status === 'on_hold');
+  const onHoldVisits = tab === 'onhold' ? visits : visits.filter((v) => v.status === 'on_hold');
   const ongoingCount = visits.filter((v) => v.status === 'ongoing').length;
   const completedCount = visits.filter((v) => v.status === 'completed').length;
 

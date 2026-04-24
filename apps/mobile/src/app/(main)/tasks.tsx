@@ -60,11 +60,12 @@ const HOLD_REASONS = [
 ];
 
 const STATUS_FILTERS = [
-  { label: 'Semua', value: undefined },
-  { label: 'Menunggu', value: 'pending_confirmation' },
-  { label: 'Ditugaskan', value: 'assigned' },
-  { label: 'Berjalan', value: 'in_progress' },
-  { label: 'Ditunda', value: 'on_hold' },
+  { label: 'Semua',          value: undefined               },
+  { label: 'Menunggu',       value: 'pending_confirmation'  },
+  { label: 'Ditugaskan',     value: 'assigned'              },
+  { label: 'Dikerjakan',     value: 'in_progress'           },
+  { label: 'Ditunda',        value: 'on_hold'               },
+  { label: 'Dijadwal Ulang', value: 'rescheduled'           },
 ];
 
 export default function TasksScreen() {
@@ -252,7 +253,7 @@ export default function TasksScreen() {
         {/* Header */}
         <BackHeader
           title="Tugas"
-          subtitle={`${data?.total ?? 0} tugas ditugaskan`}
+          subtitle={statusFilter ? `${data?.total ?? 0} tugas ditemukan` : `${data?.total ?? 0} tugas aktif`}
           accentColor={C.green}
         />
 

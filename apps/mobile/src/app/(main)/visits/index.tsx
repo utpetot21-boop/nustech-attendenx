@@ -38,16 +38,18 @@ import { VisitCardSkeleton } from '@/components/ui/SkeletonLoader';
 const STATUS_META: Record<string, { label: string; color: string }> = {
   ongoing:     { label: 'Berlangsung',    color: C.blue   },
   completed:   { label: 'Selesai',        color: C.green  },
-  on_hold:     { label: 'Ditahan',        color: C.orange },
+  on_hold:     { label: 'Ditunda',         color: C.orange },
   rescheduled: { label: 'Dijadwal Ulang', color: C.purple },
   cancelled:   { label: 'Dibatalkan',     color: C.red    },
 };
 
 const FILTERS = [
-  { label: 'Semua',       value: undefined     },
-  { label: 'Berlangsung', value: 'ongoing'      },
-  { label: 'Selesai',     value: 'completed'    },
-  { label: 'Ditahan',     value: 'on_hold'      },
+  { label: 'Semua',          value: undefined      },
+  { label: 'Berlangsung',    value: 'ongoing'       },
+  { label: 'Selesai',        value: 'completed'     },
+  { label: 'Ditunda',        value: 'on_hold'       },
+  { label: 'Dijadwal Ulang', value: 'rescheduled'   },
+  { label: 'Dibatalkan',     value: 'cancelled'     },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,16 +145,16 @@ export default function VisitsListScreen() {
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['visits', statusFilter],
     queryFn:  () => visitsService.getMyVisits({ status: statusFilter }),
+    refetchInterval: 15000,
   });
 
   const handleRefresh = useCallback(() => { refetch(); }, [refetch]);
 
   const ongoingVisit = data?.items.find((v) => v.status === 'ongoing');
-  // - kunjungan berlangsung sudah tampil sebagai banner biru atas, keluarkan dari daftar
-  // - visit "cancelled" (hasil admin cleanup / stale) disembunyikan kecuali user
-  //   memfilter eksplisit dari dropdown di masa depan.
+  // Kunjungan berlangsung tampil sebagai banner biru — keluarkan dari daftar.
+  // Cancelled disembunyikan di view "Semua"; tampil saat filter "Dibatalkan" aktif.
   const listItems = (data?.items ?? []).filter((v) => {
-    if (v.status === 'cancelled') return false;
+    if (!statusFilter && v.status === 'cancelled') return false;
     if (ongoingVisit && v.id === ongoingVisit.id) return false;
     return true;
   });
