@@ -34,8 +34,8 @@ export class ReportsController {
   @Get('attendance/export/excel')
   async attendanceExcel(
     @Query('month') month: string,
-    @Query('dept_id') deptId?: string,
     @Res() res: Response,
+    @Query('dept_id') deptId?: string,
   ) {
     const rows = await this.reports.getAttendanceReport({ month: month ?? this.currentMonth(), deptId });
     const buf = this.excel.exportAttendance(rows);
