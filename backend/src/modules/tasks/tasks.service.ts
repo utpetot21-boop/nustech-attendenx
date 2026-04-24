@@ -40,6 +40,17 @@ const HOLD_AUTO_APPROVE_MINUTES: Record<string, number> = {
   urgent: 30,   // 30 menit
 };
 
+const HOLD_REASON_LABELS: Record<string, string> = {
+  client_absent:        'Klien/PIC tidak ada di lokasi',
+  access_denied:        'Tidak bisa masuk gedung/area',
+  equipment_broken:     'Peralatan rusak di lokasi',
+  material_unavailable: 'Spare part/material belum tersedia',
+  client_cancel:        'Klien batalkan sepihak',
+  weather:              'Cuaca ekstrem',
+  technician_sick:      'Teknisi sakit mendadak',
+  other:                'Alasan lain',
+};
+
 @Injectable()
 export class TasksService {
   constructor(
@@ -66,16 +77,17 @@ export class TasksService {
   private async notifyAssignee(taskId: string, assigneeId: string): Promise<void> {
     const task = await this.taskRepo.findOne({
       where: { id: taskId },
-      relations: ['client'],
+      relations: ['client', 'creator'],
     });
     if (!task) return;
     const priorityLabel = PRIORITY_LABEL[task.priority] ?? task.priority;
     const clientName = task.client?.name ? ` · ${task.client.name}` : '';
+    const fromName   = task.creator?.full_name ? ` — Dari: ${task.creator.full_name}` : '';
     await this.notifications.send({
       userId: assigneeId,
       type: 'task_assigned',
       title: `Tugas Baru — ${priorityLabel}`,
-      body: `${task.title}${clientName}`,
+      body: `${task.title}${clientName}${fromName}`,
       data: { task_id: task.id, priority: task.priority },
     }).catch(() => null);
   }
@@ -84,16 +96,17 @@ export class TasksService {
     if (userIds.length === 0) return;
     const task = await this.taskRepo.findOne({
       where: { id: taskId },
-      relations: ['client'],
+      relations: ['client', 'creator'],
     });
     if (!task) return;
     const priorityLabel = PRIORITY_LABEL[task.priority] ?? task.priority;
     const clientName = task.client?.name ? ` · ${task.client.name}` : '';
+    const fromName   = task.creator?.full_name ? ` — Dari: ${task.creator.full_name}` : '';
     await this.notifications.sendMany(
       userIds,
       'task_assigned',
       `Tugas Tersedia — ${priorityLabel}`,
-      `${task.title}${clientName} (broadcast — siapa cepat dia dapat)`,
+      `${task.title}${clientName} (broadcast — siapa cepat)${fromName}`,
       { task_id: task.id, priority: task.priority, dispatch: 'broadcast' },
     ).catch(() => null);
   }
@@ -313,7 +326,20 @@ export class TasksService {
       swap_task_id: dto.swap_task_id ?? null,
     });
 
-    return this.delegationRepo.save(delegation);
+    const saved = await this.delegationRepo.save(delegation);
+
+    // Notif ke creator (pemberi tugas) untuk approval
+    if (task.created_by && task.created_by !== fromUserId) {
+      await this.notifications.send({
+        userId: task.created_by,
+        type: 'delegation_request',
+        title: 'Permintaan Pelimpahan Tugas',
+        body: `${fromUser.full_name} ingin melimpahkan "${task.title}". Alasan: ${dto.reason}.`,
+        data: { task_id: taskId, delegation_id: saved.id },
+      }).catch(() => null);
+    }
+
+    return saved;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -322,7 +348,7 @@ export class TasksService {
   async holdTask(taskId: string, userId: string, dto: HoldTaskDto): Promise<TaskHoldEntity> {
     const task = await this.findOne(taskId);
 
-    if (!['assigned', 'pending_confirmation'].includes(task.status)) {
+    if (!['assigned', 'pending_confirmation', 'in_progress'].includes(task.status)) {
       throw new BadRequestException('Tugas tidak dalam status aktif untuk di-hold.');
     }
 
@@ -356,7 +382,22 @@ export class TasksService {
 
     await this.taskRepo.update(taskId, { status: 'on_hold' });
 
-    return this.holdRepo.save(hold);
+    const savedHold = await this.holdRepo.save(hold);
+
+    // Notif ke creator (pemberi tugas)
+    if (task.created_by) {
+      const holderName = task.assignee?.full_name ?? 'Teknisi';
+      const reasonLabel = HOLD_REASON_LABELS[dto.reason_type] ?? dto.reason_type;
+      await this.notifications.send({
+        userId: task.created_by,
+        type: 'task_on_hold',
+        title: 'Pengajuan Tunda Tugas',
+        body: `${holderName} mengajukan tunda "${task.title}". Alasan: ${reasonLabel}.`,
+        data: { task_id: taskId, hold_id: savedHold.id },
+      }).catch(() => null);
+    }
+
+    return savedHold;
   }
 
   async getHolds(taskId: string): Promise<TaskHoldEntity[]> {
@@ -401,6 +442,15 @@ export class TasksService {
 
     await this.taskRepo.update(taskId, taskUpdate as never);
 
+    const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    await this.notifications.send({
+      userId: hold.held_by,
+      type: 'task_hold_approved',
+      title: 'Penundaan Disetujui',
+      body: `Penundaan tugas "${task?.title ?? ''}" disetujui.${dto.reschedule_date ? ` Dijadwal ulang: ${dto.reschedule_date}.` : ''}`,
+      data: { task_id: taskId },
+    }).catch(() => null);
+
     return this.holdRepo.findOneOrFail({ where: { id: holdId } });
   }
 
@@ -428,6 +478,15 @@ export class TasksService {
     if (hold.visit_id) {
       await this.visitRepo.update(hold.visit_id, { status: 'ongoing' });
     }
+
+    const task = await this.taskRepo.findOne({ where: { id: taskId } });
+    await this.notifications.send({
+      userId: hold.held_by,
+      type: 'task_hold_rejected',
+      title: 'Penundaan Ditolak',
+      body: `Penundaan tugas "${task?.title ?? ''}" ditolak. ${dto.reason ?? 'Lanjutkan pekerjaan.'}`,
+      data: { task_id: taskId },
+    }).catch(() => null);
 
     return this.holdRepo.findOneOrFail({ where: { id: holdId } });
   }
@@ -488,12 +547,27 @@ export class TasksService {
   }
 
   async rejectDelegation(delegationId: string, approverId: string, reason?: string) {
+    const d = await this.delegationRepo.findOneOrFail({
+      where: { id: delegationId },
+      relations: ['task'],
+    });
+
     await this.delegationRepo.update(delegationId, {
       status: 'rejected',
       approved_by: approverId,
       approved_at: new Date(),
       reject_reason: reason ?? null,
     });
+
+    // Notif ke teknisi yang mengajukan limpah
+    await this.notifications.send({
+      userId: d.from_user_id,
+      type: 'delegation_rejected',
+      title: 'Permintaan Limpah Ditolak',
+      body: `Pelimpahan tugas "${d.task?.title ?? ''}" ditolak.${reason ? ` Alasan: ${reason}` : ' Lanjutkan pekerjaan.'}`,
+      data: { task_id: d.task_id },
+    }).catch(() => null);
+
     return this.delegationRepo.findOneOrFail({ where: { id: delegationId } });
   }
 

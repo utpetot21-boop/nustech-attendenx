@@ -41,6 +41,7 @@ import { BackHeader } from '@/components/ui/BackHeader';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksService, type TaskSummary, type HoldTaskPayload } from '@/services/tasks.service';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface EmployeeOption { id: string; full_name: string; department?: { name?: string } | null }
 import { TaskCard } from '@/components/tasks/TaskCard';
@@ -75,6 +76,7 @@ export default function TasksScreen() {
   const insets = useSafeAreaInsets();
 
   const { toast, hide: hideToast, success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [selectedTask, setSelectedTask] = useState<TaskSummary | null>(null);
   const [userLat, setUserLat] = useState<number | undefined>(undefined);
@@ -298,7 +300,7 @@ export default function TasksScreen() {
                       userLat={userLat}
                       userLng={userLng}
                     />
-                    {task.status === 'pending_confirmation' && (
+                    {task.status === 'pending_confirmation' && task.assignee?.id === currentUserId && (
                       <View
                         style={{
                           flexDirection: 'row',
@@ -372,7 +374,7 @@ export default function TasksScreen() {
                     userLat={userLat}
                     userLng={userLng}
                   />
-                  {task.status === 'pending_confirmation' && (
+                  {task.status === 'pending_confirmation' && task.assignee?.id === currentUserId && (
                     <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 20, marginTop: 2, marginBottom: 12 }}>
                       <TouchableOpacity
                         onPress={() => handleAccept(task)}
@@ -391,7 +393,7 @@ export default function TasksScreen() {
                       </TouchableOpacity>
                     </View>
                   )}
-                  {task.status === 'assigned' && (
+                  {task.status === 'assigned' && task.assignee?.id === currentUserId && (
                     <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 20, marginTop: 2, marginBottom: 12 }}>
                       <TouchableOpacity
                         onPress={() => handleHoldOpen(task)}

@@ -36,8 +36,15 @@ import {
   X,
   Calendar,
   Pause,
+  ArrowRightLeft,
   type LucideIcon,
 } from 'lucide-react-native';
+import {
+  NOTIF_ROUTE_MAP,
+  ATTENDANCE_HISTORY_SENTINEL,
+  ANN_TAB_SENTINEL,
+  TASK_DEEP_LINK_TYPES,
+} from '@/constants/notifRoutes';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Swipeable } from 'react-native-gesture-handler';
 import { api } from '@/services/api';
@@ -83,60 +90,6 @@ const ANN_ICON_MAP: Record<string, LucideIconComponent> = {
   info: Info, urgent: AlertCircle, holiday: Sun, policy: FileText,
 };
 
-// Map tipe notif → route halaman yang dituju
-const NOTIF_ROUTE_MAP: Record<string, string> = {
-  // Tukar Jadwal
-  swap_request_received:           '/(main)/schedule-swap',
-  swap_request_accepted_by_target: '/(main)/schedule-swap',
-  swap_request_approved:           '/(main)/schedule-swap',
-  swap_request_rejected:           '/(main)/schedule-swap',
-  swap_request_admin:              '/(main)/schedule-swap',
-  // Cuti & Izin
-  leave_request:                   '/(main)/profile',
-  leave_approved:                  '/(main)/leave',
-  leave_rejected:                  '/(main)/leave',
-  leave_expiry_reminder:           '/(main)/leave',
-  collective_leave_deduction:      '/(main)/leave',
-  // Absensi check-in/out
-  check_in_success:                '/(main)/attendance',
-  check_out_success:               '/(main)/attendance',
-  // Absensi permohonan — tambah param openHistory agar auto-buka riwayat
-  sp_reminder:                     '/(main)/attendance',
-  alfa_detected:                   '/(main)/attendance',
-  late_arrival_approved:           '__attendance_history__',
-  late_arrival_rejected:           '__attendance_history__',
-  early_departure_approved:        '__attendance_history__',
-  early_departure_rejected:        '__attendance_history__',
-  attendance_request_submitted:    '/(main)/attendance-requests-admin',
-  attendance_request_approved:     '__attendance_history__',
-  attendance_request_rejected:     '__attendance_history__',
-  // Klaim Biaya
-  expense_claim_submitted:         '/(main)/expense-claims',
-  expense_claim_approved:          '/(main)/expense-claims',
-  expense_claim_rejected:          '/(main)/expense-claims',
-  expense_claim_paid:              '/(main)/expense-claims',
-  // FYI — informasi hasil review untuk manager/admin/super_admin
-  leave_fyi:                       '/(main)/notifications',
-  attendance_request_fyi:          '/(main)/attendance-requests-admin',
-  expense_claim_fyi:               '/(main)/expense-claims',
-  // Tugas
-  task_assigned:                   '/(main)/tasks',
-  task_accepted:                   '/(main)/tasks',
-  task_rejected:                   '/(main)/tasks',
-  sla_breach:                      '/(main)/tasks',
-  task_on_hold:                    '/(main)/tasks',
-  task_hold_approved:              '/(main)/tasks',
-  task_hold_rejected:              '/(main)/tasks',
-  // Berita Acara
-  ba_generated:                    '/(main)/service-reports',
-  // SOS
-  sos:                             '/(main)/sos',
-  sos_alert:                       '/(main)/sos-alert',
-  // Pengumuman
-  announcement_approved:           '__ann__',
-  announcement_rejected:           '__ann__',
-  announcement_pending:            '__ann__',
-};
 
 type Tab = 'notif' | 'ann';
 
@@ -264,9 +217,12 @@ export default function NotificationsScreen() {
     task_assigned:             { Icon: ClipboardList,  color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
     task_accepted:             { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
     task_rejected:             { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    task_cancelled:            { Icon: Ban,            color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
     task_on_hold:              { Icon: Pause,          color: C.orange, bg: isDark ? 'rgba(255,149,0,0.18)'  : '#FFFBEB' },
     task_hold_approved:        { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
     task_hold_rejected:        { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
+    delegation_request:        { Icon: ArrowRightLeft, color: C.purple, bg: isDark ? 'rgba(175,82,222,0.18)' : '#F5F3FF' },
+    delegation_rejected:       { Icon: ArrowRightLeft, color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
     sla_breach:                { Icon: AlertTriangle,  color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
     // Tukar Jadwal
     swap_request_received:           { Icon: Calendar, color: C.purple, bg: isDark ? 'rgba(175,82,222,0.18)' : '#F5F3FF' },
@@ -418,20 +374,6 @@ export default function NotificationsScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       if (!notif.is_read) markReadMut.mutate(notif.id);
-                      const route = NOTIF_ROUTE_MAP[notif.type];
-                      if (route === '__ann__') {
-                        setActiveTab('ann');
-                        return;
-                      }
-                      // Absensi permohonan approved/rejected → buka attendance + riwayat
-                      if (route === '__attendance_history__') {
-                        router.push({
-                          pathname: '/(main)/attendance',
-                          params: { openHistory: '1' },
-                        });
-                        return;
-                      }
-                      if (!route) return;
                       // SOS alert perlu params lat/lng/userName dari data payload
                       if (notif.type === 'sos_alert') {
                         const d = (notif.data ?? {}) as Record<string, unknown>;
@@ -446,6 +388,29 @@ export default function NotificationsScreen() {
                         });
                         return;
                       }
+                      // Task deep-link — navigasi langsung ke detail tugas
+                      const taskId = (notif.data as Record<string, unknown> | null | undefined)?.task_id;
+                      if (
+                        TASK_DEEP_LINK_TYPES.has(notif.type) &&
+                        typeof taskId === 'string' &&
+                        /^[\w-]{8,64}$/.test(taskId)
+                      ) {
+                        router.push(`/(main)/tasks/${taskId}` as Href);
+                        return;
+                      }
+                      const route = NOTIF_ROUTE_MAP[notif.type];
+                      if (route === ANN_TAB_SENTINEL) {
+                        setActiveTab('ann');
+                        return;
+                      }
+                      if (route === ATTENDANCE_HISTORY_SENTINEL) {
+                        router.push({
+                          pathname: '/(main)/attendance',
+                          params: { openHistory: '1' },
+                        });
+                        return;
+                      }
+                      if (!route) return;
                       router.push(route as Href);
                     }}
                     activeOpacity={0.78}

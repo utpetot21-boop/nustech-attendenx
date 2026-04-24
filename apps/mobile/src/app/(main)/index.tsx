@@ -50,8 +50,10 @@ import { currentMonth } from '@/utils/dateFormatter';
 import { useCheckoutTimer } from '@/hooks/useCheckoutTimer';
 import { useTabBar } from '@/context/TabBarContext';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { useAuthStore } from '@/stores/auth.store';
 
 const MONTH_NOW = currentMonth();
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin'] as const;
 
 const STATUS_SUMMARY = [
   { key: 'hadir',     label: 'Hadir',     color: C.green },
@@ -191,11 +193,11 @@ function StatCard({
 // ── Row Nav Card ──────────────────────────────────────────────────────────────
 function NavCard({
   label, sub, accentColor,
-  icon: Icon, onPress, isDark,
+  icon: Icon, onPress, isDark, badge,
 }: {
   label: string; sub: string; accentColor: string;
   icon: LucideIcon;
-  onPress: () => void; isDark: boolean;
+  onPress: () => void; isDark: boolean; badge?: number;
 }) {
   return (
     <TouchableOpacity
@@ -222,13 +224,25 @@ function NavCard({
         </Text>
         <Text style={{ fontSize: 13, color: lSecondary(isDark), marginTop: 1 }}>{sub}</Text>
       </View>
-      <View style={{
-        width: 28, height: 28, borderRadius: R.sm - 2,
-        backgroundColor: accentColor + '12',
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        <ChevronRight size={14} strokeWidth={2.2} color={accentColor} />
-      </View>
+      {badge !== undefined && badge > 0 ? (
+        <View style={{
+          backgroundColor: C.red, borderRadius: 10,
+          paddingHorizontal: 7, paddingVertical: 3,
+          minWidth: 22, alignItems: 'center',
+        }}>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>
+            {badge > 99 ? '99+' : badge}
+          </Text>
+        </View>
+      ) : (
+        <View style={{
+          width: 28, height: 28, borderRadius: R.sm - 2,
+          backgroundColor: accentColor + '12',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <ChevronRight size={14} strokeWidth={2.2} color={accentColor} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -326,6 +340,10 @@ export default function BerandaScreen() {
   const qc = useQueryClient();
   const { onScroll } = useTabBar();
 
+  const storeUser = useAuthStore((s) => s.user);
+  const isApprover = !!storeUser?.role?.can_approve
+    || APPROVER_ROLES.includes((storeUser?.role?.name ?? '') as typeof APPROVER_ROLES[number]);
+
   const { data: user } = useQuery({
     queryKey: ['user-profile'],
     queryFn: async () => {
@@ -402,6 +420,37 @@ export default function BerandaScreen() {
     queryFn: () => attendanceRequestsService.getMyToday(),
     refetchInterval: 30_000,
   });
+
+  const { data: pendingAttReqCount = 0 } = useQuery<number>({
+    queryKey: ['pending-att-req-count'],
+    queryFn: () =>
+      api.get('/attendance-requests', { params: { status: 'pending', page: 1, limit: 1 } })
+        .then((r) => (r.data.total ?? 0) as number),
+    enabled: isApprover,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const { data: pendingLeaveCount = 0 } = useQuery<number>({
+    queryKey: ['pending-leave-count'],
+    queryFn: () =>
+      api.get('/leave/requests', { params: { status: 'pending', page: 1, limit: 1 } })
+        .then((r) => (r.data.total ?? 0) as number),
+    enabled: isApprover,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const { data: pendingExpenseCount = 0 } = useQuery<number>({
+    queryKey: ['pending-expense-count'],
+    queryFn: () =>
+      api.get('/expense-claims', { params: { status: 'pending' } })
+        .then((r) => (Array.isArray(r.data) ? r.data.length : 0) as number),
+    enabled: isApprover,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
   const lateArrivalRequest    = todayRequests.find(r => r.type === 'late_arrival')    ?? null;
   const earlyDepartureRequest = todayRequests.find(r => r.type === 'early_departure') ?? null;
 
@@ -784,6 +833,45 @@ export default function BerandaScreen() {
                 </View>
               )}
             </TouchableOpacity>
+          )}
+
+          {/* ── PERLU DITINJAU (approver only) ───────────────────────────── */}
+          {isApprover && (
+            <>
+              <Text style={{
+                fontSize: 11, fontWeight: '700', textTransform: 'uppercase',
+                letterSpacing: 1, color: lTertiary(isDark), marginTop: 4,
+              }}>
+                Perlu Ditinjau
+              </Text>
+              <NavCard
+                label="Permohonan Absensi"
+                sub="Izin terlambat & pulang awal karyawan"
+                accentColor={C.orange}
+                icon={AlarmClock}
+                onPress={() => router.push('/(main)/attendance-requests-admin')}
+                isDark={isDark}
+                badge={pendingAttReqCount}
+              />
+              <NavCard
+                label="Permohonan Cuti & Izin"
+                sub="Tinjau ajuan cuti dan izin karyawan"
+                accentColor={C.blue}
+                icon={Calendar}
+                onPress={() => router.push('/(main)/profile')}
+                isDark={isDark}
+                badge={pendingLeaveCount}
+              />
+              <NavCard
+                label="Klaim Biaya"
+                sub="Tinjau pengajuan reimbursement karyawan"
+                accentColor={C.green}
+                icon={Wallet}
+                onPress={() => router.push('/(main)/expense-claims')}
+                isDark={isDark}
+                badge={pendingExpenseCount}
+              />
+            </>
           )}
 
           {/* ── JADWAL HARI INI ────────────────────────────────────────────── */}

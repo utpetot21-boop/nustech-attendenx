@@ -20,6 +20,7 @@ export interface TaskSummary {
   status: TaskStatus;
   client?: { id: string; name: string; address?: string; lat?: number | null; lng?: number | null };
   assignee?: { id: string; full_name: string };
+  creator?: { id: string; full_name: string; employee_id?: string } | null;
   confirm_deadline?: string;
   scheduled_at?: string;
   is_emergency: boolean;

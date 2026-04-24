@@ -544,6 +544,28 @@ function TaskDetailInner() {
           </View>
         )}
 
+        {/* ── Pemberi Tugas ─────────────────────────── */}
+        {task.creator && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+            <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? C.purple + '33' : C.purple + '14', alignItems: 'center', justifyContent: 'center' }}>
+                  <User size={16} strokeWidth={1.8} color={C.purple} />
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Pemberi Tugas</Text>
+              </View>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: textPrimary }}>
+                {task.creator.full_name}
+              </Text>
+              {task.creator.employee_id && (
+                <Text style={{ fontSize: 13, color: textSecondary, marginTop: 2 }}>
+                  {task.creator.employee_id}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* ── Escalation info ───────────────────────── */}
         {task.escalated_from && (
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>

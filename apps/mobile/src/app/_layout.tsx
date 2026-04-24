@@ -18,75 +18,18 @@ import {
 import { rescheduleCheckInReminders } from '@/services/check-in-reminder.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api';
+import {
+  NOTIF_ROUTE_MAP,
+  ATTENDANCE_HISTORY_SENTINEL,
+  ANN_TAB_SENTINEL,
+  TASK_DEEP_LINK_TYPES,
+} from '@/constants/notifRoutes';
 
 const POSTED_FCM_TOKEN_KEY = 'posted_fcm_token';
 
 // Cold-start: simpan data notif yang di-tap sebelum auth selesai load.
 // Diproses oleh AuthGuard setelah user terkonfirmasi login.
 let _pendingColdStart: Record<string, string> | null = null;
-
-// ── Route whitelist untuk deep link dari push notification ──────────────────
-// Semua routing dari FCM/local notif WAJIB resolve ke salah satu route di sini.
-// Kalau backend kirim `data.route` arbitrary, hanya route yang match prefix
-// whitelist yang akan dipush — mencegah attacker/hardcoded bug buka halaman
-// di luar app shell.
-// Sentinel: string khusus yang bukan route — ditangani secara manual di handler
-const ATTENDANCE_HISTORY = '__attendance_history__';
-const ANN_TAB            = '__ann__';
-
-const NOTIF_ROUTE_MAP: Record<string, string> = {
-  // Tukar Jadwal
-  swap_request_received:           '/(main)/schedule-swap',
-  swap_request_accepted_by_target: '/(main)/schedule-swap',
-  swap_request_approved:           '/(main)/schedule-swap',
-  swap_request_rejected:           '/(main)/schedule-swap',
-  swap_request_admin:              '/(main)/schedule-swap',
-  // Cuti & Izin
-  leave_request:                   '/(main)/profile',
-  leave_approved:                  '/(main)/leave',
-  leave_rejected:                  '/(main)/leave',
-  leave_expiry_reminder:           '/(main)/leave',
-  collective_leave_deduction:      '/(main)/leave',
-  // Absensi check-in/out
-  check_in_success:                '/(main)/attendance',
-  check_out_success:               '/(main)/attendance',
-  // Absensi permohonan → buka riwayat
-  late_arrival_approved:           ATTENDANCE_HISTORY,
-  late_arrival_rejected:           ATTENDANCE_HISTORY,
-  early_departure_approved:        ATTENDANCE_HISTORY,
-  early_departure_rejected:        ATTENDANCE_HISTORY,
-  attendance_request_approved:     ATTENDANCE_HISTORY,
-  attendance_request_rejected:     ATTENDANCE_HISTORY,
-  attendance_request_submitted:    '/(main)/attendance-requests-admin',
-  // Absensi / SP
-  sp_reminder:                     '/(main)/attendance',
-  alfa_detected:                   '/(main)/attendance',
-  // SOS aktivasi (pengirim)
-  sos:                             '/(main)/sos',
-  // Tugas
-  task_assigned:                   '/(main)/tasks',
-  task_accepted:                   '/(main)/tasks',
-  task_rejected:                   '/(main)/tasks',
-  sla_breach:                      '/(main)/tasks',
-  task_on_hold:                    '/(main)/tasks',
-  task_hold_approved:              '/(main)/tasks',
-  task_hold_rejected:              '/(main)/tasks',
-  // Berita Acara
-  ba_generated:                    '/(main)/service-reports',
-  // Klaim Biaya
-  expense_claim_submitted:         '/(main)/expense-claims',
-  expense_claim_approved:          '/(main)/expense-claims',
-  expense_claim_rejected:          '/(main)/expense-claims',
-  expense_claim_paid:              '/(main)/expense-claims',
-  // FYI — informasi hasil review untuk manager/admin/super_admin
-  leave_fyi:                       '/(main)/notifications',
-  attendance_request_fyi:          '/(main)/attendance-requests-admin',
-  expense_claim_fyi:               '/(main)/expense-claims',
-  // Pengumuman
-  announcement_approved:           ANN_TAB,
-  announcement_rejected:           ANN_TAB,
-  announcement_pending:            ANN_TAB,
-};
 
 const ALLOWED_NOTIF_ROUTES = new Set<string>([
   ...Object.values(NOTIF_ROUTE_MAP).filter((r) => r.startsWith('/')),
@@ -111,6 +54,15 @@ function routeFromNotifData(
     push({ pathname: '/(main)/sos-alert', params: sanitizeSosParams(data) });
     return;
   }
+  // Task deep-link — navigasi langsung ke detail tugas via task_id
+  if (
+    TASK_DEEP_LINK_TYPES.has(data.type) &&
+    typeof data.task_id === 'string' &&
+    /^[\w-]{8,64}$/.test(data.task_id)
+  ) {
+    push(`/(main)/tasks/${data.task_id}` as Href);
+    return;
+  }
   // Backend-sent route (whitelist-validated)
   if (data.route && isAllowedNotifRoute(data.route)) {
     push(data.route as Href);
@@ -118,9 +70,9 @@ function routeFromNotifData(
   }
   const route = NOTIF_ROUTE_MAP[data.type];
   if (!route) return;
-  if (route === ATTENDANCE_HISTORY) {
+  if (route === ATTENDANCE_HISTORY_SENTINEL) {
     push({ pathname: '/(main)/attendance', params: { openHistory: '1' } });
-  } else if (route === ANN_TAB) {
+  } else if (route === ANN_TAB_SENTINEL) {
     push({ pathname: '/(main)/notifications', params: { tab: 'ann' } });
   } else {
     push(route as Href);
