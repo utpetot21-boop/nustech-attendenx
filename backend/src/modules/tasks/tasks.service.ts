@@ -518,9 +518,9 @@ export class TasksService {
   // ────────────────────────────────────────────────────────────────────────────
   // MANAGER DASHBOARDS
   // ────────────────────────────────────────────────────────────────────────────
-  async getOnHoldTasks() {
+  async getOnHoldTasks(managerId: string) {
     const tasks = await this.taskRepo.find({
-      where: { status: 'on_hold' },
+      where: { status: 'on_hold', created_by: managerId },
       relations: ['client', 'assignee', 'creator'],
       order: { created_at: 'DESC' },
     });

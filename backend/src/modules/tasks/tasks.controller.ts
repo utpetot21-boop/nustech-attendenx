@@ -72,8 +72,8 @@ export class TasksController {
   @Get('on-hold')
   @UseGuards(RolesGuard)
   @RequirePermission('task:assign')
-  getOnHold() {
-    return this.tasks.getOnHoldTasks();
+  getOnHold(@CurrentUser('id') managerId: string) {
+    return this.tasks.getOnHoldTasks(managerId);
   }
 
   @Get('rescheduled')

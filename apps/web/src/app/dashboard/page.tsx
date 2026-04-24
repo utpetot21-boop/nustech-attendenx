@@ -22,7 +22,7 @@ const DashboardMap = dynamic(() => import('./DashboardMap'), { ssr: false });
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AttendanceSummary = { hadir: number; terlambat: number; alfa: number; total_aktif: number; date: string };
 type Visit = { id: string; status: string; user?: { full_name: string }; client?: { name: string }; lat_checkin: number | null; lng_checkin: number | null; lat_checkout: number | null; lng_checkout: number | null };
-type Task = { id: string; title: string; status: string; priority: string; created_by?: string; assigned_user?: { full_name: string }; client?: { name: string }; pending_hold?: { id: string; reason_type: string; reason_notes: string; auto_approve_at: string | null } | null };
+type Task = { id: string; title: string; status: string; priority: string; assigned_user?: { full_name: string }; client?: { name: string }; pending_hold?: { id: string; reason_type: string; reason_notes: string; auto_approve_at: string | null } | null };
 type SosAlert = { id: string; status: string; last_lat: number | null; last_lng: number | null; user?: { full_name: string }; created_at: string };
 type ServiceReport = { id: string; report_number: string; created_at: string; visit?: { client?: { name: string } } };
 
@@ -510,28 +510,22 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
-                      {t.created_by === user?.id ? (
-                        <>
-                          <button
-                            onClick={() => t.pending_hold && approveMut.mutate({ taskId: t.id, holdId: t.pending_hold!.id })}
-                            disabled={!t.pending_hold || approveMut.isPending}
-                            className="w-7 h-7 rounded-xl bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 flex items-center justify-center transition-colors disabled:opacity-40"
-                            title="Setujui penundaan"
-                          >
-                            <Check size={13} strokeWidth={2.5} />
-                          </button>
-                          <button
-                            onClick={() => t.pending_hold && rejectMut.mutate({ taskId: t.id, holdId: t.pending_hold!.id })}
-                            disabled={!t.pending_hold || rejectMut.isPending}
-                            className="w-7 h-7 rounded-xl bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-200 flex items-center justify-center transition-colors disabled:opacity-40"
-                            title="Tolak penundaan"
-                          >
-                            <X size={13} strokeWidth={2.5} />
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-[10px] text-gray-400 dark:text-white/30 italic self-center">Bukan pemberi tugas</span>
-                      )}
+                      <button
+                        onClick={() => t.pending_hold && approveMut.mutate({ taskId: t.id, holdId: t.pending_hold.id })}
+                        disabled={!t.pending_hold || approveMut.isPending}
+                        className="w-7 h-7 rounded-xl bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 flex items-center justify-center transition-colors disabled:opacity-40"
+                        title="Setujui penundaan"
+                      >
+                        <Check size={13} strokeWidth={2.5} />
+                      </button>
+                      <button
+                        onClick={() => t.pending_hold && rejectMut.mutate({ taskId: t.id, holdId: t.pending_hold.id })}
+                        disabled={!t.pending_hold || rejectMut.isPending}
+                        className="w-7 h-7 rounded-xl bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-200 flex items-center justify-center transition-colors disabled:opacity-40"
+                        title="Tolak penundaan"
+                      >
+                        <X size={13} strokeWidth={2.5} />
+                      </button>
                     </div>
                   </div>
                 ))}
