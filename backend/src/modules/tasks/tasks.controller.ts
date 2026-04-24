@@ -9,8 +9,11 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -18,6 +21,7 @@ import { RequirePermission } from '../../common/decorators/require-permission.de
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TasksService } from './tasks.service';
+import { StorageService } from '../../services/storage.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { RejectTaskDto } from './dto/accept-reject-task.dto';
 import { DelegateTaskDto } from './dto/delegate-task.dto';
@@ -30,7 +34,19 @@ import { CancelTaskDto } from './dto/cancel-task.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
 export class TasksController {
-  constructor(private readonly tasks: TasksService) {}
+  constructor(
+    private readonly tasks: TasksService,
+    private readonly storage: StorageService,
+  ) {}
+
+  // ── UPLOAD EVIDENCE FOTO HOLD ────────────────────────────────────────────────
+  @Post('upload-evidence')
+  @RequirePermission('task:own')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  async uploadEvidence(@UploadedFile() file: Express.Multer.File) {
+    const url = await this.storage.upload('hold-evidence', 'jpg', file.buffer, file.mimetype);
+    return { url };
+  }
 
   // ── LIST ─────────────────────────────────────────────────────────────────────
   @Get()

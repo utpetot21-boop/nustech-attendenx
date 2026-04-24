@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { MulterModule } from '@nestjs/platform-express';
+import { StorageService } from '../../services/storage.service';
 
 import { TaskEntity } from './entities/task.entity';
 import { TaskAssignmentEntity } from './entities/task-assignment.entity';
@@ -31,6 +33,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
       VisitEntity,
       ClientEntity,
     ]),
+    MulterModule.register({ dest: '/tmp' }),
     NotificationsModule,
     RealtimeModule,
   ],
@@ -43,6 +46,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
     EscalationJob,
     HoldAutoApproverJob,
     SlaMonitorJob,
+    StorageService,
   ],
   exports: [TasksService, DispatchService],
 })

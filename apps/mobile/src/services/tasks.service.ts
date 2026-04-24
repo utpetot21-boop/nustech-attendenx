@@ -145,4 +145,14 @@ export const tasksService = {
     const res = await api.get('/templates');
     return (res.data.items ?? res.data) as { id: string; name: string; work_type: string }[];
   },
+
+  async uploadEvidence(imageUri: string): Promise<string> {
+    const form = new FormData();
+    form.append('file', { uri: imageUri, type: 'image/jpeg', name: 'evidence.jpg' } as unknown as Blob);
+    const res = await api.post('/tasks/upload-evidence', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30_000,
+    });
+    return res.data.url as string;
+  },
 };

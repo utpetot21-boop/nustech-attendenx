@@ -6,8 +6,9 @@ import { useState, useCallback, Component, type ReactNode } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   useColorScheme, StatusBar, Alert, ActivityIndicator, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +17,7 @@ import {
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
   Search, User, ChevronDown, Check, X as XIcon, Ban, Trash2,
-  UserPlus, Target, Radio, Play,
+  UserPlus, Target, Radio, Play, Camera, ImagePlus,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -130,6 +131,9 @@ function TaskDetailInner() {
   const [rejectReason, setRejectReason] = useState('');
   const [holdReasonType, setHoldReasonType] = useState('client_absent');
   const [holdNotes, setHoldNotes] = useState('');
+  const [holdEvidenceUris, setHoldEvidenceUris] = useState<string[]>([]);
+  const [holdEvidenceUrls, setHoldEvidenceUrls] = useState<string[]>([]);
+  const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [delegateEmployee, setDelegateEmployee] = useState<EmployeeOption | null>(null);
   const [delegateReason, setDelegateReason] = useState('');
   const [delegatePickerOpen, setDelegatePickerOpen] = useState(false);
@@ -209,13 +213,15 @@ function TaskDetailInner() {
     mutationFn: () => tasksService.holdTask(id!, {
       reason_type: holdReasonType,
       reason_notes: holdNotes.trim(),
-      evidence_urls: [],
+      evidence_urls: holdEvidenceUrls,
     }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       invalidate();
       setShowHoldModal(false);
       setHoldNotes('');
+      setHoldEvidenceUris([]);
+      setHoldEvidenceUrls([]);
       Alert.alert('Penundaan Diajukan', 'Permintaan penundaan telah dikirim ke manajer.');
     },
     onError: (err: Error) => {
@@ -918,8 +924,92 @@ function TaskDetailInner() {
                 style={{ backgroundColor: inputBg, borderRadius: 16, borderWidth: 1.5, borderColor: inputBorder, padding: 14, fontSize: 15, color: textPrimary, minHeight: 90, marginTop: 16, marginBottom: 16 }}
               />
 
+              {/* Foto Bukti */}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 4 }}>
+                Foto Bukti <Text style={{ fontWeight: '400', textTransform: 'none' }}>(opsional, maks. 3)</Text>
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                {/* Kamera */}
+                <TouchableOpacity
+                  disabled={holdEvidenceUris.length >= 3 || evidenceUploading}
+                  onPress={async () => {
+                    const perm = await ImagePicker.requestCameraPermissionsAsync();
+                    if (!perm.granted) { Alert.alert('Izin Diperlukan', 'Akses kamera diperlukan.'); return; }
+                    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.75 });
+                    if (result.canceled || !result.assets[0]) return;
+                    const uri = result.assets[0].uri;
+                    setEvidenceUploading(true);
+                    try {
+                      const url = await tasksService.uploadEvidence(uri);
+                      setHoldEvidenceUris((p) => [...p, uri]);
+                      setHoldEvidenceUrls((p) => [...p, url]);
+                    } catch {
+                      Alert.alert('Gagal Upload', 'Foto tidak bisa diunggah. Coba lagi.');
+                    } finally {
+                      setEvidenceUploading(false);
+                    }
+                  }}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', opacity: holdEvidenceUris.length >= 3 ? 0.4 : 1 }}
+                >
+                  <Camera size={16} strokeWidth={2} color={textSecondary} />
+                  <Text style={{ fontSize: 13, color: textPrimary, fontWeight: '600' }}>Kamera</Text>
+                </TouchableOpacity>
+                {/* Galeri */}
+                <TouchableOpacity
+                  disabled={holdEvidenceUris.length >= 3 || evidenceUploading}
+                  onPress={async () => {
+                    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (!perm.granted) { Alert.alert('Izin Diperlukan', 'Akses galeri diperlukan.'); return; }
+                    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75 });
+                    if (result.canceled || !result.assets[0]) return;
+                    const uri = result.assets[0].uri;
+                    setEvidenceUploading(true);
+                    try {
+                      const url = await tasksService.uploadEvidence(uri);
+                      setHoldEvidenceUris((p) => [...p, uri]);
+                      setHoldEvidenceUrls((p) => [...p, url]);
+                    } catch {
+                      Alert.alert('Gagal Upload', 'Foto tidak bisa diunggah. Coba lagi.');
+                    } finally {
+                      setEvidenceUploading(false);
+                    }
+                  }}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', opacity: holdEvidenceUris.length >= 3 ? 0.4 : 1 }}
+                >
+                  <ImagePlus size={16} strokeWidth={2} color={textSecondary} />
+                  <Text style={{ fontSize: 13, color: textPrimary, fontWeight: '600' }}>Galeri</Text>
+                </TouchableOpacity>
+                {evidenceUploading && <ActivityIndicator color={C.orange} style={{ marginLeft: 4 }} />}
+              </View>
+              {/* Thumbnail strip */}
+              {holdEvidenceUris.length > 0 && (
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                  {holdEvidenceUris.map((uri, idx) => (
+                    <View key={idx} style={{ position: 'relative' }}>
+                      <Image source={{ uri }} style={{ width: 72, height: 72, borderRadius: 10 }} />
+                      <TouchableOpacity
+                        onPress={() => {
+                          setHoldEvidenceUris((p) => p.filter((_, i) => i !== idx));
+                          setHoldEvidenceUrls((p) => p.filter((_, i) => i !== idx));
+                        }}
+                        style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <XIcon size={11} strokeWidth={2.5} color="#FFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
-                <TouchableOpacity onPress={() => setShowHoldModal(false)} style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowHoldModal(false);
+                    setHoldEvidenceUris([]);
+                    setHoldEvidenceUrls([]);
+                  }}
+                  style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', alignItems: 'center' }}
+                >
                   <Text style={{ color: textPrimary, fontWeight: '600', fontSize: 15 }}>Batal</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -927,7 +1017,7 @@ function TaskDetailInner() {
                     if (!holdNotes.trim()) { Alert.alert('Keterangan Wajib', 'Isi keterangan detail sebelum submit.'); return; }
                     holdMut.mutate();
                   }}
-                  disabled={holdMut.isPending || !holdNotes.trim()}
+                  disabled={holdMut.isPending || !holdNotes.trim() || evidenceUploading}
                   style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: holdNotes.trim() ? C.orange : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0', alignItems: 'center' }}
                 >
                   {holdMut.isPending ? <ActivityIndicator color="#FFF" /> : (
