@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, useColorScheme } from 'react-native';
+import { View, ActivityIndicator, useColorScheme, InteractionManager } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, useRouter, useSegments, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -240,9 +240,9 @@ export default function RootLayout() {
       if (!response) return;
       const data = response.notification.request.content.data as Record<string, string> | undefined;
       if (!data) return;
-      setTimeout(() => {
+      InteractionManager.runAfterInteractions(() => {
         routeFromNotifData(data, (t) => router.push(t as Parameters<typeof router.push>[0]));
-      }, 500);
+      });
     }).catch(() => null);
 
     receivedListenerRef.current = addNotificationReceivedListener((_notification) => {});

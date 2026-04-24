@@ -2,7 +2,7 @@
  * M-10 — Notifikasi & Pengumuman
  * iOS 26 Liquid Glass design — dengan tab Notifikasi / Pengumuman
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, useColorScheme,
   RefreshControl, StatusBar, ActivityIndicator,
@@ -68,6 +68,13 @@ interface Announcement {
 
 const ANN_COLOR: Record<string, string> = {
   info: C.blue, urgent: C.red, holiday: C.green, policy: C.purple,
+};
+
+const ANN_TYPE_LABELS: Record<string, string> = {
+  info:    'Informasi',
+  urgent:  'Mendesak',
+  holiday: 'Hari Libur',
+  policy:  'Kebijakan',
 };
 
 // M4: ANN_ICON_MAP tidak bergantung pada isDark — cukup didefinisi sekali di luar komponen
@@ -166,18 +173,15 @@ export default function NotificationsScreen() {
   });
 
   // Auto-mark semua notif sebagai dibaca saat halaman Notifikasi dibuka.
-  // Pakai ref agar hanya sekali per mount + setiap pertama kali ada unread baru.
-  const autoReadFiredRef = useRef(false);
+  // Tidak pakai ref — API idempotent, aman dipanggil ulang saat ada unread baru.
   useEffect(() => {
-    if (activeTab !== 'notif' || notifLoading) return;
+    if (activeTab !== 'notif' || notifLoading || markAllMut.isPending) return;
     const hasUnread = (notifData?.items ?? []).some((n) => !n.is_read);
-    if (hasUnread && !autoReadFiredRef.current && !markAllMut.isPending) {
-      autoReadFiredRef.current = true;
-      api.post('/notifications/read-all').then(() => {
-        qc.invalidateQueries({ queryKey: ['notifications'] });
-        qc.invalidateQueries({ queryKey: ['notif-unread-count'] });
-      }).catch(() => { autoReadFiredRef.current = false; });
-    }
+    if (!hasUnread) return;
+    api.post('/notifications/read-all').then(() => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notif-unread-count'] });
+    }).catch(() => null);
   }, [activeTab, notifLoading, notifData]);
 
   const deleteNotifMut = useMutation({
@@ -186,6 +190,7 @@ export default function NotificationsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       qc.invalidateQueries({ queryKey: ['notifications'] });
       qc.invalidateQueries({ queryKey: ['notif-unread-count'] });
+      toastSuccess('Notifikasi dihapus.');
     },
   });
 
@@ -194,6 +199,8 @@ export default function NotificationsScreen() {
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       qc.invalidateQueries({ queryKey: ['my-announcements'] });
+      qc.invalidateQueries({ queryKey: ['ann-unread-count'] });
+      toastSuccess('Pengumuman dihapus.');
     },
   });
 
@@ -542,7 +549,7 @@ export default function NotificationsScreen() {
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <View style={{ backgroundColor: `${accentColor}20`, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
                               <Text style={{ color: accentColor, fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>
-                                {ann.type}
+                                {ANN_TYPE_LABELS[ann.type] ?? ann.type}
                               </Text>
                             </View>
                           </View>
