@@ -136,7 +136,8 @@ function TaskDetailInner() {
   const [delegateSearch, setDelegateSearch] = useState('');
   const [cancelReason, setCancelReason] = useState('');
 
-  const userRole = useAuthStore((s) => s.user?.role?.name);
+  const userRole     = useAuthStore((s) => s.user?.role?.name);
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const canCancelTask = userRole === 'admin' || userRole === 'super_admin';
   const canDeleteTask = userRole === 'super_admin';
   const canAssignTask = userRole === 'admin' || userRole === 'super_admin' || userRole === 'manager';
@@ -153,6 +154,7 @@ function TaskDetailInner() {
     queryKey: ['task-detail', id],
     queryFn: () => tasksService.getDetail(id!),
     enabled: !!id,
+    refetchInterval: 15000,
   });
 
   const { data: holds = [] } = useQuery({
@@ -393,8 +395,9 @@ function TaskDetailInner() {
   const isOnHold = task.status === 'on_hold';
   const isCompleted = task.status === 'completed';
   const isCancelled = task.status === 'cancelled';
+  const isAssignee  = task.assignee?.id === currentUserId;
   const cancellable = canCancelTask && !isInProgress && !isCompleted && !isCancelled;
-  const assignable = canAssignTask && task.status === 'unassigned';
+  const assignable  = canAssignTask && task.status === 'unassigned';
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
@@ -527,8 +530,8 @@ function TaskDetailInner() {
                 </View>
               )}
 
-              {/* Navigation button */}
-              {task.client.lat && task.client.lng && (
+              {/* Navigation button — sembunyikan saat tugas sudah selesai atau dibatalkan */}
+              {task.client.lat && task.client.lng && !isCompleted && !isCancelled && (
                 <View style={{ marginTop: 14 }}>
                   <NavigationButton
                     lat={Number(task.client.lat)}
@@ -638,7 +641,44 @@ function TaskDetailInner() {
           </View>
         )}
 
-        {isAssigned && (
+        {isInProgress && isAssignee && (
+          <View style={{ paddingHorizontal: 20, gap: 12, marginBottom: 14 }}>
+            {activeVisitForTask && (
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.replace(`/(main)/visits/${activeVisitForTask.id}` as never);
+                }}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: C.blue, borderRadius: 18, paddingVertical: 17,
+                  alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+                  shadowColor: C.blue, shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+                }}
+              >
+                <Play size={20} strokeWidth={2.2} color="#FFF" />
+                <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>Lanjutkan Kunjungan</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowHoldModal(true); }}
+              style={{ backgroundColor: isDark ? C.orange + '1F' : C.orange + '0D', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.orange + '59' }}
+            >
+              <PauseCircle size={20} strokeWidth={2} color={C.orange} />
+              <Text style={{ color: C.orange, fontWeight: '700', fontSize: 16 }}>Tunda Pekerjaan</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowDelegateModal(true)}
+              style={{ backgroundColor: isDark ? C.purple + '1F' : C.purple + '12', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.purple + '59' }}
+            >
+              <CornerUpRight size={20} strokeWidth={2} color={C.purple} />
+              <Text style={{ color: C.purple, fontWeight: '700', fontSize: 16 }}>Limpahkan Tugas</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {isAssigned && isAssignee && (
           <View style={{ paddingHorizontal: 20, gap: 12, marginBottom: 14 }}>
             {/* Primary: Mulai Kunjungan ATAU Lanjutkan (jika sudah ada kunjungan aktif) */}
             {activeVisitForTask ? (

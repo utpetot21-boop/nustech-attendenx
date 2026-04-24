@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  Alert, Modal, TextInput, StyleSheet, Image,
-  ActivityIndicator,
+  Alert, Modal, TextInput, Image,
+  ActivityIndicator, useColorScheme, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -17,7 +18,7 @@ import {
   getPdfUrl,
 } from '@/services/service-reports.service';
 import { api as apiClient } from '@/services/api';
-import { C, R } from '@/constants/tokens';
+import { C, R, B, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { SignaturePad } from '@/components/service-reports/SignaturePad';
 
 type SignStep = 'none' | 'tech' | 'client_name' | 'client_sign';
@@ -25,10 +26,20 @@ type SignStep = 'none' | 'tech' | 'client_name' | 'client_sign';
 export default function ServiceReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const qc = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const isDark = useColorScheme() === 'dark';
 
   const [signStep, setSignStep] = useState<SignStep>('none');
   const [clientPicName, setClientPicName] = useState('');
   const [downloading, setDownloading] = useState(false);
+
+  const bg        = pageBg(isDark);
+  const card      = cardBg(isDark);
+  const textPrimary   = lPrimary(isDark);
+  const textSecondary = lSecondary(isDark);
+  const textTertiary  = lTertiary(isDark);
+  const borderColor   = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+  const inputBg       = isDark ? 'rgba(255,255,255,0.08)' : '#F9FAFB';
 
   const { data: report, isLoading } = useQuery<ServiceReport>({
     queryKey: ['service-report', id],
@@ -50,6 +61,7 @@ export default function ServiceReportDetailScreen() {
     onSuccess: () => {
       invalidate();
       setSignStep('none');
+      setClientPicName('');
       Alert.alert('Sukses', 'Berita Acara telah ditandatangani & dikunci. PDF sedang digenerate.');
     },
     onError: () => Alert.alert('Gagal', 'Tanda tangan klien gagal disimpan'),
@@ -60,7 +72,8 @@ export default function ServiceReportDetailScreen() {
     try {
       setDownloading(true);
       const safeFileName = (report.report_number ?? id).replace(/\//g, '-');
-      const filePath = `${FileSystem.cacheDirectory}${safeFileName}.pdf`;
+      // documentDirectory: persisten, tidak dihapus OS (beda dari cacheDirectory)
+      const filePath = `${FileSystem.documentDirectory}${safeFileName}.pdf`;
 
       const token = await SecureStore.getItemAsync('access_token');
       if (!token) {
@@ -96,115 +109,139 @@ export default function ServiceReportDetailScreen() {
 
   if (isLoading || !report) {
     return (
-      <View style={styles.loading}>
+      <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={C.blue} />
       </View>
     );
   }
 
-  const canSignTech = !report.tech_signature_url && !report.is_locked;
+  const canSignTech   = !report.tech_signature_url && !report.is_locked;
   const canSignClient = !!report.tech_signature_url && !report.client_signature_url && !report.is_locked;
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Kembali</Text>
+    <View style={{ flex: 1, backgroundColor: bg }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 100 }}
+      >
+        {/* ── Header ── */}
+        <View style={{ backgroundColor: card, borderRadius: 20, borderWidth: B.default, borderColor, padding: 18 }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, color: C.blue, fontWeight: '600' }}>← Kembali</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: textPrimary, letterSpacing: -0.5 }}>
             {report.report_number ?? 'Berita Acara'}
           </Text>
           {report.is_locked && (
-            <View style={styles.lockedBadge}>
-              <Text style={styles.lockedText}>🔒 Final</Text>
+            <View style={{
+              marginTop: 10, alignSelf: 'flex-start',
+              backgroundColor: isDark ? 'rgba(52,199,89,0.18)' : C.green + '18',
+              paddingHorizontal: 12, paddingVertical: 5, borderRadius: R.pill,
+              borderWidth: B.default, borderColor: C.green + '4D',
+            }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: C.green }}>🔒 Final</Text>
             </View>
           )}
         </View>
 
-        {/* Info Card */}
-        <View style={styles.card}>
-          <SectionTitle title="Informasi Kunjungan" />
-          <InfoRow label="Klien" value={report.client?.name ?? '—'} />
-          <InfoRow label="PIC Klien" value={report.client_pic_name ?? '—'} />
+        {/* ── Informasi Kunjungan ── */}
+        <View style={{ backgroundColor: card, borderRadius: 20, borderWidth: B.default, borderColor, padding: 18 }}>
+          <SectionTitle title="Informasi Kunjungan" isDark={isDark} />
+          <InfoRow label="Klien"    value={report.client?.name ?? '—'} textPrimary={textPrimary} textSecondary={textSecondary} />
+          <InfoRow label="PIC Klien" value={report.client_pic_name ?? '—'} textPrimary={textPrimary} textSecondary={textSecondary} />
           <InfoRow
             label="Check-in"
             value={report.visit?.check_in_at ? fmtDt(report.visit.check_in_at) : '—'}
+            textPrimary={textPrimary} textSecondary={textSecondary}
           />
           <InfoRow
             label="Check-out"
             value={report.visit?.check_out_at ? fmtDt(report.visit.check_out_at) : '—'}
+            textPrimary={textPrimary} textSecondary={textSecondary}
           />
           {report.visit?.duration_minutes != null && (
             <InfoRow
               label="Durasi"
               value={`${Math.floor(report.visit.duration_minutes / 60)} jam ${report.visit.duration_minutes % 60} menit`}
+              textPrimary={textPrimary} textSecondary={textSecondary}
             />
           )}
         </View>
 
-        {/* Pekerjaan */}
+        {/* ── Deskripsi Pekerjaan ── */}
         {report.visit?.work_description && (
-          <View style={styles.card}>
-            <SectionTitle title="Deskripsi Pekerjaan" />
-            <Text style={styles.descText}>{report.visit.work_description}</Text>
+          <View style={{ backgroundColor: card, borderRadius: 20, borderWidth: B.default, borderColor, padding: 18 }}>
+            <SectionTitle title="Deskripsi Pekerjaan" isDark={isDark} />
+            <Text style={{ fontSize: 14, color: textSecondary, lineHeight: 22 }}>{report.visit.work_description}</Text>
           </View>
         )}
 
         {report.visit?.findings && (
-          <View style={styles.card}>
-            <SectionTitle title="Temuan" />
-            <Text style={styles.descText}>{report.visit.findings}</Text>
+          <View style={{ backgroundColor: card, borderRadius: 20, borderWidth: B.default, borderColor, padding: 18 }}>
+            <SectionTitle title="Temuan" isDark={isDark} />
+            <Text style={{ fontSize: 14, color: textSecondary, lineHeight: 22 }}>{report.visit.findings}</Text>
           </View>
         )}
 
         {report.visit?.recommendations && (
-          <View style={styles.card}>
-            <SectionTitle title="Rekomendasi" />
-            <Text style={styles.descText}>{report.visit.recommendations}</Text>
+          <View style={{ backgroundColor: card, borderRadius: 20, borderWidth: B.default, borderColor, padding: 18 }}>
+            <SectionTitle title="Rekomendasi" isDark={isDark} />
+            <Text style={{ fontSize: 14, color: textSecondary, lineHeight: 22 }}>{report.visit.recommendations}</Text>
           </View>
         )}
 
-        {/* Signatures */}
-        <View style={styles.card}>
-          <SectionTitle title="Tanda Tangan" />
-          <View style={styles.sigGrid}>
+        {/* ── Tanda Tangan ── */}
+        <View style={{ backgroundColor: card, borderRadius: 20, borderWidth: B.default, borderColor, padding: 18 }}>
+          <SectionTitle title="Tanda Tangan" isDark={isDark} />
+          <View style={{ flexDirection: 'row', gap: 12 }}>
             <SignatureBlock
               label="Teknisi"
               url={report.tech_signature_url}
               onSign={canSignTech ? () => setSignStep('tech') : undefined}
+              isDark={isDark}
+              borderColor={borderColor}
+              textTertiary={textTertiary}
             />
             <SignatureBlock
               label={`Klien\n${report.client_pic_name ?? ''}`}
               url={report.client_signature_url}
               onSign={canSignClient ? () => setSignStep('client_name') : undefined}
+              isDark={isDark}
+              borderColor={borderColor}
+              textTertiary={textTertiary}
             />
           </View>
         </View>
 
-        {/* PDF */}
+        {/* ── Download PDF ── */}
         {report.is_locked && (
           <TouchableOpacity
-            style={[styles.pdfBtn, downloading && { opacity: 0.7 }]}
+            style={{
+              backgroundColor: C.green, borderRadius: 18, padding: 18,
+              alignItems: 'center', opacity: downloading ? 0.7 : 1,
+              shadowColor: C.green, shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
+            }}
             onPress={downloadPdf}
             disabled={downloading}
           >
             {downloading ? (
-              <View style={{ alignItems: 'center', gap: 4 }}>
+              <View style={{ alignItems: 'center', gap: 6 }}>
                 <ActivityIndicator color="#fff" />
-                <Text style={[styles.pdfBtnText, { fontSize: 12, opacity: 0.85 }]}>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>
                   Sedang generate PDF…
                 </Text>
               </View>
             ) : (
-              <Text style={styles.pdfBtnText}>↓ Download PDF Berita Acara</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
+                ↓ Download PDF Berita Acara
+              </Text>
             )}
           </TouchableOpacity>
         )}
       </ScrollView>
 
-      {/* Signature Modal — Teknisi */}
+      {/* ── Modal: Tanda Tangan Teknisi ── */}
       <Modal visible={signStep === 'tech'} animationType="slide">
         <SignaturePad
           title="Tanda Tangan Teknisi"
@@ -213,35 +250,77 @@ export default function ServiceReportDetailScreen() {
         />
       </Modal>
 
-      {/* Client name input before signature */}
-      <Modal visible={signStep === 'client_name'} animationType="slide" transparent>
-        <View style={styles.overlay}>
-          <View style={styles.nameModal}>
-            <Text style={styles.nameModalTitle}>Nama PIC Klien</Text>
+      {/* ── Modal: Input Nama PIC Klien ── */}
+      <Modal
+        visible={signStep === 'client_name'}
+        animationType="slide"
+        transparent
+        onRequestClose={() => { setSignStep('none'); setClientPicName(''); }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}
+        >
+          <View style={{
+            backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+            borderTopLeftRadius: 28, borderTopRightRadius: 28,
+            padding: 24, paddingBottom: insets.bottom + 24,
+          }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 20 }} />
+            <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, marginBottom: 6 }}>
+              Nama PIC Klien
+            </Text>
+            <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 18 }}>
+              Masukkan nama perwakilan klien yang akan menandatangani.
+            </Text>
             <TextInput
               value={clientPicName}
               onChangeText={setClientPicName}
-              placeholder="Masukkan nama perwakilan klien"
-              style={styles.nameInput}
+              placeholder="Nama lengkap perwakilan klien"
+              placeholderTextColor={textTertiary}
               autoFocus
+              style={{
+                backgroundColor: inputBg,
+                borderRadius: 16, borderWidth: 1.5,
+                borderColor: clientPicName.trim() ? C.blue : borderColor,
+                padding: 14, fontSize: 15, color: textPrimary,
+                marginBottom: 20,
+              }}
             />
-            <View style={styles.nameActions}>
-              <TouchableOpacity style={styles.nameCancelBtn} onPress={() => setSignStep('none')}>
-                <Text style={styles.nameCancelText}>Batal</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1, paddingVertical: 15, borderRadius: 16,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9',
+                  alignItems: 'center',
+                }}
+                onPress={() => { setSignStep('none'); setClientPicName(''); }}
+              >
+                <Text style={{ color: textPrimary, fontWeight: '600', fontSize: 15 }}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.nameOkBtn, !clientPicName.trim() && { opacity: 0.5 }]}
+                style={{
+                  flex: 2, paddingVertical: 15, borderRadius: 16,
+                  backgroundColor: clientPicName.trim() ? C.blue : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
+                  alignItems: 'center',
+                  opacity: clientPicName.trim() ? 1 : 0.5,
+                }}
                 disabled={!clientPicName.trim()}
                 onPress={() => setSignStep('client_sign')}
               >
-                <Text style={styles.nameOkText}>Lanjut →</Text>
+                <Text style={{
+                  color: clientPicName.trim() ? '#FFF' : textTertiary,
+                  fontWeight: '700', fontSize: 15,
+                }}>
+                  Lanjut ke Tanda Tangan →
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* Client Signature Pad */}
+      {/* ── Modal: Tanda Tangan Klien ── */}
       <Modal visible={signStep === 'client_sign'} animationType="slide">
         <SignaturePad
           title={`Tanda Tangan Klien — ${clientPicName}`}
@@ -253,43 +332,77 @@ export default function ServiceReportDetailScreen() {
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
-function SectionTitle({ title }: { title: string }) {
-  return <Text style={styles.sectionTitle}>{title}</Text>;
+function SectionTitle({ title, isDark }: { title: string; isDark: boolean }) {
+  return (
+    <Text style={{
+      fontSize: 11, fontWeight: '700', color: C.blue,
+      textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14,
+    }}>
+      {title}
+    </Text>
+  );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({
+  label, value, textPrimary, textSecondary,
+}: {
+  label: string; value: string;
+  textPrimary: string; textSecondary: string;
+}) {
   return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+      <Text style={{ width: 90, fontSize: 13, color: textSecondary }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: textPrimary }}>{value}</Text>
     </View>
   );
 }
 
 function SignatureBlock({
-  label,
-  url,
-  onSign,
+  label, url, onSign, isDark, borderColor, textTertiary,
 }: {
   label: string;
   url: string | null;
   onSign?: () => void;
+  isDark: boolean;
+  borderColor: string;
+  textTertiary: string;
 }) {
   return (
-    <View style={styles.sigBlock}>
-      <Text style={styles.sigBlockLabel}>{label}</Text>
+    <View style={{
+      flex: 1, borderWidth: 1.5, borderColor,
+      borderRadius: 14, padding: 12, alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+    }}>
+      <Text style={{
+        fontSize: 12, fontWeight: '700', color: textTertiary,
+        textAlign: 'center', marginBottom: 10,
+      }}>
+        {label}
+      </Text>
       {url ? (
-        <Image source={{ uri: url }} style={styles.sigImage} resizeMode="contain" />
+        <Image
+          source={{ uri: url }}
+          style={{ width: '100%', height: 80 }}
+          resizeMode="contain"
+        />
       ) : (
-        <View style={styles.sigEmpty}>
+        <View style={{ width: '100%', height: 80, justifyContent: 'center', alignItems: 'center' }}>
           {onSign ? (
-            <TouchableOpacity style={styles.signBtn} onPress={onSign}>
-              <Text style={styles.signBtnText}>✍ Tanda Tangan</Text>
+            <TouchableOpacity
+              style={{
+                paddingHorizontal: 14, paddingVertical: 9,
+                backgroundColor: isDark ? 'rgba(0,122,255,0.15)' : '#EFF6FF',
+                borderRadius: 10, borderWidth: 1.5,
+                borderColor: isDark ? 'rgba(0,122,255,0.4)' : '#BFDBFE',
+              }}
+              onPress={onSign}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: C.blue }}>✍ Tanda Tangan</Text>
             </TouchableOpacity>
           ) : (
-            <Text style={styles.sigPending}>Menunggu…</Text>
+            <Text style={{ fontSize: 12, color: textTertiary }}>Menunggu…</Text>
           )}
         </View>
       )}
@@ -304,85 +417,3 @@ function fmtDt(s: string) {
     timeZone: 'Asia/Makassar',
   }) + ' WITA';
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: 16, gap: 12, paddingBottom: 40 },
-  header: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  backBtn: { marginBottom: 8 },
-  backText: { fontSize: 14, color: C.blue },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
-  lockedBadge: {
-    marginTop: 8, alignSelf: 'flex-start',
-    backgroundColor: C.green + '26', paddingHorizontal: 10, paddingVertical: 4, borderRadius: R.pill,
-  },
-  lockedText: { fontSize: 12, fontWeight: '700', color: '#065f46' },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  sectionTitle: {
-    fontSize: 13, fontWeight: '700', color: C.blue,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
-  },
-  infoRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
-  infoLabel: { width: 90, fontSize: 13, color: '#9ca3af' },
-  infoValue: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1f2937' },
-  descText: { fontSize: 13, color: '#374151', lineHeight: 20 },
-  sigGrid: { flexDirection: 'row', gap: 12 },
-  sigBlock: {
-    flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb',
-    borderRadius: 12, padding: 12, alignItems: 'center',
-  },
-  sigBlockLabel: { fontSize: 12, fontWeight: '700', color: '#6b7280', textAlign: 'center', marginBottom: 8 },
-  sigImage: { width: '100%', height: 80 },
-  sigEmpty: { width: '100%', height: 80, justifyContent: 'center', alignItems: 'center' },
-  signBtn: {
-    paddingHorizontal: 14, paddingVertical: 8,
-    backgroundColor: '#eff6ff', borderRadius: 10, borderWidth: 1.5, borderColor: '#bfdbfe',
-  },
-  signBtnText: { fontSize: 13, fontWeight: '700', color: C.blue },
-  sigPending: { fontSize: 12, color: '#d1d5db' },
-  pdfBtn: {
-    backgroundColor: C.green, borderRadius: 16, padding: 16, alignItems: 'center',
-    marginTop: 8,
-  },
-  pdfBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  nameModal: {
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
-  },
-  nameModalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
-  nameInput: {
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
-    padding: 14, fontSize: 15, color: '#111827',
-  },
-  nameActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  nameCancelBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 12,
-    borderWidth: 1.5, borderColor: '#d1d5db', alignItems: 'center',
-  },
-  nameCancelText: { fontSize: 15, fontWeight: '600', color: '#4b5563' },
-  nameOkBtn: {
-    flex: 2, paddingVertical: 14, borderRadius: 12,
-    backgroundColor: C.blue, alignItems: 'center',
-  },
-  nameOkText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-});
