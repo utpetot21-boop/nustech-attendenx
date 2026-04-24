@@ -30,6 +30,8 @@ import { api } from '@/services/api';
 import { PhotoPhaseGrid } from '@/components/visits/PhotoPhaseGrid';
 import { WatermarkCamera } from '@/components/visits/WatermarkCamera';
 import { pageBg, gradients, C, R, B, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { ChevronLeft, Calendar } from 'lucide-react-native';
 
 // ── Template form types ───────────────────────────────────────────────────────
 type FieldType = 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'date' | 'textarea';
@@ -80,6 +82,7 @@ export default function VisitDetailScreen() {
 
   // Form template checklist state
   const [formAnswers, setFormAnswers] = useState<Record<string, string>>({});
+  const [datePickerFieldId, setDatePickerFieldId] = useState<string | null>(null);
 
   // Queries
   const { data: visit, isLoading } = useQuery({
@@ -347,7 +350,7 @@ export default function VisitDetailScreen() {
                   marginBottom: 16,
                 }}
               >
-                <Text style={{ fontSize: 16, color: '#007AFF' }}>‹</Text>
+                <ChevronLeft size={20} strokeWidth={2.5} color="#007AFF" />
                 <Text style={{ fontSize: 15, color: '#007AFF' }}>Kunjungan</Text>
               </TouchableOpacity>
 
@@ -744,13 +747,39 @@ export default function VisitDetailScreen() {
                                 {field.label}{field.is_required ? ' *' : ''}
                               </Text>
 
-                              {/* text / date */}
-                              {(field.field_type === 'text' || field.field_type === 'date') && (
+                              {/* text */}
+                              {field.field_type === 'text' && (
                                 <TextInput value={val} onChangeText={setVal} editable={isOngoing}
-                                  placeholder={field.field_type === 'date' ? 'YYYY-MM-DD' : field.label}
+                                  placeholder={field.label}
                                   placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
-                                  keyboardType={field.field_type === 'date' ? 'default' : 'default'}
                                   style={inputStyle} />
+                              )}
+
+                              {/* date picker */}
+                              {field.field_type === 'date' && (
+                                <>
+                                  <TouchableOpacity
+                                    onPress={() => isOngoing && setDatePickerFieldId(field.id)}
+                                    activeOpacity={0.7}
+                                    style={{ ...inputStyle, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', opacity: isOngoing ? 1 : 0.5 }}
+                                  >
+                                    <Text style={{ fontSize: 14, color: val ? (isDark ? '#FFF' : '#111') : (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF') }}>
+                                      {val || 'Pilih tanggal'}
+                                    </Text>
+                                    <Calendar size={16} strokeWidth={1.8} color={isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF'} />
+                                  </TouchableOpacity>
+                                  {datePickerFieldId === field.id && (
+                                    <DateTimePicker
+                                      value={val ? new Date(val) : new Date()}
+                                      mode="date"
+                                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                      onChange={(_e, date) => {
+                                        setDatePickerFieldId(null);
+                                        if (date) setVal(date.toISOString().split('T')[0]);
+                                      }}
+                                    />
+                                  )}
+                                </>
                               )}
 
                               {/* number */}

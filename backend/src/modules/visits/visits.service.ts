@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { VisitEntity } from './entities/visit.entity';
 import { VisitPhotoEntity } from './entities/visit-photo.entity';
@@ -21,6 +21,7 @@ import { ClientEntity } from '../clients/entities/client.entity';
 import { VisitFormResponseEntity } from '../templates/entities/visit-form-response.entity';
 import { TemplatePhotoRequirementEntity } from '../templates/entities/template-photo-requirement.entity';
 import { TaskEntity } from '../tasks/entities/task.entity';
+import { TaskHoldEntity } from '../tasks/entities/task-hold.entity';
 import { ReviewVisitDto } from './dto/review-visit.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -46,6 +47,8 @@ export class VisitsService {
     private readonly formResponseRepo: Repository<VisitFormResponseEntity>,
     @InjectRepository(TaskEntity)
     private readonly taskRepo: Repository<TaskEntity>,
+    @InjectRepository(TaskHoldEntity)
+    private readonly holdRepo: Repository<TaskHoldEntity>,
     @InjectRepository(TemplatePhotoRequirementEntity)
     private readonly photoReqRepo: Repository<TemplatePhotoRequirementEntity>,
     private readonly nominatim: NominatimService,
@@ -399,7 +402,23 @@ export class VisitsService {
     if (filters.date) qb.andWhere('DATE(v.check_in_at) = :date', { date: filters.date });
 
     const [items, total] = await qb.getManyAndCount();
-    return { items, total, page, limit };
+
+    // Attach latest hold record for on-hold visits so HRD can see reason/reschedule info
+    const onHoldVisitIds = items.filter((v) => v.status === 'on_hold').map((v) => v.id);
+    const holdMap = new Map<string, TaskHoldEntity>();
+    if (onHoldVisitIds.length > 0) {
+      const holds = await this.holdRepo.find({
+        where: { visit_id: In(onHoldVisitIds) },
+        relations: ['holder'],
+        order: { created_at: 'DESC' },
+      });
+      holds.forEach((h) => {
+        if (h.visit_id && !holdMap.has(h.visit_id)) holdMap.set(h.visit_id, h);
+      });
+    }
+    const enrichedItems = items.map((v) => ({ ...v, hold_detail: holdMap.get(v.id) ?? null }));
+
+    return { items: enrichedItems, total, page, limit };
   }
 
   async getAdminDetail(visitId: string): Promise<VisitEntity> {

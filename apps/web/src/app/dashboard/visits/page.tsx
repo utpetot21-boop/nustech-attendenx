@@ -13,6 +13,17 @@ import { toast } from 'sonner';
 
 const PHOTO_MIN_TOTAL = 16;
 
+const HOLD_REASON_LABELS: Record<string, string> = {
+  client_absent:       'Klien Tidak Hadir',
+  access_denied:       'Akses Ditolak',
+  equipment_broken:    'Peralatan Rusak',
+  material_unavailable:'Material Tidak Tersedia',
+  client_cancel:       'Klien Membatalkan',
+  weather:             'Kondisi Cuaca',
+  technician_sick:     'Teknisi Sakit',
+  other:               'Lainnya',
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Visit = {
   id: string;
@@ -37,6 +48,16 @@ type Visit = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   reviewer: { id: string; full_name: string } | null;
+  hold_detail: {
+    id: string;
+    reason_type: string;
+    reason_notes: string;
+    reschedule_date: string | null;
+    reschedule_note: string | null;
+    review_status: string;
+    held_at: string;
+    holder: { full_name: string } | null;
+  } | null;
 };
 
 type ServiceReport = {
@@ -838,51 +859,74 @@ export default function VisitsPage() {
           isLoading ? <LoadingSpinner /> : onHoldVisits.length === 0 ? (
             <EmptyState icon={CheckCircle2} label="Tidak ada yang ditunda" sub="Semua kunjungan berjalan lancar" iconColor="text-[#34C759]" iconBg="bg-[#34C759]/10" />
           ) : (
-            <>
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-3">
-                {onHoldVisits.map((v) => <VisitCard key={v.id} v={v} onClick={() => setDetail(v)} />)}
-              </div>
+            <div className="space-y-3">
+              {onHoldVisits.map((v) => {
+                const hd = v.hold_detail;
+                const reasonLabel = HOLD_REASON_LABELS[hd?.reason_type ?? ''] ?? hd?.reason_type ?? '—';
+                return (
+                  <div key={v.id} className="bg-white dark:bg-white/[0.06] rounded-2xl border border-[#FF9500]/30 overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.08)] border-b border-[#FF9500]/20">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-[#FF9500]/15 flex items-center justify-center flex-shrink-0">
+                          <Pause size={14} className="text-[#FF9500]" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-white text-sm">{v.user?.full_name ?? '—'}</p>
+                          <p className="text-xs text-gray-500 dark:text-white/40">{v.client?.name ?? '—'} · {v.check_in_at ? new Date(v.check_in_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', timeZone: 'Asia/Makassar' }) : '—'}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setDetail(v)}
+                        className="px-3 py-1.5 bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#FF9500] rounded-xl text-xs font-semibold transition">
+                        Detail
+                      </button>
+                    </div>
 
-              {/* Desktop table */}
-              <div className="hidden md:block bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] overflow-x-auto overflow-hidden">
-                <table className="w-full text-sm min-w-[700px]">
-                  <thead>
-                    <tr className="border-b border-black/[0.05] dark:border-white/[0.06]">
-                      {['Teknisi', 'Klien', 'Tanggal Check-in', 'Durasi', 'Status', ''].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wide">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {onHoldVisits.map((v) => (
-                      <tr key={v.id} className="border-b border-black/[0.03] dark:border-white/[0.04] hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-[#007AFF]/10 flex items-center justify-center text-[#007AFF] text-[11px] font-bold flex-shrink-0">
-                              {initials(v.user?.full_name ?? 'U')}
+                    {/* Hold detail body */}
+                    <div className="p-4 space-y-3">
+                      {hd ? (
+                        <>
+                          <div className="flex items-start gap-2">
+                            <AlertCircle size={14} className="text-[#FF9500] mt-0.5 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 dark:text-white">{reasonLabel}</p>
+                              <p className="text-xs text-gray-500 dark:text-white/50 mt-0.5 line-clamp-2">{hd.reason_notes}</p>
                             </div>
-                            <span className="font-medium text-gray-900 dark:text-white">{v.user?.full_name ?? '—'}</span>
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-white/60">{v.client?.name ?? '—'}</td>
-                        <td className="px-4 py-3 text-gray-500 dark:text-white/50 text-xs">
-                          {v.check_in_at ? new Date(v.check_in_at).toLocaleDateString('id-ID', { dateStyle: 'medium', timeZone: 'Asia/Makassar' }) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-gray-500 dark:text-white/50 text-xs">{durFmt(v.duration_minutes)}</td>
-                        <td className="px-4 py-3"><StatusBadge status={v.status} /></td>
-                        <td className="px-4 py-3">
-                          <button onClick={() => setDetail(v)}
-                            className="px-3 py-1.5 bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] rounded-xl text-xs font-semibold transition">
-                            Review
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1.5 items-center">
+                            <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-white/30">
+                              <Clock size={11} />
+                              {new Date(hd.held_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
+                            </div>
+                            {hd.holder?.full_name && (
+                              <p className="text-xs text-gray-400 dark:text-white/30">oleh {hd.holder.full_name}</p>
+                            )}
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                              hd.review_status === 'approved' ? 'bg-[#F0FDF4] text-[#166534]' :
+                              hd.review_status === 'rejected' ? 'bg-[#FEF2F2] text-[#9F1239]' :
+                              'bg-[#FFFBEB] text-[#92400E]'
+                            }`}>
+                              {hd.review_status === 'approved' ? 'Disetujui' : hd.review_status === 'rejected' ? 'Ditolak' : 'Menunggu Review'}
+                            </span>
+                          </div>
+                          {hd.reschedule_date && (
+                            <div className="flex items-center gap-2 bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.08)] rounded-xl px-3 py-2">
+                              <Calendar size={12} className="text-[#34C759] flex-shrink-0" />
+                              <p className="text-xs text-[#166534] font-medium">
+                                Jadwal ulang: {new Date(hd.reschedule_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' })}
+                                {hd.reschedule_note && <span className="text-[#166534]/60"> — {hd.reschedule_note}</span>}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs text-gray-400 dark:text-white/30 italic">Alasan penundaan tidak tersedia</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )
         )}
       </div>
