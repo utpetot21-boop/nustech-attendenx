@@ -17,6 +17,10 @@ export interface AttendanceRequest {
   created_at: string;
 }
 
+export interface AttendanceRequestAdmin extends AttendanceRequest {
+  user?: { id: string; full_name: string; avatar_url?: string | null };
+}
+
 export const attendanceRequestsService = {
   /** Ajukan izin terlambat atau izin pulang awal */
   submit(payload: {
@@ -38,5 +42,32 @@ export const attendanceRequestsService = {
     if (params.date) q.set('date', params.date);
     if (params.type) q.set('type', params.type);
     return api.get<AttendanceRequest[]>(`/attendance-requests/my?${q}`).then((r) => r.data);
+  },
+
+  // ── Admin ─────────────────────────────────────────────────────────────────
+
+  /** Jumlah permohonan pending (badge) */
+  adminPendingCount() {
+    return api.get<{ count: number }>('/attendance-requests/admin/pending-count').then((r) => r.data.count);
+  },
+
+  /** Daftar semua permohonan (admin) */
+  adminList(params: { status?: string; type?: string; date?: string; page?: number } = {}) {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.type)   q.set('type',   params.type);
+    if (params.date)   q.set('date',   params.date);
+    if (params.page)   q.set('page',   String(params.page));
+    return api.get<AttendanceRequestAdmin[]>(`/attendance-requests/admin/list?${q}`).then((r) => r.data);
+  },
+
+  /** Setujui permohonan */
+  approve(id: string, note?: string) {
+    return api.post(`/attendance-requests/${id}/approve`, { note }).then((r) => r.data);
+  },
+
+  /** Tolak permohonan */
+  reject(id: string, note?: string) {
+    return api.post(`/attendance-requests/${id}/reject`, { note }).then((r) => r.data);
   },
 };

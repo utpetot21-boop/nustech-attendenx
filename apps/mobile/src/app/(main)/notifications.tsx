@@ -107,7 +107,7 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   late_arrival_rejected:           '__attendance_history__',
   early_departure_approved:        '__attendance_history__',
   early_departure_rejected:        '__attendance_history__',
-  attendance_request_submitted:    '/(main)/attendance',
+  attendance_request_submitted:    '/(main)/attendance-requests-admin',
   attendance_request_approved:     '__attendance_history__',
   attendance_request_rejected:     '__attendance_history__',
   // Klaim Biaya

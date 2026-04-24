@@ -57,7 +57,7 @@ const NOTIF_ROUTE_MAP: Record<string, string> = {
   early_departure_rejected:        ATTENDANCE_HISTORY,
   attendance_request_approved:     ATTENDANCE_HISTORY,
   attendance_request_rejected:     ATTENDANCE_HISTORY,
-  attendance_request_submitted:    '/(main)/attendance',
+  attendance_request_submitted:    '/(main)/attendance-requests-admin',
   // Absensi / SP
   sp_reminder:                     '/(main)/attendance',
   alfa_detected:                   '/(main)/attendance',
