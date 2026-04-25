@@ -241,7 +241,9 @@ export default function LeaveRequestsAdminScreen() {
   const bg = pageBg(isDark);
   const isActing = approveMut.isPending || rejectMut.isPending;
 
-  if (user === undefined) {
+  // user === null bisa berarti "belum hydrate dari SecureStore" ATAU "belum login"
+  // Tampilkan loading dulu sampai user terisi, baru cek isApprover
+  if (!user) {
     return (
       <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={C.blue} />

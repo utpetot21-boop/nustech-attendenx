@@ -237,8 +237,8 @@ export default function AttendanceRequestsAdminScreen() {
   const bg = pageBg(isDark);
   const isActing = approveMut.isPending || rejectMut.isPending;
 
-  // Tunggu auth store hydrate — cegah blank page saat user masih undefined
-  if (user === undefined) {
+  // Tunggu auth store hydrate dari SecureStore — user awal null, bukan undefined
+  if (!user) {
     return (
       <View style={{ flex: 1, backgroundColor: pageBg(isDark), alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={C.blue} />
