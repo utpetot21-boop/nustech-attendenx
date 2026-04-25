@@ -233,35 +233,12 @@ export default function AttendanceRequestsAdminScreen() {
   const bg = pageBg(isDark);
   const isActing = approveMut.isPending || rejectMut.isPending;
 
-  // ── DIAGNOSTIC BANNER (sementara — hapus setelah blank-page issue beres) ─────
-  const debugBanner = (
-    <View style={{ backgroundColor: '#DC2626', paddingTop: insets.top + 4, paddingBottom: 8, paddingHorizontal: 12 }}>
-      <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700', marginBottom: 2 }}>
-        DEBUG-2026-04-25-A · Permohonan Absensi
-      </Text>
-      <Text style={{ color: '#FFF', fontSize: 10 }}>
-        email: {user?.email ?? 'NULL'}
-      </Text>
-      <Text style={{ color: '#FFF', fontSize: 10 }}>
-        role: {user?.role?.name ?? 'NULL'} · can_approve: {String(user?.role?.can_approve ?? 'undef')}
-      </Text>
-      <Text style={{ color: '#FFF', fontSize: 10 }}>
-        position: {user?.position?.name ?? 'NULL'} · isApprover: {String(isApprover)}
-      </Text>
-      <Text style={{ color: '#FFF', fontSize: 10 }}>
-        query: loading={String(isLoading)} count={requests.length}
-      </Text>
-    </View>
-  );
-
   // Tunggu auth store hydrate dari SecureStore — user awal null, bukan undefined
   if (!user) {
     return (
       <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
-        {debugBanner}
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={C.blue} />
-          <Text style={{ marginTop: 12, fontSize: 12, color: lTertiary(isDark) }}>State: !user</Text>
         </View>
       </View>
     );
@@ -272,7 +249,6 @@ export default function AttendanceRequestsAdminScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-        {debugBanner}
         <BackHeader title="Permohonan Absensi" accentColor={C.orange} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
           <ShieldOff size={40} strokeWidth={1.5} color={lTertiary(isDark)} />
@@ -294,7 +270,6 @@ export default function AttendanceRequestsAdminScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      {debugBanner}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
