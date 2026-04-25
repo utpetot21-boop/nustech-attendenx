@@ -58,7 +58,11 @@ export const attendanceRequestsService = {
     if (params.type)   q.set('type',   params.type);
     if (params.date)   q.set('date',   params.date);
     if (params.page)   q.set('page',   String(params.page));
-    return api.get<AttendanceRequestAdmin[]>(`/attendance-requests/admin/list?${q}`).then((r) => r.data);
+    return api
+      .get<{ items: AttendanceRequestAdmin[]; total: number } | AttendanceRequestAdmin[]>(
+        `/attendance-requests/admin/list?${q}`,
+      )
+      .then((r) => (Array.isArray(r.data) ? r.data : (r.data as { items: AttendanceRequestAdmin[] }).items ?? []));
   },
 
   /** Setujui permohonan */
