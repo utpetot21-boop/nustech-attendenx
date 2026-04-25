@@ -268,8 +268,6 @@ export default function LeaveRequestsAdminScreen() {
         title="Persetujuan Cuti & Izin"
         subtitle={`${requests.filter((r) => r.status === 'pending').length} menunggu persetujuan`}
         onBack={() => router.back()}
-        isDark={isDark}
-        insets={insets}
       />
 
       {/* Filter chips */}
@@ -320,7 +318,7 @@ export default function LeaveRequestsAdminScreen() {
           <EmptyState
             icon={ClipboardList}
             title="Tidak ada pengajuan"
-            description={filterStatus === 'pending' ? 'Tidak ada pengajuan yang menunggu persetujuan.' : 'Tidak ada riwayat pengajuan.'}
+            message={filterStatus === 'pending' ? 'Tidak ada pengajuan yang menunggu persetujuan.' : 'Tidak ada riwayat pengajuan.'}
           />
         ) : (
           requests.map((req) => (
