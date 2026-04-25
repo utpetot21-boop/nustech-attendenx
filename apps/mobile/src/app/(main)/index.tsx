@@ -858,7 +858,7 @@ export default function BerandaScreen() {
                 sub="Tinjau ajuan cuti dan izin karyawan"
                 accentColor={C.blue}
                 icon={Calendar}
-                onPress={() => router.push('/(main)/profile')}
+                onPress={() => router.push('/(main)/leave-requests-admin' as never)}
                 isDark={isDark}
                 badge={pendingLeaveCount}
               />

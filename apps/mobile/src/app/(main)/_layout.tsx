@@ -211,6 +211,7 @@ export default function MainLayout() {
       <Tabs.Screen name="announcements"         options={{ href: null, title: 'Pengumuman' }} />
       <Tabs.Screen name="attendance-history"    options={{ href: null, title: 'Riwayat Absensi' }} />
       <Tabs.Screen name="attendance-requests-admin" options={{ href: null, title: 'Permohonan Absensi' }} />
+      <Tabs.Screen name="leave-requests-admin"   options={{ href: null, title: 'Persetujuan Cuti & Izin' }} />
       <Tabs.Screen name="warning-letters"       options={{ href: null, title: 'Surat Peringatan' }} />
     </Tabs>
     </TabBarContext.Provider>
