@@ -79,20 +79,8 @@ export default function MainLayout() {
     }).start();
   }, [translateY]);
 
-  const onScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const y    = e.nativeEvent.contentOffset.y;
-    const diff = y - lastScrollY.current;
-    lastScrollY.current = y;
-
-    if (diff > 8 && !isHidden.current && y > 80) {
-      isHidden.current = true;
-      Animated.spring(translateY, {
-        toValue: TAB_BAR_SLIDE, useNativeDriver: true, tension: 120, friction: 16,
-      }).start();
-    } else if (diff < -8 && isHidden.current) {
-      showTabBar();
-    }
-  }, [translateY, showTabBar]);
+  // onScroll tersedia di context tapi auto-hide dinonaktifkan agar nav selalu terlihat
+  const onScroll = useCallback((_e: { nativeEvent: { contentOffset: { y: number } } }) => {}, []);
 
   // Badge: tugas pending_confirmation
   const { data: pendingTasks } = useQuery({

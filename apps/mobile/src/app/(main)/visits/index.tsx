@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   ChevronRight,
   Navigation,
+  ArrowLeft,
 } from 'lucide-react-native';
 import { visitsService, type VisitSummary } from '@/services/visits.service';
 import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
@@ -170,25 +171,25 @@ export default function VisitsListScreen() {
         }
       >
         {/* Header */}
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View>
-              <Text style={{ ...T.title1, color: lPrimary(isDark) }}>
-                Kunjungan
-              </Text>
-              <Text style={{ ...T.footnote, color: lSecondary(isDark), marginTop: 3 }}>
-                {data?.total ?? 0} kunjungan tercatat
-              </Text>
-            </View>
+        <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 16 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 6,
+              marginBottom: 12, alignSelf: 'flex-start',
+            }}
+          >
+            <ArrowLeft size={20} strokeWidth={2} color={C.blue} />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: C.blue }}>Kembali</Text>
+          </TouchableOpacity>
 
-            <View style={{
-              width: 48, height: 48, borderRadius: R.md,
-              backgroundColor: isDark ? 'rgba(0,122,255,0.15)' : '#EFF6FF',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              <MapPin size={24} strokeWidth={1.8} color={C.blue} />
-            </View>
-          </View>
+          <Text style={{ ...T.title1, color: lPrimary(isDark) }}>
+            Kunjungan
+          </Text>
+          <Text style={{ ...T.footnote, color: lSecondary(isDark), marginTop: 3 }}>
+            {data?.total ?? 0} kunjungan tercatat
+          </Text>
         </View>
 
         {/* Filter chips */}
