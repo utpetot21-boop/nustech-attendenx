@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
-  ClipboardList, CheckCircle2, XCircle, Calendar, ShieldOff,
+  ClipboardList, CheckCircle2, XCircle, Calendar,
   User, ChevronDown, ChevronUp,
 } from 'lucide-react-native';
 import { C, R, B, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
@@ -26,7 +26,7 @@ import {
 import { useAuthStore } from '@/stores/auth.store';
 import * as Haptics from 'expo-haptics';
 
-const APPROVER_ROLES = ['admin', 'manager', 'super_admin', 'direktur'] as const;
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin', 'direktur', 'direktur utama'] as const;
 
 type FilterStatus = LeaveStatus | 'all';
 
@@ -182,10 +182,10 @@ export default function LeaveRequestsAdminScreen() {
   const [rejectInput, setRejectInput]   = useState('');
   const [pendingReject, setPendingReject] = useState<string | null>(null);
 
-  const { data: requests = [], isLoading, isRefetching, refetch } = useQuery({
+  const { data: requests = [], isLoading, isRefetching, refetch, isError } = useQuery({
     queryKey: ['leave-requests-admin', filterStatus],
     queryFn: () => leaveService.getPendingForApprover(filterStatus === 'all' ? undefined : filterStatus),
-    enabled: !!isApprover,
+    enabled: !!user,
   });
 
   const invalidate = useCallback(() => {
@@ -240,26 +240,6 @@ export default function LeaveRequestsAdminScreen() {
 
   const bg = pageBg(isDark);
   const isActing = approveMut.isPending || rejectMut.isPending;
-
-  // user === null bisa berarti "belum hydrate dari SecureStore" ATAU "belum login"
-  // Tampilkan loading dulu sampai user terisi, baru cek isApprover
-  if (!user) {
-    return (
-      <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={C.blue} />
-      </View>
-    );
-  }
-
-  if (!isApprover) {
-    return (
-      <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ShieldOff size={40} strokeWidth={1.5} color={lTertiary(isDark)} />
-        <Text style={{ marginTop: 12, fontSize: 14, color: lTertiary(isDark) }}>Akses tidak diizinkan</Text>
-      </View>
-    );
-  }
-
   const STATUS_FILTERS: FilterStatus[] = ['pending', 'approved', 'rejected'];
 
   return (
@@ -316,6 +296,12 @@ export default function LeaveRequestsAdminScreen() {
       >
         {isLoading ? (
           <ActivityIndicator size="large" color={C.blue} style={{ marginTop: 48 }} />
+        ) : isError ? (
+          <EmptyState
+            icon={ClipboardList}
+            title="Gagal memuat"
+            message="Tidak dapat memuat data pengajuan. Tarik untuk coba lagi."
+          />
         ) : requests.length === 0 ? (
           <EmptyState
             icon={ClipboardList}
@@ -328,8 +314,8 @@ export default function LeaveRequestsAdminScreen() {
               key={req.id}
               req={req}
               isDark={isDark}
-              onApprove={handleApprove}
-              onReject={handleReject}
+              onApprove={isApprover ? handleApprove : () => {}}
+              onReject={isApprover ? handleReject : () => {}}
             />
           ))
         )}

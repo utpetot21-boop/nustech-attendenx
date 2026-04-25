@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -25,7 +26,7 @@ import { RejectLeaveDto } from './dto/review-leave.dto';
 import { CreateObjectionDto } from './dto/create-objection.dto';
 import { UserEntity } from '../users/entities/user.entity';
 
-const APPROVER_ROLES = ['admin', 'manager', 'super_admin'];
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin', 'direktur', 'direktur utama'];
 
 @UseGuards(JwtAuthGuard)
 @Controller('leave')
@@ -119,7 +120,8 @@ export class LeaveController {
     @Query('page') page?: string,
     @Query('user_id') queryUserId?: string,
   ) {
-    const isApprover = APPROVER_ROLES.includes(user.role?.name ?? '');
+    const isApprover = !!user.role?.can_approve
+      || APPROVER_ROLES.includes((user.role?.name ?? '').toLowerCase());
     return this.leave.getRequests({
       userId: isApprover && queryUserId ? queryUserId : isApprover ? undefined : user.id,
       status,
@@ -128,24 +130,28 @@ export class LeaveController {
   }
 
   @Post('requests/:id/approve')
-  @UseGuards(RolesGuard)
-  @RequirePermission('leave:approve')
   approveRequest(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('id') managerId: string,
+    @CurrentUser() user: UserEntity,
   ) {
-    return this.leave.approveRequest(id, managerId);
+    const canApprove = !!user.role?.can_approve
+      || !!user.role?.permissions?.includes('leave:approve')
+      || APPROVER_ROLES.includes((user.role?.name ?? '').toLowerCase());
+    if (!canApprove) throw new ForbiddenException('Akses ditolak');
+    return this.leave.approveRequest(id, user.id);
   }
 
   @Post('requests/:id/reject')
-  @UseGuards(RolesGuard)
-  @RequirePermission('leave:approve')
   rejectRequest(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('id') managerId: string,
+    @CurrentUser() user: UserEntity,
     @Body() dto: RejectLeaveDto,
   ) {
-    return this.leave.rejectRequest(id, managerId, dto);
+    const canApprove = !!user.role?.can_approve
+      || !!user.role?.permissions?.includes('leave:approve')
+      || APPROVER_ROLES.includes((user.role?.name ?? '').toLowerCase());
+    if (!canApprove) throw new ForbiddenException('Akses ditolak');
+    return this.leave.rejectRequest(id, user.id, dto);
   }
 
   // ── Objections ───────────────────────────────────────────────────────────────
@@ -159,7 +165,8 @@ export class LeaveController {
 
   @Get('objections')
   getObjections(@CurrentUser() user: UserEntity) {
-    const isApprover = APPROVER_ROLES.includes(user.role?.name ?? '');
+    const isApprover = !!user.role?.can_approve
+      || APPROVER_ROLES.includes((user.role?.name ?? '').toLowerCase());
     return this.leave.getObjections(isApprover ? undefined : user.id);
   }
 
