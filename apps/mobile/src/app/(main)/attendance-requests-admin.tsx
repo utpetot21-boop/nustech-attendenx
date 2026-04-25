@@ -237,7 +237,16 @@ export default function AttendanceRequestsAdminScreen() {
   const bg = pageBg(isDark);
   const isActing = approveMut.isPending || rejectMut.isPending;
 
-  // Tampilkan layar kosong saat redirect berjalan (user bukan approver)
+  // Tunggu auth store hydrate — cegah blank page saat user masih undefined
+  if (user === undefined) {
+    return (
+      <View style={{ flex: 1, backgroundColor: pageBg(isDark), alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={C.blue} />
+      </View>
+    );
+  }
+
+  // Tampilkan layar akses ditolak saat redirect berjalan (user bukan approver)
   if (!isApprover) {
     return (
       <View style={{ flex: 1, backgroundColor: pageBg(isDark), alignItems: 'center', justifyContent: 'center' }}>

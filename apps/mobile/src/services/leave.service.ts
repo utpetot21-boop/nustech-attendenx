@@ -87,4 +87,22 @@ export const leaveService = {
   cancel: async (id: string): Promise<void> => {
     await api.patch(`/leave/requests/${id}/cancel`);
   },
+
+  /** Semua pengajuan untuk approver (tanpa filter user_id) */
+  getPendingForApprover: async (status?: LeaveStatus | 'all'): Promise<LeaveRequest[]> => {
+    const params: Record<string, string> = { limit: '50' };
+    if (status && status !== 'all') params.status = status;
+    const res = await api.get('/leave/requests', { params });
+    return res.data?.items ?? res.data ?? [];
+  },
+
+  /** Setujui pengajuan cuti/izin */
+  approve: async (id: string): Promise<void> => {
+    await api.post(`/leave/requests/${id}/approve`);
+  },
+
+  /** Tolak pengajuan cuti/izin dengan alasan */
+  rejectRequest: async (id: string, reason: string): Promise<void> => {
+    await api.post(`/leave/requests/${id}/reject`, { reason });
+  },
 };

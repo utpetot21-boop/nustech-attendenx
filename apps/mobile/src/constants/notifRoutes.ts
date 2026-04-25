@@ -30,7 +30,7 @@ export const NOTIF_ROUTE_MAP: Record<string, string> = {
   swap_request_rejected:           '/(main)/schedule-swap',
   swap_request_admin:              '/(main)/schedule-swap',
   // Cuti & Izin
-  leave_request:                   '/(main)/profile',
+  leave_request:                   '/(main)/leave-requests-admin',
   leave_approved:                  '/(main)/leave',
   leave_rejected:                  '/(main)/leave',
   leave_expiry_reminder:           '/(main)/leave',
@@ -54,7 +54,7 @@ export const NOTIF_ROUTE_MAP: Record<string, string> = {
   expense_claim_rejected:          '/(main)/expense-claims',
   expense_claim_paid:              '/(main)/expense-claims',
   // FYI
-  leave_fyi:                       '/(main)/notifications',
+  leave_fyi:                       '/(main)/leave-requests-admin',
   attendance_request_fyi:          '/(main)/attendance-requests-admin',
   expense_claim_fyi:               '/(main)/expense-claims',
   // Tugas — deep link ke detail via task_id di data payload
