@@ -199,7 +199,11 @@ export class LeaveService {
       where: { id: managerId },
       relations: ['role'],
     });
-    if (!manager?.role?.can_approve) {
+    const roleName = (manager?.role?.name ?? '').toLowerCase();
+    const canApprove = !!manager?.role?.can_approve
+      || !!manager?.role?.permissions?.includes('leave:approve')
+      || ['admin', 'manager', 'super_admin', 'direktur', 'direktur utama'].includes(roleName);
+    if (!canApprove) {
       throw new ForbiddenException('Role Anda tidak memiliki hak untuk menyetujui pengajuan cuti.');
     }
   }
