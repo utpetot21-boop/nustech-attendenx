@@ -336,7 +336,7 @@ export default function LeaveRequestsAdminScreen() {
       {/* Modal tolak — input alasan */}
       {pendingReject && (
         <View style={{
-          position: 'absolute', inset: 0,
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.5)',
           alignItems: 'center', justifyContent: 'flex-end',
         }}>
@@ -346,9 +346,8 @@ export default function LeaveRequestsAdminScreen() {
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             padding: 24,
             paddingBottom: insets.bottom + 24,
-            gap: 16,
           }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', color: lPrimary(isDark) }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: lPrimary(isDark), marginBottom: 14 }}>
               Alasan Penolakan
             </Text>
             <TextInput
@@ -362,6 +361,7 @@ export default function LeaveRequestsAdminScreen() {
                 borderRadius: R.md, padding: 14,
                 fontSize: 14, color: lPrimary(isDark),
                 minHeight: 80, textAlignVertical: 'top',
+                marginBottom: 16,
               }}
             />
             <View style={{ flexDirection: 'row', gap: 12 }}>
