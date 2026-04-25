@@ -1,7 +1,7 @@
 /**
  * Halaman admin — persetujuan izin terlambat & izin pulang awal
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, useColorScheme,
   RefreshControl, StatusBar, ActivityIndicator, TextInput, Alert,
@@ -11,7 +11,7 @@ import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
   ClipboardList, CheckCircle2, XCircle, Clock, LogIn, LogOut,
-  User, ChevronDown, ChevronUp, ShieldOff,
+  ChevronDown, ChevronUp, ShieldOff,
 } from 'lucide-react-native';
 import { C, R, B, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -20,7 +20,7 @@ import { attendanceRequestsService, type AttendanceRequestAdmin } from '@/servic
 import { useAuthStore } from '@/stores/auth.store';
 import * as Haptics from 'expo-haptics';
 
-const APPROVER_ROLES = ['admin', 'manager', 'super_admin'] as const;
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin', 'direktur', 'direktur utama'] as const;
 
 type FilterStatus = 'pending' | 'approved' | 'rejected';
 type FilterType   = 'all' | 'late_arrival' | 'early_departure';
@@ -171,14 +171,7 @@ export default function AttendanceRequestsAdminScreen() {
   const user    = useAuthStore((s) => s.user);
 
   const isApprover = !!user?.role?.can_approve
-    || APPROVER_ROLES.includes((user?.role?.name ?? '') as typeof APPROVER_ROLES[number]);
-
-  // Guard: redirect non-approver keluar dari halaman ini
-  useEffect(() => {
-    if (user !== undefined && !isApprover) {
-      router.replace('/(main)/attendance' as never);
-    }
-  }, [isApprover, user]);
+    || APPROVER_ROLES.includes((user?.role?.name?.toLowerCase() ?? '') as typeof APPROVER_ROLES[number]);
 
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
   const [filterType,   setFilterType]   = useState<FilterType>('all');
@@ -191,6 +184,7 @@ export default function AttendanceRequestsAdminScreen() {
       status: filterStatus,
       type:   filterType === 'all' ? undefined : filterType,
     }),
+    enabled: !!user && isApprover,
   });
 
   const invalidate = useCallback(() => {
@@ -246,12 +240,18 @@ export default function AttendanceRequestsAdminScreen() {
     );
   }
 
-  // Tampilkan layar akses ditolak saat redirect berjalan (user bukan approver)
+  // Tampilkan layar akses ditolak (alih-alih redirect — agar tidak ada race saat hidrasi)
   if (!isApprover) {
     return (
-      <View style={{ flex: 1, backgroundColor: pageBg(isDark), alignItems: 'center', justifyContent: 'center' }}>
-        <ShieldOff size={40} strokeWidth={1.5} color={lTertiary(isDark)} />
-        <Text style={{ marginTop: 12, fontSize: 14, color: lTertiary(isDark) }}>Akses tidak diizinkan</Text>
+      <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <BackHeader title="Permohonan Absensi" accentColor={C.orange} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <ShieldOff size={40} strokeWidth={1.5} color={lTertiary(isDark)} />
+          <Text style={{ marginTop: 12, fontSize: 14, color: lTertiary(isDark), textAlign: 'center' }}>
+            Akses tidak diizinkan. Halaman ini hanya untuk approver.
+          </Text>
+        </View>
       </View>
     );
   }
@@ -360,7 +360,7 @@ export default function AttendanceRequestsAdminScreen() {
       {/* Modal konfirmasi approve/reject */}
       {pendingAction && (
         <View style={{
-          position: 'absolute', inset: 0,
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.5)',
           justifyContent: 'flex-end',
         }}>

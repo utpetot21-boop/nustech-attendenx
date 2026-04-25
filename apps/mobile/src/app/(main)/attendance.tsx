@@ -497,7 +497,7 @@ export default function AttendanceScreen() {
   return (
     <View style={{ flex: 1 }}>
       {/* Background */}
-      <View style={{ position: 'absolute', inset: 0, backgroundColor: pageBg(isDark) }} />
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: pageBg(isDark) }} />
 
       {/* Back navigation */}
       <BackHeader title="Absensi" subtitle="Kantor" accentColor={C.blue} />

@@ -628,7 +628,7 @@ export default function LeaveScreen() {
                   resizeMode="cover"
                 />
                 {isUploading && (
-                  <View style={{ position: 'absolute', inset: 0, borderRadius: R.md, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: R.md, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
                     <ActivityIndicator color="#FFFFFF" />
                     <Text style={{ color: '#FFF', fontSize: 13, marginTop: 8 }}>Mengupload...</Text>
                   </View>

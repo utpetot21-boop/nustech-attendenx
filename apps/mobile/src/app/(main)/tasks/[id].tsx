@@ -425,7 +425,7 @@ function TaskDetailInner() {
     return (
       <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         {isDark && (
-          <LinearGradient colors={gradients.heroTask} style={{ position: 'absolute', inset: 0 }} />
+          <LinearGradient colors={gradients.heroTask} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
         )}
         <ActivityIndicator size="large" color={C.green} />
       </View>
