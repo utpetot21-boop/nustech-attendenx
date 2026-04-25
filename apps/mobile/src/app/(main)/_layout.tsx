@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useColorScheme, View, Animated, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import {
@@ -59,6 +60,7 @@ export default function MainLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const inactiveColor = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)';
+  const insets = useSafeAreaInsets();
 
   // ── Auto-hide tab bar on scroll ──────────────────────────────────────────────
   const translateY  = useRef(new Animated.Value(0)).current;
@@ -121,7 +123,7 @@ export default function MainLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 12,
+          bottom: insets.bottom + 8,
           left: 16,
           right: 16,
           borderRadius: 28,

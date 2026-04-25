@@ -59,6 +59,7 @@ function UserPickerModal({
   isDark: boolean;
   excludeId?: string;
 }) {
+  const insets = useSafeAreaInsets();
   const [q, setQ] = useState('');
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,7 +92,7 @@ function UserPickerModal({
       <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
         {/* Header */}
         <View style={{
-          paddingTop: 20, paddingHorizontal: 20, paddingBottom: 14,
+          paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 14,
           borderBottomWidth: B.default,
           borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
         }}>
@@ -600,7 +601,7 @@ export default function ScheduleSwapScreen() {
         >
           {/* Modal Header */}
           <View style={{
-            paddingTop: 20, paddingHorizontal: 20, paddingBottom: 14,
+            paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 14,
             borderBottomWidth: B.default,
             borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
           }}>

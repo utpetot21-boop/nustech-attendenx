@@ -443,7 +443,7 @@ export default function TasksScreen() {
               backgroundColor: cardBg(isDark),
               borderRadius: R.sheet,
               padding: 20,
-              paddingBottom: 36,
+              paddingBottom: insets.bottom + 24,
             }}
           >
             <Text
@@ -516,7 +516,7 @@ export default function TasksScreen() {
               backgroundColor: cardBg(isDark),
               borderRadius: R.sheet,
               padding: 20,
-              paddingBottom: 36,
+              paddingBottom: insets.bottom + 24,
               maxHeight: '85%',
             }}
           >
@@ -690,7 +690,7 @@ export default function TasksScreen() {
               backgroundColor: cardBg(isDark),
               borderRadius: R.sheet,
               padding: 20,
-              paddingBottom: 36,
+              paddingBottom: insets.bottom + 24,
               maxHeight: '80%',
             }}
           >

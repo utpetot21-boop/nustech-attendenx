@@ -267,7 +267,7 @@ function DetailModal({
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: 20,
-            paddingTop: 16,
+            paddingTop: insets.top + 12,
             paddingBottom: 12,
           }}
         >
@@ -649,7 +649,7 @@ function CreateSheet({
         <View
           style={{
             flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-            paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
+            paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 12,
           }}
         >
           <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, letterSpacing: -0.4 }}>

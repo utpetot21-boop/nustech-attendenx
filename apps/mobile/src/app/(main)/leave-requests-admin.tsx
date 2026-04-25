@@ -285,7 +285,7 @@ export default function LeaveRequestsAdminScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 96 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}

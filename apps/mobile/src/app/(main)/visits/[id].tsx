@@ -485,7 +485,7 @@ export default function VisitDetailScreen() {
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Header */}
-            <View style={{ paddingTop: 56, paddingHorizontal: 16, paddingBottom: 12 }}>
+            <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: 12 }}>
               <TouchableOpacity
                 onPress={() => router.back()}
                 style={{

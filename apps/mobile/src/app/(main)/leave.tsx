@@ -388,7 +388,7 @@ export default function LeaveScreen() {
             <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
               {/* Header */}
               <View style={{
-                paddingTop: 20, paddingHorizontal: 20, paddingBottom: 14,
+                paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 14,
                 borderBottomWidth: B.default,
                 borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -523,7 +523,7 @@ export default function LeaveScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, backgroundColor: pageBg(isDark) }}
         >
-          <View style={{ paddingTop: 20, paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: B.default, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+          <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: B.default, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 20, fontWeight: '800', color: lPrimary(isDark), letterSpacing: -0.5 }}>
                 Ajukan Cuti / Izin

@@ -671,7 +671,7 @@ export default function ProfileScreen() {
           <ScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 80 }}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           >
             {[
               { key: 'full_name', label: 'Nama Lengkap', placeholder: 'Masukkan nama lengkap' },
@@ -735,7 +735,7 @@ export default function ProfileScreen() {
           <ScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 80 }}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           >
             {[
               { key: 'current_password', label: 'Password Saat Ini' },
@@ -816,7 +816,7 @@ export default function ProfileScreen() {
           <ScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 80 }}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           >
             <Text style={{ fontSize: 13, color: lSecondary(isDark), marginBottom: 16, lineHeight: 18 }}>
               PIN 6 digit angka. Dipakai sebagai fallback saat biometrik (sidik jari/Face ID) tidak tersedia atau gagal.
@@ -902,7 +902,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
             {pendingLoading ? (
               <ActivityIndicator color={C.green} style={{ marginTop: 48 }} />
             ) : (pendingData?.items?.length ?? 0) === 0 ? (
