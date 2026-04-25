@@ -845,7 +845,7 @@ export default function BerandaScreen() {
                 Perlu Ditinjau
               </Text>
               <NavCard
-                label="Permohonan Absensi"
+                label="Tinjau Izin Absen"
                 sub="Izin terlambat & pulang awal karyawan"
                 accentColor={C.orange}
                 icon={AlarmClock}
@@ -854,8 +854,8 @@ export default function BerandaScreen() {
                 badge={pendingAttReqCount}
               />
               <NavCard
-                label="Permohonan Cuti & Izin"
-                sub="Tinjau ajuan cuti dan izin karyawan"
+                label="Tinjau Pengajuan Cuti"
+                sub="Cuti tahunan, izin, & sakit karyawan"
                 accentColor={C.blue}
                 icon={Calendar}
                 onPress={() => router.push('/(main)/leave-requests-admin' as never)}
