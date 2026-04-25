@@ -423,9 +423,7 @@ export default function BerandaScreen() {
 
   const { data: pendingAttReqCount = 0 } = useQuery<number>({
     queryKey: ['pending-att-req-count'],
-    queryFn: () =>
-      api.get('/attendance-requests', { params: { status: 'pending', page: 1, limit: 1 } })
-        .then((r) => (r.data.total ?? 0) as number),
+    queryFn: () => attendanceRequestsService.adminPendingCount(),
     enabled: isApprover,
     refetchInterval: 60_000,
     staleTime: 30_000,
