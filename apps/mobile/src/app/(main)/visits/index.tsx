@@ -25,7 +25,6 @@ import {
   AlertTriangle,
   ChevronRight,
   Navigation,
-  ArrowLeft,
 } from 'lucide-react-native';
 import { visitsService, type VisitSummary } from '@/services/visits.service';
 import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
@@ -33,6 +32,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { VisitCardSkeleton } from '@/components/ui/SkeletonLoader';
+import { BackHeader } from '@/components/ui/BackHeader';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -171,26 +171,11 @@ export default function VisitsListScreen() {
         }
       >
         {/* Header */}
-        <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 16 }}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-            style={{
-              flexDirection: 'row', alignItems: 'center', gap: 6,
-              marginBottom: 12, alignSelf: 'flex-start',
-            }}
-          >
-            <ArrowLeft size={20} strokeWidth={2} color={C.blue} />
-            <Text style={{ fontSize: 15, fontWeight: '600', color: C.blue }}>Kembali</Text>
-          </TouchableOpacity>
-
-          <Text style={{ ...T.title1, color: lPrimary(isDark) }}>
-            Kunjungan
-          </Text>
-          <Text style={{ ...T.footnote, color: lSecondary(isDark), marginTop: 3 }}>
-            {data?.total ?? 0} kunjungan tercatat
-          </Text>
-        </View>
+        <BackHeader
+          title="Kunjungan"
+          subtitle={`${data?.total ?? 0} kunjungan tercatat`}
+          onBack={() => router.back()}
+        />
 
         {/* Filter chips */}
         <FilterChips

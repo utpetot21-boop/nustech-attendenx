@@ -851,7 +851,7 @@ export default function BerandaScreen() {
                 badge={pendingLeaveCount}
               />
               <NavCard
-                label="Klaim Biaya"
+                label="Tinjau Klaim Biaya"
                 sub="Tinjau pengajuan reimbursement karyawan"
                 accentColor={C.green}
                 icon={Wallet}
