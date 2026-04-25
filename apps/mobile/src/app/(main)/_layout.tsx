@@ -1,8 +1,7 @@
 import { useCallback, useRef } from 'react';
-import { useColorScheme, View, Animated, StyleSheet, TouchableOpacity, Text as RNText } from 'react-native';
+import { useColorScheme, View, Animated, TouchableOpacity, Text as RNText } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs, router } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import {
   Home,
   Wrench,
@@ -132,8 +131,8 @@ export default function MainLayout() {
     : attState?.checkedIn             ? C.green
     : C.blue;
 
-  // FAB bottom: menonjol sedikit di atas tab bar (mirip tombol QRIS)
-  const fabBottom = insets.bottom + 8 + TAB_H - 30;
+  // FAB: menonjol ~18px di atas bar (gaya QRIS)
+  const fabBottom = insets.bottom + TAB_H - 30;
 
   return (
     <TabBarContext.Provider value={{ translateY, onScroll, showTabBar }}>
@@ -143,28 +142,20 @@ export default function MainLayout() {
             headerShown: false,
             tabBarStyle: {
               position: 'absolute',
-              bottom: insets.bottom + 8,
-              left: 16,
-              right: 16,
-              borderRadius: 28,
-              height: TAB_H,
-              overflow: 'hidden',
-              borderWidth: 0.5,
-              borderColor: isDark
-                ? 'rgba(255,255,255,0.14)'
-                : 'rgba(255,255,255,0.90)',
-              backgroundColor: 'transparent',
-              elevation: 0,
-              shadowOpacity: 0,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: TAB_H + insets.bottom,
+              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+              borderTopWidth: 0.5,
+              borderTopColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
+              elevation: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: isDark ? 0.3 : 0.08,
+              shadowRadius: 8,
               transform: [{ translateY }],
             },
-            tabBarBackground: () => (
-              <BlurView
-                intensity={isDark ? 85 : 90}
-                tint={isDark ? 'dark' : 'systemChromeMaterial'}
-                style={StyleSheet.absoluteFill}
-              />
-            ),
             tabBarActiveTintColor: C.blue,
             tabBarInactiveTintColor: inactiveColor,
             tabBarLabelStyle: { fontSize: 11, fontWeight: '500', marginTop: 2, marginBottom: 0 },

@@ -356,13 +356,6 @@ export default function BerandaScreen() {
     staleTime: Infinity,
   });
 
-  const { data: unreadData } = useQuery<{ count: number }>({
-    queryKey: ['notif-unread-count'],
-    queryFn: () => api.get('/notifications/unread-count').then((r) => r.data),
-    refetchInterval: 60_000,
-  });
-  const unreadCount = unreadData?.count ?? 0;
-
   const { data: attendance, isLoading: loadingAtt } = useQuery<AttendanceRecord | null>({
     queryKey: ['attendance-today'],
     queryFn: () => attendanceService.getToday(),
@@ -576,7 +569,6 @@ export default function BerandaScreen() {
           greeting={greeting()}
           todayStr={todayStr}
           avatarUrl={user?.avatar_url ?? null}
-          unreadCount={unreadCount}
         >
           {/* Status badge di hero */}
           <View style={{
