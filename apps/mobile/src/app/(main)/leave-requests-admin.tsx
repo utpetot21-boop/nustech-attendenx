@@ -244,9 +244,31 @@ export default function LeaveRequestsAdminScreen() {
   const isActing = approveMut.isPending || rejectMut.isPending;
   const STATUS_FILTERS: FilterStatus[] = ['pending', 'approved', 'rejected'];
 
+  // ── DIAGNOSTIC BANNER (sementara — hapus setelah blank-page issue beres) ─────
+  const debugBanner = (
+    <View style={{ backgroundColor: '#DC2626', paddingTop: insets.top + 4, paddingBottom: 8, paddingHorizontal: 12 }}>
+      <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700', marginBottom: 2 }}>
+        DEBUG-2026-04-25-A · Persetujuan Cuti & Izin
+      </Text>
+      <Text style={{ color: '#FFF', fontSize: 10 }}>
+        email: {user?.email ?? 'NULL'}
+      </Text>
+      <Text style={{ color: '#FFF', fontSize: 10 }}>
+        role: {user?.role?.name ?? 'NULL'} · can_approve: {String(user?.role?.can_approve ?? 'undef')}
+      </Text>
+      <Text style={{ color: '#FFF', fontSize: 10 }}>
+        position: {user?.position?.name ?? 'NULL'} · isApprover: {String(isApprover)}
+      </Text>
+      <Text style={{ color: '#FFF', fontSize: 10 }}>
+        query: loading={String(isLoading)} error={String(isError)} count={requests.length}
+      </Text>
+    </View>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      {debugBanner}
 
       <BackHeader
         title="Persetujuan Cuti & Izin"
