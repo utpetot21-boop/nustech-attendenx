@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { useColorScheme, View, Animated, StyleSheet, TouchableOpacity } from 'react-native';
+import { useColorScheme, View, Animated, StyleSheet, TouchableOpacity, Text as RNText } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs, router } from 'expo-router';
 import { BlurView } from 'expo-blur';
@@ -167,7 +167,7 @@ export default function MainLayout() {
             ),
             tabBarActiveTintColor: C.blue,
             tabBarInactiveTintColor: inactiveColor,
-            tabBarLabelStyle: { fontSize: 10, fontWeight: '500', marginTop: 1, marginBottom: 0 },
+            tabBarLabelStyle: { fontSize: 11, fontWeight: '500', marginTop: 2, marginBottom: 0 },
             tabBarItemStyle: { paddingTop: 8, paddingBottom: 8 },
           }}
         >
@@ -267,6 +267,7 @@ export default function MainLayout() {
             position: 'absolute',
             bottom: fabBottom,
             alignSelf: 'center',
+            alignItems: 'center',
             transform: [{ translateY }],
             zIndex: 99,
           }}
@@ -287,11 +288,20 @@ export default function MainLayout() {
               shadowRadius: 10,
               elevation: 12,
               borderWidth: 3,
-              borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.90)',
+              borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.95)',
             }}
           >
             <Fingerprint size={26} strokeWidth={1.8} color="#FFF" />
           </TouchableOpacity>
+          <RNText style={{
+            fontSize: 10,
+            fontWeight: '600',
+            color: fabColor,
+            marginTop: 4,
+            letterSpacing: 0.2,
+          }}>
+            Hadir
+          </RNText>
         </Animated.View>
       </View>
     </TabBarContext.Provider>

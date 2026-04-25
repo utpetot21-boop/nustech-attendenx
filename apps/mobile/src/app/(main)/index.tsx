@@ -557,7 +557,7 @@ export default function BerandaScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 140 }}
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
@@ -673,18 +673,14 @@ export default function BerandaScreen() {
               </View>
             )}
 
-            {/* Belum check-in CTA */}
+            {/* Hint check-in — arahkan ke FAB di nav bawah */}
             {!alreadyCheckedIn && (
               <View style={{
-                backgroundColor: C.orange + '12',
-                borderRadius: R.md, padding: 12,
-                flexDirection: 'row', alignItems: 'center', gap: 10,
-                borderWidth: B.default, borderColor: C.orange + '22',
-                marginTop: 4,
+                flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4,
               }}>
-                <Fingerprint size={18} strokeWidth={1.8} color={C.orange} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: C.orange }}>
-                  Ketuk untuk check-in sekarang
+                <Fingerprint size={14} strokeWidth={1.8} color={lTertiary(isDark)} />
+                <Text style={{ fontSize: 12, color: lTertiary(isDark) }}>
+                  Gunakan tombol sidik jari di bawah untuk check-in
                 </Text>
               </View>
             )}
