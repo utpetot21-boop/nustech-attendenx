@@ -26,7 +26,8 @@ import {
 import { useAuthStore } from '@/stores/auth.store';
 import * as Haptics from 'expo-haptics';
 
-const APPROVER_ROLES = ['admin', 'manager', 'super_admin', 'direktur', 'direktur utama'] as const;
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin'] as const;
+const APPROVER_POSITIONS = ['DIREKTUR', 'DIREKTUR UTAMA'] as const;
 
 type FilterStatus = LeaveStatus | 'all';
 
@@ -176,7 +177,8 @@ export default function LeaveRequestsAdminScreen() {
   const user    = useAuthStore((s) => s.user);
 
   const isApprover = !!user?.role?.can_approve
-    || APPROVER_ROLES.includes((user?.role?.name?.toLowerCase() ?? '') as typeof APPROVER_ROLES[number]);
+    || APPROVER_ROLES.includes((user?.role?.name?.toLowerCase() ?? '') as typeof APPROVER_ROLES[number])
+    || APPROVER_POSITIONS.includes((user?.position?.name?.toUpperCase() ?? '') as typeof APPROVER_POSITIONS[number]);
 
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
   const [rejectInput, setRejectInput]   = useState('');

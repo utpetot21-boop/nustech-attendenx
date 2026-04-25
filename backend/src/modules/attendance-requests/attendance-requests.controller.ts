@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -11,16 +12,23 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserEntity } from '../users/entities/user.entity';
 import { AttendanceRequestsService } from './attendance-requests.service';
 import { CreateAttendanceRequestDto } from './dto/create-attendance-request.dto';
 import { ReviewAttendanceRequestDto } from './dto/review-attendance-request.dto';
 
+const APPROVER_POSITIONS = ['DIREKTUR', 'DIREKTUR UTAMA'];
+
+function isAttendanceApprover(user: UserEntity): boolean {
+  if (user.role?.permissions?.includes('attendance:manage')) return true;
+  if (APPROVER_POSITIONS.includes((user.position?.name ?? '').toUpperCase())) return true;
+  return false;
+}
+
 @ApiTags('Attendance Requests')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('attendance-requests')
 export class AttendanceRequestsController {
   constructor(private readonly service: AttendanceRequestsService) {}
@@ -55,22 +63,23 @@ export class AttendanceRequestsController {
 
   // ── Admin: jumlah pending (badge) ─────────────────────────────
   @Get('admin/pending-count')
-  @RequirePermission('attendance:manage')
   @ApiOperation({ summary: 'Jumlah permohonan pending (untuk badge notif admin)' })
-  getPendingCount() {
+  getPendingCount(@CurrentUser() user: UserEntity) {
+    if (!isAttendanceApprover(user)) throw new ForbiddenException('Akses ditolak');
     return this.service.getPendingCount().then((count) => ({ count }));
   }
 
   // ── Admin: list semua permohonan ──────────────────────────────
   @Get('admin/list')
-  @RequirePermission('attendance:manage')
   @ApiOperation({ summary: 'Daftar semua permohonan absensi (admin)' })
   getAdminList(
+    @CurrentUser() user: UserEntity,
     @Query('status') status?: string,
     @Query('type')   type?: string,
     @Query('date')   date?: string,
     @Query('page')   page?: string,
   ) {
+    if (!isAttendanceApprover(user)) throw new ForbiddenException('Akses ditolak');
     return this.service.getAdminList({
       status,
       type,
@@ -81,25 +90,25 @@ export class AttendanceRequestsController {
 
   // ── Admin: approve ────────────────────────────────────────────
   @Post(':id/approve')
-  @RequirePermission('attendance:manage')
   @ApiOperation({ summary: 'Setujui permohonan absensi' })
   approve(
-    @CurrentUser('id') adminId: string,
+    @CurrentUser() user: UserEntity,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReviewAttendanceRequestDto,
   ) {
-    return this.service.approve(adminId, id, dto);
+    if (!isAttendanceApprover(user)) throw new ForbiddenException('Akses ditolak');
+    return this.service.approve(user.id, id, dto);
   }
 
   // ── Admin: reject ─────────────────────────────────────────────
   @Post(':id/reject')
-  @RequirePermission('attendance:manage')
   @ApiOperation({ summary: 'Tolak permohonan absensi' })
   reject(
-    @CurrentUser('id') adminId: string,
+    @CurrentUser() user: UserEntity,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReviewAttendanceRequestDto,
   ) {
-    return this.service.reject(adminId, id, dto);
+    if (!isAttendanceApprover(user)) throw new ForbiddenException('Akses ditolak');
+    return this.service.reject(user.id, id, dto);
   }
 }

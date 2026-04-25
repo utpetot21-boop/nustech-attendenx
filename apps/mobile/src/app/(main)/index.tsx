@@ -53,7 +53,8 @@ import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/c
 import { useAuthStore } from '@/stores/auth.store';
 
 const MONTH_NOW = currentMonth();
-const APPROVER_ROLES = ['admin', 'manager', 'super_admin', 'direktur', 'direktur utama'] as const;
+const APPROVER_ROLES = ['admin', 'manager', 'super_admin'] as const;
+const APPROVER_POSITIONS = ['DIREKTUR', 'DIREKTUR UTAMA'] as const;
 
 const STATUS_SUMMARY = [
   { key: 'hadir',     label: 'Hadir',     color: C.green },
@@ -342,7 +343,8 @@ export default function BerandaScreen() {
 
   const storeUser = useAuthStore((s) => s.user);
   const isApprover = !!storeUser?.role?.can_approve
-    || APPROVER_ROLES.includes((storeUser?.role?.name?.toLowerCase() ?? '') as typeof APPROVER_ROLES[number]);
+    || APPROVER_ROLES.includes((storeUser?.role?.name?.toLowerCase() ?? '') as typeof APPROVER_ROLES[number])
+    || APPROVER_POSITIONS.includes((storeUser?.position?.name?.toUpperCase() ?? '') as typeof APPROVER_POSITIONS[number]);
 
   const { data: user } = useQuery({
     queryKey: ['user-profile'],

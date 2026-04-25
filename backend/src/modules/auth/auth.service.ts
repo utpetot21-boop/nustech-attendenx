@@ -46,7 +46,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({
       where: { email: dto.email.toLowerCase().trim() },
-      relations: ['role'],
+      relations: ['role', 'position'],
       select: {
         id: true,
         employee_id: true,
@@ -55,6 +55,7 @@ export class AuthService {
         phone: true,
         password_hash: true,
         role_id: true,
+        position_id: true,
         department_id: true,
         location_id: true,
         schedule_type: true,
@@ -113,7 +114,7 @@ export class AuthService {
   async refresh(userId: string, tokenId: string) {
     const user = await this.userRepo.findOne({
       where: { id: userId, is_active: true },
-      relations: ['role'],
+      relations: ['role', 'position'],
     });
 
     if (!user) {

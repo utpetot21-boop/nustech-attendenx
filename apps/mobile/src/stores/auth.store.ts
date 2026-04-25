@@ -15,6 +15,7 @@ export interface AuthUser {
     can_delegate?: boolean;
     permissions?: string[] | null;
   };
+  position?: { id: string; name: string } | null;
   department_id?: string | null;
   avatar_url?: string | null;
   must_change_password?: boolean;

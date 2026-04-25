@@ -107,6 +107,8 @@ export class AuthController {
       avatar_url: user.avatar_url,
       role: user.role,
       role_id: user.role_id,
+      position: user.position,
+      position_id: user.position_id,
       department_id: user.department_id,
       is_active: user.is_active,
       has_pin,

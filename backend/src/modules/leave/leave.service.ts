@@ -197,14 +197,16 @@ export class LeaveService {
   private async assertCanApprove(managerId: string): Promise<void> {
     const manager = await this.userRepo.findOne({
       where: { id: managerId },
-      relations: ['role'],
+      relations: ['role', 'position'],
     });
     const roleName = (manager?.role?.name ?? '').toLowerCase();
+    const positionName = (manager?.position?.name ?? '').toUpperCase();
     const canApprove = !!manager?.role?.can_approve
       || !!manager?.role?.permissions?.includes('leave:approve')
-      || ['admin', 'manager', 'super_admin', 'direktur', 'direktur utama'].includes(roleName);
+      || ['admin', 'manager', 'super_admin'].includes(roleName)
+      || ['DIREKTUR', 'DIREKTUR UTAMA'].includes(positionName);
     if (!canApprove) {
-      throw new ForbiddenException('Role Anda tidak memiliki hak untuk menyetujui pengajuan cuti.');
+      throw new ForbiddenException('Anda tidak memiliki hak untuk menyetujui pengajuan cuti.');
     }
   }
 
