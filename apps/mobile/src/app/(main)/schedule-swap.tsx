@@ -521,7 +521,7 @@ export default function ScheduleSwapScreen() {
       )}
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

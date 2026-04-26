@@ -79,7 +79,7 @@ export default function ExpenseClaimsScreen() {
       >
         {/* Header */}
         <View>
-          <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor={C.purple} onBack={() => router.navigate('/(main)/profile')} />
+          <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor={C.blue} onBack={() => router.navigate('/(main)/profile')} />
 
           {/* Buat Klaim button */}
           <TouchableOpacity

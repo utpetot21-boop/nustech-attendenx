@@ -263,7 +263,7 @@ export default function LeaveScreen() {
         <BackHeader
           title="Cuti & Izin"
           subtitle="Kelola pengajuan cuti dan izin Anda"
-          accentColor={C.green}
+          accentColor={C.blue}
           right={
             <TouchableOpacity
               onPress={() => setShowForm(true)}

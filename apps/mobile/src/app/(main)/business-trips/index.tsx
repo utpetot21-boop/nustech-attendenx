@@ -360,7 +360,7 @@ export default function BusinessTripsScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 100, paddingTop: 8 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 110, paddingTop: 8 }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={C.indigo} />}
         >
           {trips.length === 0 ? (

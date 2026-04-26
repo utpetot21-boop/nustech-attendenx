@@ -1089,7 +1089,7 @@ export default function WarningLettersScreen() {
       )}
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: insets.bottom + 96 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: insets.bottom + 110 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={C.red} />}
         showsVerticalScrollIndicator={false}
       >

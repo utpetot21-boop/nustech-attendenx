@@ -198,7 +198,7 @@ export default function ScheduleScreen() {
           subtitle={viewMode === 'month'
             ? `${MONTHS_ID[m - 1]} ${y}`
             : `${weekDates[0].slice(5).replace('-', '/')} – ${weekDates[6].slice(5).replace('-', '/')}`}
-          accentColor={C.purple}
+          accentColor={C.blue}
         />
 
         {/* Toolbar nav + segmented */}

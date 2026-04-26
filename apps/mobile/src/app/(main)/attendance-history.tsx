@@ -319,7 +319,7 @@ export default function AttendanceHistoryScreen() {
       )}
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 96 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 110 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={C.blue} />}
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}

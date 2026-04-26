@@ -236,7 +236,7 @@ export default function VisitsListScreen() {
           ))
         )}
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
     </View>
   );

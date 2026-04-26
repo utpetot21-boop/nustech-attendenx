@@ -663,7 +663,7 @@ export default function PekerjaanScreen() {
           </>
         )}
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
 
       {/* ── Create Task Sheet (manager only) ── */}

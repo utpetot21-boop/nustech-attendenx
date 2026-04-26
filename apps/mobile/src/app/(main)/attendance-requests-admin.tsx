@@ -358,7 +358,7 @@ export default function AttendanceRequestsAdminScreen() {
           )}
         </View>
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
 
       {/* Modal konfirmasi approve/reject */}

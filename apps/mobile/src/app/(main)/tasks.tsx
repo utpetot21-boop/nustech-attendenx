@@ -271,7 +271,7 @@ export default function TasksScreen() {
         <BackHeader
           title="Tugas"
           subtitle={statusFilter ? `${data?.total ?? 0} tugas ditemukan` : `${data?.total ?? 0} tugas aktif`}
-          accentColor={C.green}
+          accentColor={C.blue}
         />
 
         {/* Filter chips */}
@@ -279,7 +279,7 @@ export default function TasksScreen() {
           options={STATUS_FILTERS}
           value={statusFilter}
           onChange={setStatusFilter}
-          accentColor={C.green}
+          accentColor={C.orange}
           isDark={isDark}
         />
 
@@ -432,7 +432,7 @@ export default function TasksScreen() {
           </>
         )}
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
 
       {/* Reject Modal */}

@@ -247,7 +247,7 @@ export default function AnnouncementsScreen() {
           </View>
         )}
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
 
       {/* ── Detail Modal ── */}

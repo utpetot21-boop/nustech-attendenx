@@ -551,7 +551,7 @@ export default function NotificationsScreen() {
           )
         )}
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
 
       {/* ── Modal Detail Pengumuman ── */}

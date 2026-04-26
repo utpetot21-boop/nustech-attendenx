@@ -75,7 +75,7 @@ export default function ServiceReportsListScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 110 }]}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
       >
         {reports.length === 0 && !isLoading && (
