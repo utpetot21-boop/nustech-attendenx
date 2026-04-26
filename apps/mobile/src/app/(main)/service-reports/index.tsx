@@ -15,7 +15,9 @@ import {
 } from '@/services/service-reports.service';
 import { pageBg, cardBg, lPrimary, lSecondary, C, R, B } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { fmtDateShortWIT as fmtDate, currentMonth } from '@/utils/dateFormatter';
+import { FileText } from 'lucide-react-native';
 
 function StatusChip({ report, isDark }: { report: ServiceReport; isDark: boolean }) {
   if (report.is_locked) {
@@ -79,10 +81,12 @@ export default function ServiceReportsListScreen() {
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
       >
         {reports.length === 0 && !isLoading && (
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>📄</Text>
-            <Text style={[styles.emptyText, { color: lSecondary(isDark) }]}>Belum ada Berita Acara bulan ini</Text>
-          </View>
+          <EmptyState
+            icon={FileText}
+            iconColor={C.blue}
+            title="Belum ada Berita Acara"
+            message="Berita Acara dibuat otomatis saat kunjungan selesai."
+          />
         )}
 
         {reports.map((r) => (

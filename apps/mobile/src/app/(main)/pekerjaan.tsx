@@ -56,6 +56,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, separator, gradients } from '@/constants/tokens';
 import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { Toast } from '@/components/ui/Toast';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useToast } from '@/hooks/useToast';
 import { useTabBar } from '@/context/TabBarContext';
 
@@ -593,21 +594,12 @@ export default function PekerjaanScreen() {
 
             {/* ── EMPTY STATE ─────────────────────────────────────────────── */}
             {totalActive === 0 && (
-              <View style={{ paddingTop: 48, alignItems: 'center', paddingHorizontal: 32 }}>
-                <View style={{
-                  width: 80, height: 80, borderRadius: R.xl,
-                  backgroundColor: isDark ? 'rgba(52,199,89,0.12)' : '#DCFCE7',
-                  alignItems: 'center', justifyContent: 'center', marginBottom: 18,
-                }}>
-                  <CheckCircle2 size={40} strokeWidth={1.4} color={C.green} />
-                </View>
-                <Text style={{ fontSize: 20, fontWeight: '800', color: lPrimary(isDark), textAlign: 'center', marginBottom: 8 }}>
-                  Semua beres!
-                </Text>
-                <Text style={{ fontSize: 15, color: lSecondary(isDark), textAlign: 'center', lineHeight: 22 }}>
-                  Tidak ada tugas aktif atau kunjungan yang perlu ditindaklanjuti.
-                </Text>
-              </View>
+              <EmptyState
+                icon={CheckCircle2}
+                iconColor={C.green}
+                title="Semua beres!"
+                message="Tidak ada tugas aktif atau kunjungan yang perlu ditindaklanjuti."
+              />
             )}
 
             {/* ── FOOTER LINKS ────────────────────────────────────────────── */}

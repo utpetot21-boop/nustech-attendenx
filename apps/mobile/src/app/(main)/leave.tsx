@@ -28,6 +28,7 @@ import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, gradien
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BackHeader } from '@/components/ui/BackHeader';
+import { FilterChips } from '@/components/ui/FilterChips';
 import { LeaveCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { fmtDateShort as fmtDate, toISODate } from '@/utils/dateFormatter';
 
@@ -118,14 +119,13 @@ function DateRow({
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
-type FilterTab = 'all' | 'pending' | 'approved' | 'rejected';
 
 export default function LeaveScreen() {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
 
-  const [filterTab, setFilterTab] = useState<FilterTab>('all');
+  const [filterTab, setFilterTab] = useState<string | undefined>(undefined);
   const [showForm, setShowForm] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
 
@@ -230,14 +230,14 @@ export default function LeaveScreen() {
     setIsUploading(false);
   }
 
-  const filtered = requests.filter((r) => filterTab === 'all' || r.status === filterTab);
+  const filtered = requests.filter((r) => !filterTab || r.status === filterTab);
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
 
-  const FILTER_TABS: { key: FilterTab; label: string }[] = [
-    { key: 'all',      label: 'Semua' },
-    { key: 'pending',  label: 'Menunggu' },
-    { key: 'approved', label: 'Disetujui' },
-    { key: 'rejected', label: 'Ditolak' },
+  const FILTER_OPTIONS = [
+    { value: undefined,   label: 'Semua' },
+    { value: 'pending',   label: 'Menunggu' },
+    { value: 'approved',  label: 'Disetujui' },
+    { value: 'rejected',  label: 'Ditolak' },
   ];
 
   const LEAVE_TYPES: LeaveType[] = ['cuti', 'izin', 'sakit', 'dinas'];
@@ -320,32 +320,14 @@ export default function LeaveScreen() {
             </View>
           )}
 
-        {/* ── Filter Tabs ── */}
-        <View style={{ marginTop: 14, marginBottom: 14 }}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
-          >
-            {FILTER_TABS.map(({ key, label }) => (
-              <TouchableOpacity
-                key={key}
-                onPress={() => setFilterTab(key)}
-                style={{
-                  paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill,
-                  backgroundColor: filterTab === key ? C.blue : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
-                  borderWidth: B.default,
-                  borderColor: filterTab === key ? C.blue : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
-                }}
-              >
-                <Text style={{
-                  fontSize: 13, fontWeight: '600',
-                  color: filterTab === key ? '#FFFFFF' : lSecondary(isDark),
-                }}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        {/* ── Filter Chips ── */}
+        <FilterChips
+          options={FILTER_OPTIONS}
+          value={filterTab}
+          onChange={setFilterTab}
+          accentColor={C.blue}
+          isDark={isDark}
+        />
 
         {/* ── List ── */}
         <View style={{ paddingHorizontal: 20 }}>

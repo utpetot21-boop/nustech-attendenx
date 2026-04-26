@@ -26,6 +26,8 @@ import {
 } from '@/services/expense-claims.service';
 import { C, pageBg, lPrimary, lSecondary, gradients } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
+import { FilterChips } from '@/components/ui/FilterChips';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const STATUS_META = {
   pending:  { bg: C.orange + '26', bgLight: C.orange + '12', text: C.orange, label: 'Menunggu',  Icon: Clock },
@@ -34,13 +36,11 @@ const STATUS_META = {
   paid:     { bg: C.purple + '26', bgLight: C.purple + '12', text: C.purple, label: 'Dibayar',   Icon: CreditCard },
 };
 
-type FilterStatus = 'all' | 'pending' | 'approved' | 'paid' | 'rejected';
-
 export default function ExpenseClaimsScreen() {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
-  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [filter, setFilter] = useState<string | undefined>(undefined);
   const [showForm, setShowForm] = useState(false);
 
   const bg = pageBg(isDark);
@@ -49,15 +49,15 @@ export default function ExpenseClaimsScreen() {
 
   const { data: claims = [], isLoading, refetch } = useQuery({
     queryKey: ['my-claims', filter],
-    queryFn: () => getMyClaims(filter === 'all' ? undefined : filter),
+    queryFn: () => getMyClaims(filter),
   });
 
-  const FILTERS: { label: string; value: FilterStatus }[] = [
-    { label: 'Semua', value: 'all' },
+  const FILTER_OPTIONS = [
+    { label: 'Semua',    value: undefined },
     { label: 'Menunggu', value: 'pending' },
-    { label: 'Disetujui', value: 'approved' },
-    { label: 'Dibayar', value: 'paid' },
-    { label: 'Ditolak', value: 'rejected' },
+    { label: 'Disetujui',value: 'approved' },
+    { label: 'Dibayar',  value: 'paid' },
+    { label: 'Ditolak',  value: 'rejected' },
   ];
 
   return (
@@ -104,43 +104,23 @@ export default function ExpenseClaimsScreen() {
         </View>
 
         {/* Filter chips */}
-        <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 14 }}
-        >
-          {FILTERS.map((f) => {
-            const active = f.value === filter;
-            return (
-              <TouchableOpacity
-                key={f.value}
-                onPress={() => setFilter(f.value)}
-                style={{
-                  paddingHorizontal: 18, paddingVertical: 9,
-                  borderRadius: 22,
-                  backgroundColor: active ? C.purple : isDark ? 'rgba(255,255,255,0.09)' : '#FFFFFF',
-                  borderWidth: 1.5,
-                  borderColor: active ? C.purple : isDark ? 'rgba(255,255,255,0.14)' : '#E2E8F0',
-                }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: active ? '700' : '500', color: active ? '#FFF' : isDark ? 'rgba(255,255,255,0.75)' : '#475569' }}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <FilterChips
+          options={FILTER_OPTIONS}
+          value={filter}
+          onChange={setFilter}
+          accentColor={C.blue}
+          isDark={isDark}
+        />
 
         {/* List */}
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
           {claims.length === 0 && !isLoading && (
-            <View style={{ paddingTop: 48, alignItems: 'center' }}>
-              <View style={{ width: 72, height: 72, borderRadius: 24, backgroundColor: isDark ? C.purple + '26' : C.purple + '12', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Receipt size={34} color={C.purple} />
-              </View>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.7)' : '#374151' }}>
-                Belum ada klaim biaya
-              </Text>
-            </View>
+            <EmptyState
+              icon={Receipt}
+              iconColor={C.blue}
+              title="Belum ada klaim biaya"
+              message="Tekan 'Buat Klaim Baru' untuk mengajukan reimbursement."
+            />
           )}
 
           {claims.map((c) => (
