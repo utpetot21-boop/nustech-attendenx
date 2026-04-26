@@ -154,7 +154,7 @@ export default function SosScreen() {
     >
       <StatusBar barStyle="light-content" />
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingBottom: insets.bottom + 16 }}
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingBottom: insets.bottom + 110 }}
         showsVerticalScrollIndicator={false}
       >
 

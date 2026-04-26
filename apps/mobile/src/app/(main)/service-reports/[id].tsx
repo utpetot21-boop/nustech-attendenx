@@ -122,7 +122,7 @@ export default function ServiceReportDetailScreen() {
     <View style={{ flex: 1, backgroundColor: bg }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 110 }}
       >
         {/* ── Header ── */}
         <View style={{ backgroundColor: card, borderRadius: 20, borderWidth: B.default, borderColor, padding: 18 }}>

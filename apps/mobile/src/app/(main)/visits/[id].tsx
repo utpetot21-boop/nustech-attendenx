@@ -1075,7 +1075,7 @@ export default function VisitDetailScreen() {
               </View>
             )}
 
-            <View style={{ height: insets.bottom + 96 }} />
+            <View style={{ height: insets.bottom + 110 }} />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
