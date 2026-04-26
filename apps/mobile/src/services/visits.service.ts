@@ -119,6 +119,11 @@ export const visitsService = {
     return res.data as { items: VisitSummary[]; total: number; page: number };
   },
 
+  async getVisitsAdmin(params?: { review_status?: string; status?: string; client_id?: string; page?: number; limit?: number }) {
+    const res = await api.get('/visits', { params });
+    return res.data as { items: (VisitSummary & { user?: { id: string; full_name: string } })[]; total: number; page: number };
+  },
+
   async getDetail(visitId: string) {
     const res = await api.get(`/visits/${visitId}`);
     return res.data as VisitSummary & {

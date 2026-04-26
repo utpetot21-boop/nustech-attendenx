@@ -47,7 +47,7 @@ export interface DelegateTaskPayload {
 }
 
 export const tasksService = {
-  async getMyTasks(params?: { status?: string; priority?: string; page?: number }) {
+  async getMyTasks(params?: { status?: string; priority?: string; page?: number; created_by?: string; limit?: number }) {
     const res = await api.get('/tasks', { params });
     return res.data as { items: TaskSummary[]; total: number };
   },

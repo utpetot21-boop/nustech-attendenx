@@ -1,8 +1,7 @@
 /**
  * M-04/05 — Pekerjaan (Unified Work Hub)
- * Menggabungkan alur Tugas → Kunjungan dalam satu layar.
- * Alur: Terima tugas → Check-in → Visit aktif (timer) → Check-out
- * iOS 26 Liquid Glass design
+ * TEKNISI: feed semua tugas + active visit card + filter chips
+ * MANAGER/ADMIN: Dispatch Saya | Perlu Ditinjau segmented tabs
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -27,7 +26,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import {
-  Wrench,
   Zap,
   CheckCircle2,
   ChevronRight,
@@ -45,7 +43,6 @@ import {
   X,
   Briefcase,
   FileText,
-  type LucideIcon,
 } from 'lucide-react-native';
 
 import * as Haptics from 'expo-haptics';
@@ -53,18 +50,22 @@ import { tasksService, type TaskSummary } from '@/services/tasks.service';
 import { visitsService, type VisitSummary } from '@/services/visits.service';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
-import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, separator, gradients } from '@/constants/tokens';
+import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, gradients } from '@/constants/tokens';
 import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { Toast } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterChips } from '@/components/ui/FilterChips';
 import { useToast } from '@/hooks/useToast';
 import { useTabBar } from '@/context/TabBarContext';
+import { fmtDateShortWIT } from '@/utils/dateFormatter';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type Priority    = 'low' | 'normal' | 'high' | 'urgent';
 type TaskType    = 'visit' | 'maintenance' | 'inspection' | 'other';
 type PickerMode  = 'employee' | 'client' | 'department' | 'template' | null;
+type AdminVisit  = VisitSummary & { user?: { id: string; full_name: string } };
+
 interface EmployeeItem   { id: string; full_name: string; employee_id?: string }
 interface ClientItem     { id: string; name: string; address?: string }
 interface DepartmentItem { id: string; name: string }
@@ -83,6 +84,54 @@ const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
   { value: 'inspection',  label: 'Inspeksi'   },
   { value: 'other',       label: 'Lainnya'    },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status meta + filter constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TASK_STATUS_META: Record<string, { label: string; color: string }> = {
+  unassigned:           { label: 'Belum Ditugaskan', color: C.teal   },
+  pending_confirmation: { label: 'Perlu Konfirmasi', color: C.red    },
+  assigned:             { label: 'Siap Dikerjakan',  color: C.orange },
+  in_progress:          { label: 'Berlangsung',      color: C.blue   },
+  on_hold:              { label: 'Ditunda',          color: C.orange },
+  rescheduled:          { label: 'Dijadwal Ulang',   color: C.purple },
+  completed:            { label: 'Selesai',          color: C.green  },
+  cancelled:            { label: 'Dibatalkan',       color: C.red    },
+};
+
+const PRIORITY_META: Record<string, { label: string; color: string }> = {
+  low:    { label: 'Rendah',   color: C.green  },
+  normal: { label: 'Normal',   color: C.blue   },
+  high:   { label: 'Tinggi',   color: C.orange },
+  urgent: { label: 'Mendesak', color: C.red    },
+};
+
+const TEKNISI_FILTER_CHIPS: { label: string; value: string | undefined }[] = [
+  { label: 'Semua',       value: undefined     },
+  { label: 'Aktif',       value: 'active'      },
+  { label: 'Berlangsung', value: 'in_progress' },
+  { label: 'Ditunda',     value: 'on_hold'     },
+  { label: 'Selesai',     value: 'done'        },
+];
+
+const MANAGER_FILTER_CHIPS: { label: string; value: string | undefined }[] = [
+  { label: 'Semua',       value: undefined     },
+  { label: 'Aktif',       value: 'active'      },
+  { label: 'Berlangsung', value: 'in_progress' },
+  { label: 'On Hold',     value: 'on_hold'     },
+  { label: 'Selesai',     value: 'done'        },
+];
+
+function applyTaskFilter(tasks: TaskSummary[], filter: string | undefined): TaskSummary[] {
+  switch (filter) {
+    case 'active':      return tasks.filter((t) => ['pending_confirmation', 'assigned'].includes(t.status));
+    case 'in_progress': return tasks.filter((t) => t.status === 'in_progress');
+    case 'on_hold':     return tasks.filter((t) => t.status === 'on_hold');
+    case 'done':        return tasks.filter((t) => ['completed', 'cancelled', 'rescheduled'].includes(t.status));
+    default:            return tasks;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -138,10 +187,8 @@ function ActiveVisitCard({ visit, onPress }: { visit: VisitSummary; onPress: () 
         end={{ x: 1, y: 1 }}
         style={{ borderRadius: R.xl, padding: 20, overflow: 'hidden' }}
       >
-        {/* Decorative circle */}
         <View style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.04)' }} />
 
-        {/* Live badge */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green }} />
           <Text style={{ fontSize: 11, fontWeight: '700', color: C.green, letterSpacing: 1, textTransform: 'uppercase' }}>
@@ -149,7 +196,6 @@ function ActiveVisitCard({ visit, onPress }: { visit: VisitSummary; onPress: () 
           </Text>
         </View>
 
-        {/* Client */}
         <Text style={{ fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5, marginBottom: 4 }} numberOfLines={1}>
           {visit.client?.name ?? '—'}
         </Text>
@@ -159,7 +205,6 @@ function ActiveVisitCard({ visit, onPress }: { visit: VisitSummary; onPress: () 
           </Text>
         )}
 
-        {/* Timer row */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Clock size={15} strokeWidth={2} color="rgba(255,255,255,0.55)" />
@@ -182,31 +227,7 @@ function ActiveVisitCard({ visit, onPress }: { visit: VisitSummary; onPress: () 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section Header
-// ─────────────────────────────────────────────────────────────────────────────
-
-function SectionHeader({
-  label, count, color, icon: Icon,
-}: {
-  label: string; count: number; color: string;
-  icon: LucideIcon;
-}) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 20, paddingBottom: 10 }}>
-      <Icon size={13} strokeWidth={2.5} color={color} />
-      <Text style={{ fontSize: 11, fontWeight: '700', color, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-        {label}
-      </Text>
-      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 10, fontWeight: '800', color }}>{count}</Text>
-      </View>
-      <View style={{ flex: 1, height: 1, backgroundColor: color + '28', borderRadius: 1, marginLeft: 2 }} />
-    </View>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Task Work Card
+// Task Work Card (teknisi — active tasks with action buttons)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function TaskWorkCard({
@@ -252,13 +273,11 @@ function TaskWorkCard({
         opacity: isOnHold ? 0.65 : 1,
       }}
     >
-      {/* Urgent accent bar */}
       {task.is_emergency && (
         <View style={{ height: 3, backgroundColor: C.red }} />
       )}
 
       <View style={{ padding: 16 }}>
-        {/* Priority badge + title */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
           {task.is_emergency && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.red + '18', borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 3 }}>
@@ -274,7 +293,6 @@ function TaskWorkCard({
           </Text>
         </View>
 
-        {/* Client */}
         {task.client && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <MapPin size={12} strokeWidth={1.8} color={lTertiary(isDark)} />
@@ -291,7 +309,6 @@ function TaskWorkCard({
           </View>
         )}
 
-        {/* Deadline warning */}
         {isPending && deadlineStr && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
             <AlertCircle size={12} strokeWidth={2} color={C.orange} />
@@ -301,7 +318,6 @@ function TaskWorkCard({
           </View>
         )}
 
-        {/* Scheduled */}
         {task.scheduled_at && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
             <Clock size={12} strokeWidth={1.8} color={lTertiary(isDark)} />
@@ -313,7 +329,6 @@ function TaskWorkCard({
           </View>
         )}
 
-        {/* Action buttons */}
         {isPending && (
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
             <TouchableOpacity
@@ -366,6 +381,273 @@ function TaskWorkCard({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// History Task Card (teknisi — riwayat tugas selesai/dibatalkan)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function HistoryTaskCard({
+  task, isDark, onPress,
+}: {
+  task: TaskSummary;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const meta = TASK_STATUS_META[task.status] ?? TASK_STATUS_META.assigned;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.82}
+      style={{
+        marginHorizontal: 16,
+        marginBottom: 10,
+        backgroundColor: cardBg(isDark),
+        borderRadius: R.lg,
+        borderWidth: B.default,
+        borderColor: isDark ? C.separator.dark : C.separator.light,
+        ...(isDark ? S.cardDark : S.card),
+      }}
+    >
+      <View style={{ padding: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+          <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: lPrimary(isDark) }} numberOfLines={2}>
+            {task.title}
+          </Text>
+          <View style={{ backgroundColor: meta.color + '18', borderRadius: R.xs, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: meta.color }}>{meta.label}</Text>
+          </View>
+        </View>
+
+        {task.client && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <MapPin size={11} strokeWidth={1.8} color={lTertiary(isDark)} />
+            <Text style={{ fontSize: 13, color: lSecondary(isDark) }} numberOfLines={1}>{task.client.name}</Text>
+          </View>
+        )}
+
+        {(task.scheduled_at || task.created_at) && (
+          <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 4 }}>
+            {fmtDateShortWIT(task.scheduled_at ?? task.created_at)}
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manager Task Card (dispatch view)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ManagerTaskCard({
+  task, isDark, onPress,
+}: {
+  task: TaskSummary;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const statusMeta   = TASK_STATUS_META[task.status]   ?? TASK_STATUS_META.assigned;
+  const priorityMeta = PRIORITY_META[task.priority]    ?? PRIORITY_META.normal;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.82}
+      style={{
+        marginHorizontal: 16,
+        marginBottom: 10,
+        backgroundColor: cardBg(isDark),
+        borderRadius: R.lg,
+        borderWidth: B.default,
+        borderColor: isDark ? C.separator.dark : C.separator.light,
+        ...(isDark ? S.cardDark : S.card),
+        overflow: 'hidden',
+      }}
+    >
+      {task.is_emergency && <View style={{ height: 3, backgroundColor: C.red }} />}
+
+      <View style={{ padding: 16 }}>
+        {/* Title row */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+          {task.is_emergency && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.red + '18', borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 3, flexShrink: 0 }}>
+              <Zap size={10} strokeWidth={2.5} color={C.red} />
+              <Text style={{ fontSize: 10, fontWeight: '800', color: C.red }}>DARURAT</Text>
+            </View>
+          )}
+          <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: lPrimary(isDark), letterSpacing: -0.2 }} numberOfLines={2}>
+            {task.title}
+          </Text>
+          <View style={{ backgroundColor: statusMeta.color + '18', borderRadius: R.xs, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: statusMeta.color }}>{statusMeta.label}</Text>
+          </View>
+        </View>
+
+        {/* Assignee */}
+        {task.assignee && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+            <User size={12} strokeWidth={1.8} color={lTertiary(isDark)} />
+            <Text style={{ fontSize: 13, color: lSecondary(isDark) }}>{task.assignee.full_name}</Text>
+          </View>
+        )}
+
+        {/* Client */}
+        {task.client && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+            <MapPin size={12} strokeWidth={1.8} color={lTertiary(isDark)} />
+            <Text style={{ fontSize: 13, color: lSecondary(isDark) }} numberOfLines={1}>{task.client.name}</Text>
+          </View>
+        )}
+
+        {/* Priority + date */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ backgroundColor: priorityMeta.color + '18', borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: priorityMeta.color }}>{priorityMeta.label}</Text>
+          </View>
+          {(task.scheduled_at || task.created_at) && (
+            <Text style={{ fontSize: 12, color: lTertiary(isDark) }}>
+              {fmtDateShortWIT(task.scheduled_at ?? task.created_at)}
+            </Text>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pending Review Card (manager review tab)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PendingReviewCard({
+  visit, isDark, onPress,
+}: {
+  visit: AdminVisit;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const durationLabel = visit.duration_minutes
+    ? `${Math.floor(visit.duration_minutes / 60)}j ${visit.duration_minutes % 60}m`
+    : null;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.82}
+      style={{
+        marginHorizontal: 16,
+        marginBottom: 10,
+        backgroundColor: cardBg(isDark),
+        borderRadius: R.lg,
+        borderWidth: B.default,
+        borderColor: isDark ? C.separator.dark : C.separator.light,
+        ...(isDark ? S.cardDark : S.card),
+      }}
+    >
+      <View style={{ padding: 16 }}>
+        {/* Client + badge */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+          <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: lPrimary(isDark) }} numberOfLines={1}>
+            {visit.client?.name ?? '—'}
+          </Text>
+          <View style={{ backgroundColor: C.orange + '18', borderRadius: R.xs, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: C.orange }}>Perlu Ditinjau</Text>
+          </View>
+        </View>
+
+        {/* Technician */}
+        {visit.user && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+            <User size={12} strokeWidth={1.8} color={lTertiary(isDark)} />
+            <Text style={{ fontSize: 13, color: lSecondary(isDark) }}>{visit.user.full_name}</Text>
+          </View>
+        )}
+
+        {/* Check-out + duration */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2, marginBottom: 12 }}>
+          {visit.check_out_at && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Clock size={12} strokeWidth={1.8} color={lTertiary(isDark)} />
+              <Text style={{ fontSize: 12, color: lSecondary(isDark) }}>
+                {fmtDateShortWIT(visit.check_out_at)} WITA
+              </Text>
+            </View>
+          )}
+          {durationLabel && (
+            <View style={{ backgroundColor: C.blue + '12', borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: C.blue }}>{durationLabel}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Action button */}
+        <TouchableOpacity
+          onPress={onPress}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+            backgroundColor: C.orange + '14', borderRadius: R.sm, paddingVertical: 10,
+            borderWidth: B.default, borderColor: C.orange + '35',
+          }}
+        >
+          <CheckCircle2 size={14} strokeWidth={2} color={C.orange} />
+          <Text style={{ fontSize: 14, fontWeight: '700', color: C.orange }}>Tinjau Kunjungan</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manager Tab Toggle
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ManagerTabToggle({
+  tab, onChange, isDark, pendingCount,
+}: {
+  tab: 'dispatch' | 'review';
+  onChange: (t: 'dispatch' | 'review') => void;
+  isDark: boolean;
+  pendingCount: number;
+}) {
+  return (
+    <View style={{
+      flexDirection: 'row', marginHorizontal: 20, marginBottom: 4,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+      borderRadius: R.md, padding: 3,
+    }}>
+      {(['dispatch', 'review'] as const).map((t) => {
+        const active = tab === t;
+        const label  = t === 'dispatch' ? 'Dispatch Saya' : 'Perlu Ditinjau';
+        return (
+          <TouchableOpacity
+            key={t}
+            onPress={() => onChange(t)}
+            activeOpacity={0.75}
+            style={{
+              flex: 1, paddingVertical: 9, borderRadius: R.sm - 2,
+              backgroundColor: active ? (isDark ? '#2C2C2E' : '#FFFFFF') : 'transparent',
+              alignItems: 'center', justifyContent: 'center',
+              flexDirection: 'row', gap: 6,
+              ...(active ? (isDark ? S.cardDark : S.card) : {}),
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: active ? '700' : '500', color: active ? lPrimary(isDark) : lSecondary(isDark) }}>
+              {label}
+            </Text>
+            {t === 'review' && pendingCount > 0 && (
+              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: C.orange, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFF' }}>
+                  {pendingCount > 99 ? '99+' : String(pendingCount)}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -378,51 +660,76 @@ export default function PekerjaanScreen() {
   const { onScroll } = useTabBar();
   const isManager = ['manager', 'admin', 'super_admin'].includes(user?.role?.name ?? '');
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [userLat, setUserLat] = useState<number | undefined>();
-  const [userLng, setUserLng] = useState<number | undefined>();
+  const [showCreate, setShowCreate]         = useState(false);
+  const [managerTab, setManagerTab]         = useState<'dispatch' | 'review'>('dispatch');
+  const [teknisiFilter, setTekniisiFilter]  = useState<string | undefined>(undefined);
+  const [managerFilter, setManagerFilter]   = useState<string | undefined>(undefined);
+  const [userLat, setUserLat]               = useState<number | undefined>();
+  const [userLng, setUserLng]               = useState<number | undefined>();
 
+  // GPS hanya dibutuhkan teknisi (distanceLabel di TaskWorkCard)
   useEffect(() => {
-    let mounted = true; // P3-11: cegah setState setelah unmount
+    if (isManager) return;
+    let mounted = true;
     Location.requestForegroundPermissionsAsync()
       .then(({ status }) => {
         if (status === 'granted' && mounted) {
           Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
             .then((loc) => {
-              if (mounted) {
-                setUserLat(loc.coords.latitude);
-                setUserLng(loc.coords.longitude);
-              }
+              if (mounted) { setUserLat(loc.coords.latitude); setUserLng(loc.coords.longitude); }
             })
             .catch(() => {});
         }
       })
       .catch(() => {});
     return () => { mounted = false; };
-  }, []);
+  }, [isManager]);
 
-  // ── Queries ────────────────────────────────────────────────────────────────
+  // ── Queries ──────────────────────────────────────────────────────────────
+
   const { data: tasksData, isLoading: loadingTasks, isRefetching: refetchingTasks, refetch: refetchTasks } = useQuery({
-    queryKey: ['tasks-all'],
-    queryFn: () => tasksService.getMyTasks(),
+    queryKey: ['my-tasks-feed'],
+    queryFn:  () => tasksService.getMyTasks({ limit: 100 }),
+    enabled:  !isManager,
     refetchInterval: 20_000,
   });
 
   const { data: visitsData, isLoading: loadingVisits, isRefetching: refetchingVisits, refetch: refetchVisits } = useQuery({
     queryKey: ['visits-ongoing'],
-    queryFn: () => visitsService.getMyVisits({ status: 'ongoing' }),
+    queryFn:  () => visitsService.getMyVisits({ status: 'ongoing' }),
+    enabled:  !isManager,
     refetchInterval: 15_000,
   });
 
-  const isRefetching = refetchingTasks || refetchingVisits;
-  const onRefresh = useCallback(() => { refetchTasks(); refetchVisits(); }, [refetchTasks, refetchVisits]);
+  const { data: dispatchData, isLoading: loadingDispatch, isRefetching: refetchingDispatch, refetch: refetchDispatch } = useQuery({
+    queryKey: ['manager-dispatch'],
+    queryFn:  () => tasksService.getMyTasks({ created_by: 'me', limit: 100 }),
+    enabled:  isManager,
+    refetchInterval: 30_000,
+  });
 
-  // ── Mutations ──────────────────────────────────────────────────────────────
+  const { data: reviewData, isLoading: loadingReview, isRefetching: refetchingReview, refetch: refetchReview } = useQuery({
+    queryKey: ['visits-pending-review'],
+    queryFn:  () => visitsService.getVisitsAdmin({ review_status: 'unreviewed', limit: 100 }),
+    enabled:  isManager,
+    refetchInterval: 30_000,
+  });
+
+  const isLoading    = isManager ? (loadingDispatch || loadingReview) : (loadingTasks || loadingVisits);
+  const isRefetching = isManager ? (refetchingDispatch || refetchingReview) : (refetchingTasks || refetchingVisits);
+
+  const onRefresh = useCallback(() => {
+    if (isManager) { refetchDispatch(); refetchReview(); }
+    else           { refetchTasks(); refetchVisits(); }
+  }, [isManager, refetchDispatch, refetchReview, refetchTasks, refetchVisits]);
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
+
   const acceptMutation = useMutation({
     mutationFn: (id: string) => tasksService.accept(id),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      qc.invalidateQueries({ queryKey: ['tasks-all'] });
+      qc.invalidateQueries({ queryKey: ['my-tasks-feed'] });
       Alert.alert('Berhasil', 'Tugas diterima. Silakan lakukan check-in saat tiba di lokasi.');
     },
     onError: (err: Error) => {
@@ -431,25 +738,22 @@ export default function PekerjaanScreen() {
     },
   });
 
-  // ── Derived data ───────────────────────────────────────────────────────────
-  const allTasks = tasksData?.items ?? [];
-  const activeVisit = (visitsData?.items ?? []).find((v) => v.status === 'ongoing') ?? null;
+  // ── Derived data ─────────────────────────────────────────────────────────
 
-  // Sembunyikan tugas yang sedang dikunjungi agar tidak dobel dengan kartu "Kunjungan Berlangsung".
+  // Teknisi
+  const allTasks        = tasksData?.items ?? [];
+  const activeVisit     = (visitsData?.items ?? []).find((v) => v.status === 'ongoing') ?? null;
   const activeVisitTaskId = activeVisit?.task_id ?? null;
-  const visibleTasks = activeVisitTaskId
-    ? allTasks.filter((t) => t.id !== activeVisitTaskId)
-    : allTasks;
+  const visibleTasks    = activeVisitTaskId ? allTasks.filter((t) => t.id !== activeVisitTaskId) : allTasks;
+  const filteredTasks   = applyTaskFilter(visibleTasks, teknisiFilter);
 
-  const urgentPending  = visibleTasks.filter((t) => t.status === 'pending_confirmation' && t.is_emergency);
-  const normalPending  = visibleTasks.filter((t) => t.status === 'pending_confirmation' && !t.is_emergency);
-  const assignedTasks  = visibleTasks.filter((t) => t.status === 'assigned');
-  const onHoldTasks    = visibleTasks.filter((t) => t.status === 'on_hold');
+  // Manager
+  const allDispatch        = dispatchData?.items ?? [];
+  const filteredDispatch   = applyTaskFilter(allDispatch, managerFilter);
+  const reviewItems        = (reviewData?.items ?? []) as AdminVisit[];
+  const pendingReviewCount = reviewData?.total ?? reviewItems.length;
 
-  const pendingAll = [...urgentPending, ...normalPending];
-  const totalActive = pendingAll.length + assignedTasks.length + onHoldTasks.length + (activeVisit ? 1 : 0);
-  const isLoading = loadingTasks || loadingVisits;
-
+  // Navigation
   const goToTask  = (id: string) => router.push(`/(main)/tasks/${id}` as never);
   const goToVisit = (id: string) => router.push(`/(main)/visits/${id}` as never);
 
@@ -459,6 +763,12 @@ export default function PekerjaanScreen() {
       { text: 'Terima', onPress: () => acceptMutation.mutate(task.id) },
     ]);
   };
+
+  const subtitleText = isLoading
+    ? 'Memuat…'
+    : isManager
+    ? `${dispatchData?.total ?? 0} dispatch · ${pendingReviewCount} perlu ditinjau`
+    : `${allTasks.length} total tugas`;
 
   return (
     <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
@@ -480,33 +790,25 @@ export default function PekerjaanScreen() {
                 Pekerjaan
               </Text>
               <Text style={{ fontSize: 14, color: lSecondary(isDark), marginTop: 3 }}>
-                {isLoading
-                  ? 'Memuat…'
-                  : totalActive === 0
-                  ? 'Tidak ada pekerjaan aktif'
-                  : `${totalActive} item perlu perhatian`}
+                {subtitleText}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                if (isManager) setShowCreate(true);
-                else router.push('/(main)/visits' as Href);
-              }}
-              activeOpacity={0.8}
-              style={{
-                width: 48, height: 48, borderRadius: R.md,
-                backgroundColor: isDark ? 'rgba(255,149,0,0.15)' : '#FFF7ED',
-                alignItems: 'center', justifyContent: 'center',
-                shadowColor: C.orange, shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.25, shadowRadius: 6, elevation: 4,
-              }}
-              accessibilityLabel={isManager ? 'Buat tugas baru' : 'Riwayat kunjungan'}
-            >
-              {isManager
-                ? <Plus size={24} strokeWidth={2.5} color={C.orange} />
-                : <Wrench size={24} strokeWidth={1.8} color={C.orange} />
-              }
-            </TouchableOpacity>
+            {isManager && (
+              <TouchableOpacity
+                onPress={() => setShowCreate(true)}
+                activeOpacity={0.8}
+                style={{
+                  width: 48, height: 48, borderRadius: R.md,
+                  backgroundColor: isDark ? 'rgba(255,149,0,0.15)' : '#FFF7ED',
+                  alignItems: 'center', justifyContent: 'center',
+                  shadowColor: C.orange, shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.25, shadowRadius: 6, elevation: 4,
+                }}
+                accessibilityLabel="Buat tugas baru"
+              >
+                <Plus size={24} strokeWidth={2.5} color={C.orange} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -514,9 +816,72 @@ export default function PekerjaanScreen() {
           <View style={{ paddingTop: 8 }}>
             {[0, 1, 2, 3].map((i) => <TaskCardSkeleton key={i} isDark={isDark} />)}
           </View>
-        ) : (
+        ) : isManager ? (
+          /* ── MANAGER VIEW ─────────────────────────────────────────────── */
           <>
-            {/* ── ACTIVE VISIT ────────────────────────────────────────────── */}
+            <ManagerTabToggle
+              tab={managerTab}
+              onChange={setManagerTab}
+              isDark={isDark}
+              pendingCount={pendingReviewCount}
+            />
+
+            {managerTab === 'dispatch' ? (
+              <>
+                <FilterChips
+                  options={MANAGER_FILTER_CHIPS}
+                  value={managerFilter}
+                  onChange={setManagerFilter}
+                  accentColor={C.orange}
+                  isDark={isDark}
+                />
+                {filteredDispatch.length === 0 ? (
+                  <EmptyState
+                    icon={ClipboardList}
+                    iconColor={C.orange}
+                    title={managerFilter ? 'Tidak ada tugas' : 'Belum ada tugas dispatch'}
+                    message={
+                      managerFilter
+                        ? 'Tidak ada tugas dengan filter ini.'
+                        : 'Buat tugas baru untuk mulai mendistribusikan pekerjaan.'
+                    }
+                  />
+                ) : (
+                  filteredDispatch.map((task) => (
+                    <ManagerTaskCard
+                      key={task.id}
+                      task={task}
+                      isDark={isDark}
+                      onPress={() => goToTask(task.id)}
+                    />
+                  ))
+                )}
+              </>
+            ) : (
+              <>
+                {reviewItems.length === 0 ? (
+                  <EmptyState
+                    icon={CheckCircle2}
+                    iconColor={C.green}
+                    title="Semua kunjungan sudah ditinjau"
+                    message="Tidak ada kunjungan yang menunggu tinjauan."
+                  />
+                ) : (
+                  reviewItems.map((visit) => (
+                    <PendingReviewCard
+                      key={visit.id}
+                      visit={visit}
+                      isDark={isDark}
+                      onPress={() => goToVisit(visit.id)}
+                    />
+                  ))
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          /* ── TEKNISI VIEW ─────────────────────────────────────────────── */
+          <>
             {activeVisit && (
               <ActiveVisitCard
                 visit={activeVisit}
@@ -524,149 +889,65 @@ export default function PekerjaanScreen() {
               />
             )}
 
-            {/* ── PERLU KONFIRMASI ────────────────────────────────────────── */}
-            {pendingAll.length > 0 && (
-              <View style={{ marginBottom: 6 }}>
-                <SectionHeader
-                  label="Perlu Konfirmasi"
-                  count={pendingAll.length}
-                  color={C.red}
-                  icon={Zap}
-                />
-                {pendingAll.map((task) => (
-                  <TaskWorkCard
-                    key={task.id}
-                    task={task}
-                    isDark={isDark}
-                    onAccept={() => handleAccept(task)}
-                    onDetail={() => goToTask(task.id)}
-                    userLat={userLat}
-                    userLng={userLng}
-                  />
-                ))}
-              </View>
-            )}
+            <FilterChips
+              options={TEKNISI_FILTER_CHIPS}
+              value={teknisiFilter}
+              onChange={setTekniisiFilter}
+              accentColor={C.orange}
+              isDark={isDark}
+            />
 
-            {/* ── SIAP DIKERJAKAN ─────────────────────────────────────────── */}
-            {assignedTasks.length > 0 && (
-              <View style={{ marginBottom: 6 }}>
-                <SectionHeader
-                  label="Siap Dikerjakan"
-                  count={assignedTasks.length}
-                  color={C.orange}
-                  icon={Play}
-                />
-                {assignedTasks.map((task) => (
-                  <TaskWorkCard
-                    key={task.id}
-                    task={task}
-                    isDark={isDark}
-                    onDetail={() => goToTask(task.id)}
-                    onCheckin={() => goToTask(task.id)}
-                    userLat={userLat}
-                    userLng={userLng}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* ── DITUNDA ─────────────────────────────────────────────────── */}
-            {onHoldTasks.length > 0 && (
-              <View style={{ marginBottom: 6 }}>
-                <SectionHeader
-                  label="Ditunda"
-                  count={onHoldTasks.length}
-                  color={lTertiary(isDark)}
-                  icon={PauseCircle}
-                />
-                {onHoldTasks.map((task) => (
-                  <TaskWorkCard
-                    key={task.id}
-                    task={task}
-                    isDark={isDark}
-                    onDetail={() => goToTask(task.id)}
-                    userLat={userLat}
-                    userLng={userLng}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* ── EMPTY STATE ─────────────────────────────────────────────── */}
-            {totalActive === 0 && (
+            {filteredTasks.length === 0 ? (
               <EmptyState
-                icon={CheckCircle2}
-                iconColor={C.green}
-                title="Semua beres!"
-                message="Tidak ada tugas aktif atau kunjungan yang perlu ditindaklanjuti."
+                icon={teknisiFilter ? ClipboardList : CheckCircle2}
+                iconColor={teknisiFilter ? C.blue : C.green}
+                title={teknisiFilter ? 'Tidak ada tugas' : 'Semua beres!'}
+                message={
+                  teknisiFilter
+                    ? 'Tidak ada tugas dengan filter ini.'
+                    : 'Tidak ada tugas yang perlu ditindaklanjuti.'
+                }
               />
+            ) : (
+              filteredTasks.map((task) => {
+                const isActive = ['pending_confirmation', 'assigned', 'on_hold'].includes(task.status);
+                return isActive ? (
+                  <TaskWorkCard
+                    key={task.id}
+                    task={task}
+                    isDark={isDark}
+                    onAccept={task.status === 'pending_confirmation' ? () => handleAccept(task) : undefined}
+                    onDetail={() => goToTask(task.id)}
+                    onCheckin={task.status === 'assigned' ? () => goToTask(task.id) : undefined}
+                    userLat={userLat}
+                    userLng={userLng}
+                  />
+                ) : (
+                  <HistoryTaskCard
+                    key={task.id}
+                    task={task}
+                    isDark={isDark}
+                    onPress={() => goToTask(task.id)}
+                  />
+                );
+              })
             )}
-
-            {/* ── FOOTER LINKS ────────────────────────────────────────────── */}
-            <View style={{ marginHorizontal: 16, marginTop: 20, gap: 10 }}>
-              {/* Lihat semua tugas */}
-              <TouchableOpacity
-                onPress={() => router.push('/(main)/tasks' as Href)}
-                activeOpacity={0.8}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 12,
-                  backgroundColor: cardBg(isDark),
-                  borderRadius: R.lg, borderWidth: B.default,
-                  borderColor: isDark ? C.separator.dark : C.separator.light,
-                  padding: 14,
-                  ...(isDark ? S.cardDark : S.card),
-                }}
-              >
-                <View style={{ width: 36, height: 36, borderRadius: R.sm - 2, backgroundColor: C.green + '18', alignItems: 'center', justifyContent: 'center' }}>
-                  <ClipboardList size={18} strokeWidth={1.8} color={C.green} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: lPrimary(isDark) }}>Semua Tugas</Text>
-                  <Text style={{ fontSize: 12, color: lSecondary(isDark), marginTop: 1 }}>
-                    {tasksData?.total ?? 0} total tugas
-                  </Text>
-                </View>
-                <ChevronRight size={15} strokeWidth={2} color={lTertiary(isDark)} />
-              </TouchableOpacity>
-
-              {/* Lihat semua kunjungan */}
-              <TouchableOpacity
-                onPress={() => router.push('/(main)/visits' as Href)}
-                activeOpacity={0.8}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 12,
-                  backgroundColor: cardBg(isDark),
-                  borderRadius: R.lg, borderWidth: B.default,
-                  borderColor: isDark ? C.separator.dark : C.separator.light,
-                  padding: 14,
-                  ...(isDark ? S.cardDark : S.card),
-                }}
-              >
-                <View style={{ width: 36, height: 36, borderRadius: R.sm - 2, backgroundColor: C.blue + '18', alignItems: 'center', justifyContent: 'center' }}>
-                  <MapPin size={18} strokeWidth={1.8} color={C.blue} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: lPrimary(isDark) }}>Riwayat Kunjungan</Text>
-                  <Text style={{ fontSize: 12, color: lSecondary(isDark), marginTop: 1 }}>Lihat semua kunjungan lapangan</Text>
-                </View>
-                <ChevronRight size={15} strokeWidth={2} color={lTertiary(isDark)} />
-              </TouchableOpacity>
-            </View>
           </>
         )}
 
         <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
 
-      {/* ── Create Task Sheet (manager only) ── */}
-      <CreateTaskSheet
-        visible={showCreate}
-        onClose={() => setShowCreate(false)}
-        onSuccess={() => {
-          setShowCreate(false);
-          qc.invalidateQueries({ queryKey: ['tasks-all'] });
-        }}
-      />
+      {isManager && (
+        <CreateTaskSheet
+          visible={showCreate}
+          onClose={() => setShowCreate(false)}
+          onSuccess={() => {
+            setShowCreate(false);
+            qc.invalidateQueries({ queryKey: ['manager-dispatch'] });
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -766,7 +1047,6 @@ function CreateTaskSheet({
     },
   });
 
-  // Alasan kenapa tombol submit disabled — ditampilkan di bawah form
   const disabledReason = (() => {
     if (!title.trim()) return 'Judul tugas wajib diisi';
     if (dispatchType === 'direct' && !employee) return 'Pilih teknisi tujuan';
@@ -1018,7 +1298,6 @@ function CreateTaskSheet({
             onChange={(event, date) => {
               if (Platform.OS === 'android') {
                 if (event.type === 'dismissed') {
-                  // User membatalkan — reset ke awal
                   setShowDatePicker(false);
                   setAndroidStep('date');
                   setAndroidTempDate(null);
@@ -1026,11 +1305,9 @@ function CreateTaskSheet({
                 }
                 if (event.type === 'set' && date) {
                   if (androidStep === 'date') {
-                    // Simpan tanggal sementara, lanjut ke time picker
                     setAndroidTempDate(date);
                     setAndroidStep('time');
                   } else {
-                    // Gabungkan tanggal + waktu
                     const combined = new Date(androidTempDate ?? date);
                     combined.setHours(date.getHours(), date.getMinutes(), 0, 0);
                     setScheduledAt(combined);
