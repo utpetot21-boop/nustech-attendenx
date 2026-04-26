@@ -119,8 +119,8 @@ export default function MainLayout() {
     : attState?.checkedIn             ? C.green
     : C.blue;
 
-  // FAB: menonjol ~18px di atas bar (gaya QRIS)
-  const fabBottom = insets.bottom + TAB_H - 30;
+  // FAB: center tepat di tepi atas bar — setengah di dalam, setengah di luar
+  const fabBottom = insets.bottom + TAB_H - 48;
 
   return (
     <TabBarContext.Provider value={{ translateY, onScroll, showTabBar }}>
