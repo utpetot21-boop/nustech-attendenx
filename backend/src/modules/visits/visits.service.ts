@@ -445,7 +445,7 @@ export class VisitsService {
     return { has_requirements: true, requirements, ...phaseTotals };
   }
 
-  async findAll(filters: { status?: string; userId?: string; clientId?: string; date?: string; page?: number; limit?: number }) {
+  async findAll(filters: { status?: string; userId?: string; clientId?: string; date?: string; reviewStatus?: string; page?: number; limit?: number }) {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 50;
     const qb = this.visitRepo
@@ -462,6 +462,11 @@ export class VisitsService {
     if (filters.userId) qb.andWhere('v.user_id = :userId', { userId: filters.userId });
     if (filters.clientId) qb.andWhere('v.client_id = :clientId', { clientId: filters.clientId });
     if (filters.date) qb.andWhere('DATE(v.check_in_at) = :date', { date: filters.date });
+    if (filters.reviewStatus === 'unreviewed') {
+      qb.andWhere('v.review_status IS NULL').andWhere('v.status = :completedStatus', { completedStatus: 'completed' });
+    } else if (filters.reviewStatus) {
+      qb.andWhere('v.review_status = :reviewStatus', { reviewStatus: filters.reviewStatus });
+    }
 
     const [items, total] = await qb.getManyAndCount();
 

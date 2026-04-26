@@ -181,6 +181,7 @@ export class TasksService {
   // ────────────────────────────────────────────────────────────────────────────
   async findAll(filters: {
     userId?: string;
+    createdBy?: string;
     status?: string;
     priority?: string;
     page?: number;
@@ -198,7 +199,9 @@ export class TasksService {
       .skip((page - 1) * limit)
       .take(limit);
 
-    if (filters.userId) {
+    if (filters.createdBy) {
+      qb.andWhere('t.created_by = :createdBy', { createdBy: filters.createdBy });
+    } else if (filters.userId) {
       qb.andWhere('(t.assigned_to = :uid OR t.created_by = :uid)', { uid: filters.userId });
     }
     if (filters.status) qb.andWhere('t.status = :status', { status: filters.status });

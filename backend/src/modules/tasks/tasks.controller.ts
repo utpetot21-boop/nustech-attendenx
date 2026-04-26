@@ -55,6 +55,7 @@ export class TasksController {
     @CurrentUser('role') role: { name?: string } | string | null,
     @Query('status') status?: string,
     @Query('priority') priority?: string,
+    @Query('created_by') createdBy?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -62,6 +63,7 @@ export class TasksController {
     const isAdmin = ['admin', 'super_admin', 'manager'].includes(roleName ?? '');
     return this.tasks.findAll({
       userId: isAdmin ? undefined : userId,
+      createdBy: isAdmin && createdBy === 'me' ? userId : undefined,
       status,
       priority,
       page: page ? parseInt(page) : 1,

@@ -96,10 +96,11 @@ export class VisitsController {
     @Query('user_id') userId?: string,
     @Query('client_id') clientId?: string,
     @Query('date') date?: string,
+    @Query('review_status') reviewStatus?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.visitsService.findAll({ status, userId, clientId, date, page: page ? +page : 1, limit: limit ? +limit : 50 });
+    return this.visitsService.findAll({ status, userId, clientId, date, reviewStatus, page: page ? +page : 1, limit: limit ? +limit : 50 });
   }
 
   // GET /visits/admin/:id  (admin/manager — detail tanpa batasan user_id)
