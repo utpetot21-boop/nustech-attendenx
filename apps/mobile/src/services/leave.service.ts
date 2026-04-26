@@ -1,4 +1,11 @@
 import api from './api';
+import { C } from '@/constants/tokens';
+
+export const LEAVE_STATUS_META: Record<string, { label: string; color: string }> = {
+  pending:  { label: 'Menunggu',  color: C.orange },
+  approved: { label: 'Disetujui', color: C.green  },
+  rejected: { label: 'Ditolak',   color: C.red    },
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

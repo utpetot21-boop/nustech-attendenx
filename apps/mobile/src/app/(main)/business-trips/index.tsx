@@ -346,7 +346,7 @@ export default function BusinessTripsScreen() {
 
       {/* Content */}
       {isLoading ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 10 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 10 }}>
           {[0, 1, 2, 3].map((i) => <TripCardSkeleton key={i} isDark={isDark} />)}
         </View>
       ) : isError ? (
@@ -371,7 +371,7 @@ export default function BusinessTripsScreen() {
               message="Ajukan perjalanan dinas melalui tombol Buat di atas."
             />
           ) : (
-            <View style={{ gap: 10, paddingHorizontal: 16 }}>
+            <View style={{ gap: 10, paddingHorizontal: 20 }}>
               {/* Hero ongoing */}
               {ongoingTrip && (
                 <OngoingHeroCard trip={ongoingTrip} onPress={() => setSelected(ongoingTrip)} isDark={isDark} />

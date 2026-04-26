@@ -22,6 +22,7 @@ import {
   LeaveType,
   LEAVE_TYPE_LABELS,
   LEAVE_TYPE_COLORS,
+  LEAVE_STATUS_META,
 } from '@/services/leave.service';
 import * as Haptics from 'expo-haptics';
 import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, gradients } from '@/constants/tokens';
@@ -32,19 +33,11 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { LeaveCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { fmtDateShort as fmtDate, toISODate } from '@/utils/dateFormatter';
 
-// ── Status meta ───────────────────────────────────────────────────────────────
-
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  pending:  { label: 'Menunggu', color: C.orange },
-  approved: { label: 'Disetujui', color: C.green },
-  rejected: { label: 'Ditolak',   color: C.red },
-};
-
 // ── Leave Request Card ────────────────────────────────────────────────────────
 
 function LeaveCard({ item, isDark, onPress }: { item: LeaveRequest; isDark: boolean; onPress: () => void }) {
   const color = LEAVE_TYPE_COLORS[item.type] ?? C.blue;
-  const statusMeta = STATUS_META[item.status] ?? STATUS_META.pending;
+  const statusMeta = LEAVE_STATUS_META[item.status] ?? LEAVE_STATUS_META.pending;
   return (
     <TouchableOpacity
       activeOpacity={0.75}
@@ -365,7 +358,7 @@ export default function LeaveScreen() {
         {selectedLeave && (() => {
           const item = selectedLeave;
           const color = LEAVE_TYPE_COLORS[item.type] ?? C.blue;
-          const statusMeta = STATUS_META[item.status] ?? STATUS_META.pending;
+          const statusMeta = LEAVE_STATUS_META[item.status] ?? LEAVE_STATUS_META.pending;
           return (
             <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
               {/* Header */}

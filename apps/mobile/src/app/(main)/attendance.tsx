@@ -523,7 +523,7 @@ export default function AttendanceScreen() {
         </View>
       </BlurView>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
         {/* ── Status Card ─────────────────────────────────────── */}
         <View style={{
           marginBottom: 12,

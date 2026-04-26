@@ -34,7 +34,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
-import { visitsService } from '@/services/visits.service';
+import { visitsService, VISIT_STATUS_META } from '@/services/visits.service';
 import { socketService } from '@/services/socket.service';
 import { api } from '@/services/api';
 import { PhotoPhaseGrid } from '@/components/visits/PhotoPhaseGrid';
@@ -57,13 +57,6 @@ const PHASE_LABELS: Record<Phase, string> = {
   after: 'Sesudah',
 };
 
-const VISIT_STATUS_META: Record<string, { label: string; color: string; bgLight: string; bgDark: string }> = {
-  ongoing:     { label: 'Berlangsung',    color: '#007AFF', bgLight: '#EFF6FF', bgDark: 'rgba(0,122,255,0.2)'   },
-  completed:   { label: 'Selesai',        color: '#34C759', bgLight: '#F0FDF4', bgDark: 'rgba(52,199,89,0.2)'   },
-  on_hold:     { label: 'Ditunda',        color: '#FF9500', bgLight: '#FFF7ED', bgDark: 'rgba(255,149,0,0.2)'   },
-  rescheduled: { label: 'Dijadwal Ulang', color: '#AF52DE', bgLight: '#F5F3FF', bgDark: 'rgba(175,82,222,0.2)'  },
-  cancelled:   { label: 'Dibatalkan',     color: '#FF3B30', bgLight: '#FEF2F2', bgDark: 'rgba(255,59,48,0.2)'   },
-};
 
 export default function VisitDetailScreen() {
   const { id: visitId } = useLocalSearchParams<{ id: string }>();
@@ -522,7 +515,7 @@ export default function VisitDetailScreen() {
               >
                 <View
                   style={{
-                    backgroundColor: isDark ? visitStatusMeta.bgDark : visitStatusMeta.bgLight,
+                    backgroundColor: visitStatusMeta.bg,
                     borderRadius: 10,
                     paddingHorizontal: 10,
                     paddingVertical: 4,

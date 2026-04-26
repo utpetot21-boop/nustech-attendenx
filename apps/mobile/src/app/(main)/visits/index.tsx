@@ -26,7 +26,7 @@ import {
   ChevronRight,
   Navigation,
 } from 'lucide-react-native';
-import { visitsService, type VisitSummary } from '@/services/visits.service';
+import { visitsService, type VisitSummary, VISIT_STATUS_META } from '@/services/visits.service';
 import { C, R, B, T, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -35,14 +35,6 @@ import { VisitCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { BackHeader } from '@/components/ui/BackHeader';
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  ongoing:     { label: 'Berlangsung',    color: C.blue   },
-  completed:   { label: 'Selesai',        color: C.green  },
-  on_hold:     { label: 'Ditunda',         color: C.orange },
-  rescheduled: { label: 'Dijadwal Ulang', color: C.purple },
-  cancelled:   { label: 'Dibatalkan',     color: C.red    },
-};
 
 const FILTERS = [
   { label: 'Semua',          value: undefined      },
@@ -59,7 +51,7 @@ const FILTERS = [
 
 function VisitCard({ visit, onPress }: { visit: VisitSummary; onPress: () => void }) {
   const isDark    = useColorScheme() === 'dark';
-  const meta      = STATUS_META[visit.status] ?? STATUS_META.ongoing;
+  const meta      = VISIT_STATUS_META[visit.status] ?? VISIT_STATUS_META.ongoing;
   const isOngoing = visit.status === 'ongoing';
 
   const checkInTime = new Date(visit.check_in_at).toLocaleString('id-ID', {

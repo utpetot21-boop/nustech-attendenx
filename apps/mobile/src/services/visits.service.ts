@@ -1,4 +1,13 @@
 import { api } from './api';
+import { C } from '@/constants/tokens';
+
+export const VISIT_STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  ongoing:     { label: 'Berlangsung',    color: C.blue,   bg: C.blue   + '18' },
+  completed:   { label: 'Selesai',        color: C.green,  bg: C.green  + '18' },
+  on_hold:     { label: 'Ditunda',        color: C.orange, bg: C.orange + '18' },
+  rescheduled: { label: 'Dijadwal Ulang', color: C.purple, bg: C.purple + '18' },
+  cancelled:   { label: 'Dibatalkan',     color: C.red,    bg: C.red    + '18' },
+};
 
 export interface VisitCheckInPayload {
   task_id: string;

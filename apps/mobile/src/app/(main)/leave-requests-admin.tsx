@@ -16,12 +16,14 @@ import {
 import { C, R, B, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterChips } from '@/components/ui/FilterChips';
 import {
   leaveService,
   type LeaveRequest,
   type LeaveStatus,
   LEAVE_TYPE_LABELS,
   LEAVE_TYPE_COLORS,
+  LEAVE_STATUS_META,
 } from '@/services/leave.service';
 import { useAuthStore } from '@/stores/auth.store';
 import * as Haptics from 'expo-haptics';
@@ -29,20 +31,12 @@ import * as Haptics from 'expo-haptics';
 const APPROVER_ROLES = ['admin', 'manager', 'super_admin'] as const;
 const APPROVER_POSITIONS = ['DIREKTUR', 'DIREKTUR UTAMA'] as const;
 
-type FilterStatus = LeaveStatus | 'all';
-
-const STATUS_LABEL: Record<string, string> = {
-  all:      'Semua',
-  pending:  'Menunggu',
-  approved: 'Disetujui',
-  rejected: 'Ditolak',
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  pending:  C.orange,
-  approved: C.green,
-  rejected: C.red,
-};
+const FILTER_OPTIONS = [
+  { value: undefined,    label: 'Semua'    },
+  { value: 'pending',    label: 'Menunggu' },
+  { value: 'approved',   label: 'Disetujui'},
+  { value: 'rejected',   label: 'Ditolak'  },
+];
 
 function LeaveRequestCard({
   req,
@@ -58,7 +52,7 @@ function LeaveRequestCard({
   const [expanded, setExpanded] = useState(false);
   const isPending = req.status === 'pending';
   const typeColor = LEAVE_TYPE_COLORS[req.type] ?? C.blue;
-  const statusColor = STATUS_COLOR[req.status] ?? C.orange;
+  const statusMeta  = LEAVE_STATUS_META[req.status] ?? LEAVE_STATUS_META.pending;
 
   const dateRange = req.start_date === req.end_date
     ? new Date(req.start_date).toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', year: 'numeric' })
@@ -99,9 +93,9 @@ function LeaveRequestCard({
           </View>
 
           <View style={{ alignItems: 'flex-end', gap: 6 }}>
-            <View style={{ backgroundColor: statusColor + '18', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: statusColor }}>
-                {STATUS_LABEL[req.status]}
+            <View style={{ backgroundColor: statusMeta.color + '18', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: statusMeta.color }}>
+                {statusMeta.label}
               </Text>
             </View>
             {expanded
@@ -180,13 +174,13 @@ export default function LeaveRequestsAdminScreen() {
     || APPROVER_ROLES.includes((user?.role?.name?.toLowerCase() ?? '') as typeof APPROVER_ROLES[number])
     || APPROVER_POSITIONS.includes((user?.position?.name?.toUpperCase() ?? '') as typeof APPROVER_POSITIONS[number]);
 
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
+  const [filterStatus, setFilterStatus] = useState<string | undefined>('pending');
   const [rejectInput, setRejectInput]   = useState('');
   const [pendingReject, setPendingReject] = useState<string | null>(null);
 
   const { data: requests = [], isLoading, isRefetching, refetch, isError } = useQuery({
     queryKey: ['leave-requests-admin', filterStatus],
-    queryFn: () => leaveService.getPendingForApprover(filterStatus === 'all' ? undefined : filterStatus),
+    queryFn: () => leaveService.getPendingForApprover(filterStatus as LeaveStatus | undefined),
     enabled: !!user,
   });
 
@@ -242,7 +236,6 @@ export default function LeaveRequestsAdminScreen() {
 
   const bg = pageBg(isDark);
   const isActing = approveMut.isPending || rejectMut.isPending;
-  const STATUS_FILTERS: FilterStatus[] = ['pending', 'approved', 'rejected'];
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
@@ -254,36 +247,13 @@ export default function LeaveRequestsAdminScreen() {
         onBack={() => router.back()}
       />
 
-      {/* Filter chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 12, gap: 8 }}
-      >
-        {STATUS_FILTERS.map((s) => {
-          const active = filterStatus === s;
-          return (
-            <TouchableOpacity
-              key={s}
-              onPress={() => setFilterStatus(s)}
-              style={{
-                paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20,
-                backgroundColor: active
-                  ? (s === 'pending' ? C.orange : s === 'approved' ? C.green : C.red)
-                  : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
-              }}
-            >
-              <Text style={{
-                fontSize: 13, fontWeight: active ? '700' : '500',
-                color: active ? '#FFF' : lSecondary(isDark),
-              }}>
-                {STATUS_LABEL[s]}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <FilterChips
+        options={FILTER_OPTIONS}
+        value={filterStatus}
+        onChange={setFilterStatus}
+        accentColor={C.blue}
+        isDark={isDark}
+      />
 
       <ScrollView
         style={{ flex: 1 }}
