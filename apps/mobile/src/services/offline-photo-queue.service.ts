@@ -4,7 +4,7 @@
  * Diproses ulang saat app kembali ke foreground atau saat upload manual.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 function localId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);

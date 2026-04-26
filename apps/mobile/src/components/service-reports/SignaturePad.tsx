@@ -72,9 +72,8 @@ export function SignaturePad({ title = 'Tanda Tangan', onSave, onCancel }: Signa
           penColor="#1a1a1a"
           minWidth={2}
           maxWidth={4}
-          scrollEnabled={false}
+          scrollable={false}
           androidHardwareAccelerationDisabled
-          dataDetectorTypes="none"
         />
       </View>
 

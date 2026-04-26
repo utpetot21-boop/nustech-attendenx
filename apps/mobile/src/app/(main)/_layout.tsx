@@ -123,6 +123,7 @@ export default function MainLayout() {
   const fabBottom = insets.bottom + TAB_H - 48;
 
   return (
+    // @ts-ignore -- @types/react v18 (root) vs v19 (mobile workspace) mismatch; no runtime effect
     <TabBarContext.Provider value={{ translateY, onScroll, showTabBar }}>
       <View style={{ flex: 1 }}>
         <Tabs

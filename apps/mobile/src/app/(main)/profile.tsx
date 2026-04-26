@@ -150,7 +150,7 @@ export default function ProfileScreen() {
     if (!meData) return;
     const patch: Partial<typeof user & Record<string, unknown>> = {};
     // Simpan full role object (termasuk can_approve) agar tersedia di semua screen
-    if (meData.role) patch.role = meData.role;
+    if (meData.role) patch.role = meData.role as import('@/stores/auth.store').AuthUser['role'];
     if (meData.avatar_url !== undefined && meData.avatar_url !== user?.avatar_url) {
       patch.avatar_url = meData.avatar_url;
     }
