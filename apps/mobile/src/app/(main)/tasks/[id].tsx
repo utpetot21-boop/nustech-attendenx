@@ -32,6 +32,7 @@ import { useAuthStore } from '@/stores/auth.store';
 interface EmployeeOption { id: string; full_name: string; employee_id?: string; department?: { name?: string } | null }
 import { ConfirmCountdown } from '@/components/tasks/ConfirmCountdown';
 import NavigationButton from '@/components/tasks/NavigationButton';
+import { PhotoPhaseGrid } from '@/components/visits/PhotoPhaseGrid';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string; bgDark: string; Icon: LucideIcon }> = {
@@ -169,6 +170,13 @@ function TaskDetailInner() {
     queryKey: ['task-holds', id],
     queryFn: () => tasksService.getHolds(id!),
     enabled: !!id && ['on_hold', 'assigned', 'in_progress'].includes(task?.status ?? ''),
+  });
+
+  const visitId = task?.latest_visit?.id;
+  const { data: visitPhotoCounts } = useQuery({
+    queryKey: ['visit-photo-counts', visitId],
+    queryFn: () => visitsService.getPhotoCounts(visitId!),
+    enabled: !!visitId,
   });
 
   // Countdown auto-approve — tick per menit
@@ -961,7 +969,6 @@ function TaskDetailInner() {
           else if (v.status === 'completed') { statusLabel = 'Menunggu Tinjauan'; statusColor = C.teal; }
 
           const phases = ['before', 'during', 'after'] as const;
-          const phaseLabels: Record<string, string> = { before: 'Sebelum', during: 'Selama', after: 'Sesudah' };
           const hasPhotos = !!v.photos && v.photos.length > 0;
           const feedbackCount = v.photos?.filter((p) => p.admin_feedback).length ?? 0;
           const materials = v.materials_used ?? [];
@@ -1004,7 +1011,7 @@ function TaskDetailInner() {
                 )}
               </View>
 
-              {/* Card 2: Foto */}
+              {/* Card 2: Foto — template-aware via PhotoPhaseGrid */}
               {hasPhotos && (
                 <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
                   <VisitSectionTitle title="Dokumentasi Foto" />
@@ -1026,40 +1033,23 @@ function TaskDetailInner() {
                       </View>
                     </View>
                   )}
-                  {phases.map((key) => {
-                    const phasePhotos = v.photos!.filter((p) => p.phase === key);
-                    if (phasePhotos.length === 0) return null;
-                    return (
-                      <View key={key} style={{ marginBottom: 12 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
-                          {phaseLabels[key]}
-                        </Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                          <View style={{ flexDirection: 'row', gap: 8, paddingRight: 4 }}>
-                            {phasePhotos.map((photo) => (
-                              <TouchableOpacity
-                                key={photo.id}
-                                activeOpacity={photo.admin_feedback ? 0.75 : 1}
-                                onPress={photo.admin_feedback ? () => setFeedbackPhoto({ feedback: photo.admin_feedback!, phase: phaseLabels[key] }) : undefined}
-                                style={{ width: 80, height: 80, borderRadius: 10, overflow: 'hidden', borderWidth: photo.needs_retake ? 2 : 0, borderColor: C.orange }}
-                              >
-                                <Image
-                                  source={{ uri: photo.thumbnail_url ?? photo.watermarked_url }}
-                                  style={{ width: '100%', height: '100%', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }}
-                                  resizeMode="cover"
-                                />
-                                {photo.admin_feedback && (
-                                  <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: C.orange, borderRadius: 8, padding: 2 }}>
-                                    <AlertCircle size={12} strokeWidth={2.5} color="#FFF" />
-                                  </View>
-                                )}
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        </ScrollView>
-                      </View>
-                    );
-                  })}
+                  <PhotoPhaseGrid
+                    sections={phases.map((key) => ({
+                      phase: key,
+                      photos: (v.photos ?? [])
+                        .filter((p) => p.phase === key)
+                        .map((p) => ({
+                          ...p,
+                          thumbnail_url: p.thumbnail_url ?? undefined,
+                          caption: p.caption ?? undefined,
+                          photo_requirement_id: p.photo_requirement_id ?? undefined,
+                        })),
+                      counts: visitPhotoCounts?.[key] ?? { count: 0, min: 0, max: 99 },
+                    }))}
+                    photoCounts={visitPhotoCounts}
+                    onAddPhoto={() => {}}
+                    isCompleted
+                  />
                 </View>
               )}
 

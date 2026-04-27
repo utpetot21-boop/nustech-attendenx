@@ -280,11 +280,12 @@ export class TasksService {
           recommendations: latestVisit.recommendations,
           materials_used: latestVisit.materials_used,
           photos: (latestVisit.photos ?? [])
-            .sort((a, b) => a.seq_number! - b.seq_number!)
+            .sort((a, b) => (a.seq_number ?? 0) - (b.seq_number ?? 0))
             .map((p) => ({
               id: p.id,
               phase: p.phase,
               seq_number: p.seq_number,
+              photo_requirement_id: p.photo_requirement_id,
               watermarked_url: p.watermarked_url,
               thumbnail_url: p.thumbnail_url,
               caption: p.caption,

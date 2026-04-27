@@ -31,6 +31,7 @@ export interface LatestVisitDetail extends LatestVisitSummary {
     id: string;
     phase: 'before' | 'during' | 'after';
     seq_number: number | null;
+    photo_requirement_id?: string | null;
     watermarked_url: string;
     thumbnail_url: string | null;
     caption?: string | null;
