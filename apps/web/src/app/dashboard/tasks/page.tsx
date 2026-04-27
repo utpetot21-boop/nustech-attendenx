@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import {
-  ListTodo, Plus, LayoutGrid, List, AlertTriangle, MapPin,
+  ListTodo, Plus, AlertTriangle, MapPin,
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
   PauseCircle, RefreshCw, Radio, Target, Check, X,
   Calendar, Zap, Ban, Trash2, UserPlus, FileText, Play, Navigation,
@@ -532,7 +532,6 @@ export default function TasksPage() {
     router.push(`/dashboard/tasks?${p.toString()}`);
   };
 
-  const [viewMode,  setViewMode]  = useState<'board' | 'list'>('board');
   const [showForm,  setShowForm]  = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
@@ -774,51 +773,24 @@ export default function TasksPage() {
           ))}
         </div>
 
-        {/* ── Filter + View toggle bar ───────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Status filter pills */}
-          <div className="flex flex-wrap gap-1.5 flex-1">
-            {[
-              { value: 'all',                  label: 'Semua' },
-              { value: 'unassigned',            label: 'Belum' },
-              { value: 'pending_confirmation',  label: 'Menunggu' },
-              { value: 'assigned',              label: 'Ditugaskan' },
-              { value: 'in_progress',           label: 'Dikerjakan' },
-              { value: 'on_hold',               label: 'Ditunda' },
-              { value: 'rescheduled',           label: 'Dijadwal Ulang' },
-              { value: 'completed',             label: 'Selesai' },
-              { value: 'cancelled',             label: 'Dibatalkan' },
-            ].map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => setFilterStatus(value)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                  filterStatus === value
-                    ? 'bg-[#007AFF] text-white shadow-[0_2px_6px_rgba(0,122,255,0.30)]'
-                    : 'bg-white dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08] text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/[0.10]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* View toggle */}
-          <div className="flex bg-white dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08] rounded-xl p-0.5 gap-0.5 flex-shrink-0">
-            {([['board', LayoutGrid], ['list', List]] as const).map(([mode, Icon]) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`flex items-center justify-center w-8 h-7 rounded-[9px] transition-all ${
-                  viewMode === mode
-                    ? 'bg-[#007AFF] text-white shadow-sm'
-                    : 'text-gray-400 dark:text-white/40 hover:text-gray-700 dark:hover:text-white/60'
-                }`}
-              >
-                <Icon size={14} />
-              </button>
-            ))}
-          </div>
+        {/* ── Filter bar ────────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 p-3 bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08]">
+          <ListTodo size={15} className="text-gray-400 flex-shrink-0" />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="flex-1 bg-transparent text-sm text-gray-700 dark:text-white/80 outline-none cursor-pointer"
+          >
+            <option value="all">Semua Status</option>
+            <option value="unassigned">Belum Ditugaskan</option>
+            <option value="pending_confirmation">Menunggu Konfirmasi</option>
+            <option value="assigned">Ditugaskan</option>
+            <option value="in_progress">Dikerjakan</option>
+            <option value="on_hold">Ditunda</option>
+            <option value="rescheduled">Dijadwal Ulang</option>
+            <option value="completed">Selesai</option>
+            <option value="cancelled">Dibatalkan</option>
+          </select>
         </div>
         </>)}
       </div>
@@ -943,7 +915,7 @@ export default function TasksPage() {
             <p className="text-sm font-medium text-gray-500 dark:text-white/40">Tidak ada tugas</p>
             <p className="text-xs text-gray-400 dark:text-white/25 mt-1">Buat tugas baru dengan tombol di atas</p>
           </div>
-        ) : viewMode === 'board' ? (
+        ) : (
           /* ── KANBAN BOARD (desktop) / list (mobile) ── */
           <>
             {/* Desktop kanban — hidden on mobile, horizontal scroll on tablet */}
@@ -975,11 +947,6 @@ export default function TasksPage() {
               {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} onDetail={() => setDetailTaskId(t.id)} />)}
             </div>
           </>
-        ) : (
-          /* ── LIST VIEW ── */
-          <div className="space-y-3">
-            {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} onDetail={() => setDetailTaskId(t.id)} />)}
-          </div>
         )}
       </div>
       </>)}
