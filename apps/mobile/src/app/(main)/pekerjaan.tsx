@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Clock,
   MapPin,
   PauseCircle,
@@ -54,7 +55,6 @@ import { C, R, B, S, cardBg, pageBg, lPrimary, lSecondary, lTertiary, gradients 
 import { TaskCardSkeleton } from '@/components/ui/SkeletonLoader';
 import { Toast } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { FilterChips } from '@/components/ui/FilterChips';
 import { useToast } from '@/hooks/useToast';
 import { useTabBar } from '@/context/TabBarContext';
 import { fmtDateShortWIT } from '@/utils/dateFormatter';
@@ -107,20 +107,20 @@ const PRIORITY_META: Record<string, { label: string; color: string }> = {
   urgent: { label: 'Mendesak', color: C.red    },
 };
 
-const TEKNISI_FILTER_CHIPS: { label: string; value: string | undefined }[] = [
-  { label: 'Semua',       value: undefined     },
-  { label: 'Aktif',       value: 'active'      },
-  { label: 'Berlangsung', value: 'in_progress' },
-  { label: 'Ditunda',     value: 'on_hold'     },
-  { label: 'Selesai',     value: 'done'        },
+const TEKNISI_FILTER_OPTIONS: { label: string; value: string | undefined }[] = [
+  { label: 'Semua Tugas',         value: undefined     },
+  { label: 'Perlu Dikerjakan',    value: 'active'      },
+  { label: 'Sedang Berlangsung',  value: 'in_progress' },
+  { label: 'Ditunda',             value: 'on_hold'     },
+  { label: 'Riwayat & Selesai',   value: 'done'        },
 ];
 
-const MANAGER_FILTER_CHIPS: { label: string; value: string | undefined }[] = [
-  { label: 'Semua',       value: undefined     },
-  { label: 'Aktif',       value: 'active'      },
-  { label: 'Berlangsung', value: 'in_progress' },
-  { label: 'On Hold',     value: 'on_hold'     },
-  { label: 'Selesai',     value: 'done'        },
+const MANAGER_FILTER_OPTIONS: { label: string; value: string | undefined }[] = [
+  { label: 'Semua Tugas',         value: undefined     },
+  { label: 'Perlu Dikerjakan',    value: 'active'      },
+  { label: 'Sedang Berlangsung',  value: 'in_progress' },
+  { label: 'Ditunda',             value: 'on_hold'     },
+  { label: 'Selesai',             value: 'done'        },
 ];
 
 function applyTaskFilter(tasks: TaskSummary[], filter: string | undefined): TaskSummary[] {
@@ -131,6 +131,105 @@ function applyTaskFilter(tasks: TaskSummary[], filter: string | undefined): Task
     case 'done':        return tasks.filter((t) => ['completed', 'cancelled', 'rescheduled'].includes(t.status));
     default:            return tasks;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter Dropdown Modal
+// ─────────────────────────────────────────────────────────────────────────────
+
+function FilterDropdownModal({
+  visible, options, value, accentColor, isDark, title, onChange, onClose,
+}: {
+  visible: boolean;
+  options: { label: string; value: string | undefined }[];
+  value: string | undefined;
+  accentColor: string;
+  isDark: boolean;
+  title: string;
+  onChange: (v: string | undefined) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+          borderTopLeftRadius: 20, borderTopRightRadius: 20,
+          paddingBottom: 34,
+        }}>
+          <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)' }} />
+          </View>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF', textAlign: 'center', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 4 }}>
+            {title}
+          </Text>
+          {options.map((opt, i) => {
+            const active = opt.value === value;
+            return (
+              <TouchableOpacity
+                key={String(opt.value ?? '_all')}
+                onPress={() => { onChange(opt.value); onClose(); }}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  paddingHorizontal: 20, paddingVertical: 14,
+                  borderTopWidth: 0.5,
+                  borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: active ? '700' : '400', color: active ? accentColor : (isDark ? '#FFFFFF' : '#111827') }}>
+                  {opt.label}
+                </Text>
+                {active && <CheckCircle2 size={18} strokeWidth={2.2} color={accentColor} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Visit Status Badge (shown on task cards to surface kunjungan status)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function VisitStatusBadge({ visit, isDark: _isDark }: { visit: TaskSummary['latest_visit']; isDark: boolean }) {
+  if (!visit) return null;
+
+  let label: string;
+  let color: string;
+
+  if (visit.status === 'ongoing') {
+    label = 'Kunjungan Berlangsung';
+    color = C.blue;
+  } else if (visit.review_status === 'approved') {
+    label = `Disetujui${visit.review_rating ? ` ★${visit.review_rating}` : ''}`;
+    color = C.green;
+  } else if (visit.review_status === 'revision_needed') {
+    label = `Perlu Revisi${visit.review_rating ? ` ★${visit.review_rating}` : ''}`;
+    color = C.orange;
+  } else if (visit.status === 'completed') {
+    label = 'Menunggu Tinjauan';
+    color = C.teal;
+  } else {
+    return null;
+  }
+
+  return (
+    <View style={{
+      flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+      backgroundColor: color + '18', borderRadius: R.xs, paddingHorizontal: 7, paddingVertical: 2, marginTop: 4,
+    }}>
+      <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: color }} />
+      <Text style={{ fontSize: 11, fontWeight: '600', color }}>{label}</Text>
+    </View>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -309,6 +408,8 @@ function TaskWorkCard({
           </View>
         )}
 
+        <VisitStatusBadge visit={task.latest_visit} isDark={isDark} />
+
         {isPending && deadlineStr && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
             <AlertCircle size={12} strokeWidth={2} color={C.orange} />
@@ -423,6 +524,8 @@ function HistoryTaskCard({
           </View>
         )}
 
+        <VisitStatusBadge visit={task.latest_visit} isDark={isDark} />
+
         {(task.scheduled_at || task.created_at) && (
           <Text style={{ fontSize: 12, color: lTertiary(isDark), marginTop: 4 }}>
             {fmtDateShortWIT(task.scheduled_at ?? task.created_at)}
@@ -496,6 +599,8 @@ function ManagerTaskCard({
             <Text style={{ fontSize: 13, color: lSecondary(isDark) }} numberOfLines={1}>{task.client.name}</Text>
           </View>
         )}
+
+        <VisitStatusBadge visit={task.latest_visit} isDark={isDark} />
 
         {/* Priority + date */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -597,6 +702,71 @@ function PendingReviewCard({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Reviewed Visit Card (manager history)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ReviewedVisitCard({
+  visit, isDark, onPress,
+}: {
+  visit: AdminVisit;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const isApproved  = visit.review_status === 'approved';
+  const badgeColor  = isApproved ? C.green : C.orange;
+  const badgeLabel  = isApproved ? '✓ Disetujui' : '⚠ Perlu Revisi';
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.82}
+      style={{
+        marginHorizontal: 16, marginBottom: 10,
+        backgroundColor: cardBg(isDark),
+        borderRadius: R.lg, borderWidth: B.default,
+        borderColor: isDark ? C.separator.dark : C.separator.light,
+        borderLeftWidth: 3, borderLeftColor: badgeColor,
+      }}
+    >
+      <View style={{ padding: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: lPrimary(isDark) }} numberOfLines={1}>
+            {visit.client?.name ?? '—'}
+          </Text>
+          <View style={{ backgroundColor: badgeColor + '18', borderRadius: R.xs, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: badgeColor }}>{badgeLabel}</Text>
+          </View>
+        </View>
+
+        {visit.user && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+            <User size={11} strokeWidth={1.8} color={lTertiary(isDark)} />
+            <Text style={{ fontSize: 12, color: lSecondary(isDark) }}>{visit.user.full_name}</Text>
+          </View>
+        )}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', gap: 1 }}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Text key={s} style={{ fontSize: 12, opacity: s <= (visit.review_rating ?? 0) ? 1 : 0.2 }}>⭐</Text>
+            ))}
+          </View>
+          {visit.check_out_at && (
+            <Text style={{ fontSize: 11, color: lTertiary(isDark) }}>{fmtDateShortWIT(visit.check_out_at)}</Text>
+          )}
+        </View>
+
+        {visit.review_notes ? (
+          <Text style={{ fontSize: 12, color: lSecondary(isDark), marginTop: 6, fontStyle: 'italic' }} numberOfLines={2}>
+            "{visit.review_notes}"
+          </Text>
+        ) : null}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Manager Tab Toggle
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -616,7 +786,7 @@ function ManagerTabToggle({
     }}>
       {(['dispatch', 'review'] as const).map((t) => {
         const active = tab === t;
-        const label  = t === 'dispatch' ? 'Dispatch Saya' : 'Perlu Ditinjau';
+        const label  = t === 'dispatch' ? 'Tugas Saya' : 'Perlu Ditinjau';
         return (
           <TouchableOpacity
             key={t}
@@ -660,10 +830,12 @@ export default function PekerjaanScreen() {
   const { onScroll } = useTabBar();
   const isManager = ['manager', 'admin', 'super_admin'].includes(user?.role?.name ?? '');
 
-  const [showCreate, setShowCreate]         = useState(false);
-  const [managerTab, setManagerTab]         = useState<'dispatch' | 'review'>('dispatch');
-  const [teknisiFilter, setTekniisiFilter]  = useState<string | undefined>(undefined);
-  const [managerFilter, setManagerFilter]   = useState<string | undefined>(undefined);
+  const [showCreate, setShowCreate]             = useState(false);
+  const [managerTab, setManagerTab]             = useState<'dispatch' | 'review'>('dispatch');
+  const [teknisiFilter, setTekniisiFilter]      = useState<string | undefined>(undefined);
+  const [managerFilter, setManagerFilter]       = useState<string | undefined>(undefined);
+  const [showTekniisiFilterModal, setShowTekniisiFilterModal] = useState(false);
+  const [showManagerFilterModal, setShowManagerFilterModal]   = useState(false);
   const [userLat, setUserLat]               = useState<number | undefined>();
   const [userLng, setUserLng]               = useState<number | undefined>();
 
@@ -709,8 +881,8 @@ export default function PekerjaanScreen() {
   });
 
   const { data: reviewData, isLoading: loadingReview, isRefetching: refetchingReview, refetch: refetchReview } = useQuery({
-    queryKey: ['visits-pending-review'],
-    queryFn:  () => visitsService.getVisitsAdmin({ review_status: 'unreviewed', limit: 100 }),
+    queryKey: ['visits-completed-all'],
+    queryFn:  () => visitsService.getVisitsAdmin({ status: 'completed', limit: 100 }),
     enabled:  isManager,
     refetchInterval: 30_000,
   });
@@ -741,17 +913,29 @@ export default function PekerjaanScreen() {
   // ── Derived data ─────────────────────────────────────────────────────────
 
   // Teknisi
-  const allTasks        = tasksData?.items ?? [];
-  const activeVisit     = (visitsData?.items ?? []).find((v) => v.status === 'ongoing') ?? null;
+  const allTasks          = tasksData?.items ?? [];
+  const activeVisit       = (visitsData?.items ?? []).find((v) => v.status === 'ongoing') ?? null;
   const activeVisitTaskId = activeVisit?.task_id ?? null;
-  const visibleTasks    = activeVisitTaskId ? allTasks.filter((t) => t.id !== activeVisitTaskId) : allTasks;
-  const filteredTasks   = applyTaskFilter(visibleTasks, teknisiFilter);
+  const visibleTasks      = activeVisitTaskId ? allTasks.filter((t) => t.id !== activeVisitTaskId) : allTasks;
+  const filteredTasks     = applyTaskFilter(visibleTasks, teknisiFilter);
+
+  // Split: in_progress masuk aktif (sedang dikerjakan lewat visit), bukan riwayat
+  const ACTIVE_STATUSES  = ['pending_confirmation', 'assigned', 'on_hold', 'in_progress'] as const;
+  const HISTORY_STATUSES = ['completed', 'cancelled', 'rescheduled'] as const;
+  const activeTasks  = filteredTasks.filter((t) => (ACTIVE_STATUSES as readonly string[]).includes(t.status));
+  const historyTasks = filteredTasks.filter((t) => (HISTORY_STATUSES as readonly string[]).includes(t.status));
 
   // Manager
   const allDispatch        = dispatchData?.items ?? [];
   const filteredDispatch   = applyTaskFilter(allDispatch, managerFilter);
-  const reviewItems        = (reviewData?.items ?? []) as AdminVisit[];
-  const pendingReviewCount = reviewData?.total ?? reviewItems.length;
+  const activeDispatch     = filteredDispatch.filter((t) => (ACTIVE_STATUSES as readonly string[]).includes(t.status));
+  const historyDispatch    = filteredDispatch.filter((t) => !(ACTIVE_STATUSES as readonly string[]).includes(t.status));
+
+  // Review tab — semua completed visit, dipisah client-side
+  const allCompletedVisits = (reviewData?.items ?? []) as AdminVisit[];
+  const pendingReview      = allCompletedVisits.filter((v) => v.review_status === null);
+  const alreadyReviewed    = allCompletedVisits.filter((v) => v.review_status !== null);
+  const pendingReviewCount = pendingReview.length;
 
   // Navigation
   const goToTask  = (id: string) => router.push(`/(main)/tasks/${id}` as never);
@@ -828,12 +1012,33 @@ export default function PekerjaanScreen() {
 
             {managerTab === 'dispatch' ? (
               <>
-                <FilterChips
-                  options={MANAGER_FILTER_CHIPS}
+                <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+                  <TouchableOpacity
+                    onPress={() => setShowManagerFilterModal(true)}
+                    activeOpacity={0.78}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      backgroundColor: cardBg(isDark),
+                      borderRadius: R.md, borderWidth: B.default,
+                      borderColor: managerFilter ? C.orange + '60' : (isDark ? C.separator.dark : C.separator.light),
+                      paddingHorizontal: 14, paddingVertical: 11,
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: managerFilter ? '600' : '400', color: managerFilter ? C.orange : lSecondary(isDark) }}>
+                      {MANAGER_FILTER_OPTIONS.find((c) => c.value === managerFilter)?.label ?? 'Semua Tugas'}
+                    </Text>
+                    <ChevronDown size={16} strokeWidth={2} color={managerFilter ? C.orange : lTertiary(isDark)} />
+                  </TouchableOpacity>
+                </View>
+                <FilterDropdownModal
+                  visible={showManagerFilterModal}
+                  options={MANAGER_FILTER_OPTIONS}
                   value={managerFilter}
-                  onChange={setManagerFilter}
                   accentColor={C.orange}
                   isDark={isDark}
+                  title="Filter Tugas"
+                  onChange={setManagerFilter}
+                  onClose={() => setShowManagerFilterModal(false)}
                 />
                 {filteredDispatch.length === 0 ? (
                   <EmptyState
@@ -847,34 +1052,67 @@ export default function PekerjaanScreen() {
                     }
                   />
                 ) : (
-                  filteredDispatch.map((task) => (
-                    <ManagerTaskCard
-                      key={task.id}
-                      task={task}
-                      isDark={isDark}
-                      onPress={() => goToTask(task.id)}
-                    />
-                  ))
+                  <>
+                    {activeDispatch.length > 0 && (
+                      <>
+                        <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: lTertiary(isDark), letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                            Aktif · {activeDispatch.length}
+                          </Text>
+                        </View>
+                        {activeDispatch.map((task) => (
+                          <ManagerTaskCard key={task.id} task={task} isDark={isDark} onPress={() => goToTask(task.id)} />
+                        ))}
+                      </>
+                    )}
+                    {historyDispatch.length > 0 && (
+                      <>
+                        <View style={{ paddingHorizontal: 20, paddingTop: activeDispatch.length > 0 ? 10 : 0, paddingBottom: 8 }}>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: lTertiary(isDark), letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                            Riwayat · {historyDispatch.length}
+                          </Text>
+                        </View>
+                        {historyDispatch.map((task) => (
+                          <ManagerTaskCard key={task.id} task={task} isDark={isDark} onPress={() => goToTask(task.id)} />
+                        ))}
+                      </>
+                    )}
+                  </>
                 )}
               </>
             ) : (
               <>
-                {reviewItems.length === 0 ? (
+                {pendingReview.length > 0 && (
+                  <>
+                    <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: lTertiary(isDark), letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                        Menunggu Tinjauan · {pendingReview.length}
+                      </Text>
+                    </View>
+                    {pendingReview.map((visit) => (
+                      <PendingReviewCard key={visit.id} visit={visit} isDark={isDark} onPress={() => visit.task_id ? goToTask(visit.task_id) : goToVisit(visit.id)} />
+                    ))}
+                  </>
+                )}
+                {alreadyReviewed.length > 0 && (
+                  <>
+                    <View style={{ paddingHorizontal: 20, paddingTop: pendingReview.length > 0 ? 12 : 0, paddingBottom: 8 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: lTertiary(isDark), letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                        Sudah Ditinjau · {alreadyReviewed.length}
+                      </Text>
+                    </View>
+                    {alreadyReviewed.map((visit) => (
+                      <ReviewedVisitCard key={visit.id} visit={visit} isDark={isDark} onPress={() => visit.task_id ? goToTask(visit.task_id) : goToVisit(visit.id)} />
+                    ))}
+                  </>
+                )}
+                {pendingReview.length === 0 && alreadyReviewed.length === 0 && (
                   <EmptyState
                     icon={CheckCircle2}
                     iconColor={C.green}
-                    title="Semua kunjungan sudah ditinjau"
-                    message="Tidak ada kunjungan yang menunggu tinjauan."
+                    title="Belum ada kunjungan selesai"
+                    message="Kunjungan yang selesai akan muncul di sini."
                   />
-                ) : (
-                  reviewItems.map((visit) => (
-                    <PendingReviewCard
-                      key={visit.id}
-                      visit={visit}
-                      isDark={isDark}
-                      onPress={() => goToVisit(visit.id)}
-                    />
-                  ))
                 )}
               </>
             )}
@@ -885,16 +1123,37 @@ export default function PekerjaanScreen() {
             {activeVisit && (
               <ActiveVisitCard
                 visit={activeVisit}
-                onPress={() => goToVisit(activeVisit.id)}
+                onPress={() => activeVisit.task_id ? goToTask(activeVisit.task_id) : goToVisit(activeVisit.id)}
               />
             )}
 
-            <FilterChips
-              options={TEKNISI_FILTER_CHIPS}
+            <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+              <TouchableOpacity
+                onPress={() => setShowTekniisiFilterModal(true)}
+                activeOpacity={0.78}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  backgroundColor: cardBg(isDark),
+                  borderRadius: R.md, borderWidth: B.default,
+                  borderColor: teknisiFilter ? C.orange + '60' : (isDark ? C.separator.dark : C.separator.light),
+                  paddingHorizontal: 14, paddingVertical: 11,
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: teknisiFilter ? '600' : '400', color: teknisiFilter ? C.orange : lSecondary(isDark) }}>
+                  {TEKNISI_FILTER_OPTIONS.find((c) => c.value === teknisiFilter)?.label ?? 'Semua Tugas'}
+                </Text>
+                <ChevronDown size={16} strokeWidth={2} color={teknisiFilter ? C.orange : lTertiary(isDark)} />
+              </TouchableOpacity>
+            </View>
+            <FilterDropdownModal
+              visible={showTekniisiFilterModal}
+              options={TEKNISI_FILTER_OPTIONS}
               value={teknisiFilter}
-              onChange={setTekniisiFilter}
               accentColor={C.orange}
               isDark={isDark}
+              title="Filter Tugas"
+              onChange={setTekniisiFilter}
+              onClose={() => setShowTekniisiFilterModal(false)}
             />
 
             {filteredTasks.length === 0 ? (
@@ -909,28 +1168,46 @@ export default function PekerjaanScreen() {
                 }
               />
             ) : (
-              filteredTasks.map((task) => {
-                const isActive = ['pending_confirmation', 'assigned', 'on_hold'].includes(task.status);
-                return isActive ? (
-                  <TaskWorkCard
-                    key={task.id}
-                    task={task}
-                    isDark={isDark}
-                    onAccept={task.status === 'pending_confirmation' ? () => handleAccept(task) : undefined}
-                    onDetail={() => goToTask(task.id)}
-                    onCheckin={task.status === 'assigned' ? () => goToTask(task.id) : undefined}
-                    userLat={userLat}
-                    userLng={userLng}
-                  />
-                ) : (
-                  <HistoryTaskCard
-                    key={task.id}
-                    task={task}
-                    isDark={isDark}
-                    onPress={() => goToTask(task.id)}
-                  />
-                );
-              })
+              <>
+                {activeTasks.length > 0 && (
+                  <>
+                    <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: lTertiary(isDark), letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                        Tugas Aktif · {activeTasks.length}
+                      </Text>
+                    </View>
+                    {activeTasks.map((task) => (
+                      <TaskWorkCard
+                        key={task.id}
+                        task={task}
+                        isDark={isDark}
+                        onAccept={task.status === 'pending_confirmation' ? () => handleAccept(task) : undefined}
+                        onDetail={() => goToTask(task.id)}
+                        onCheckin={task.status === 'assigned' ? () => goToTask(task.id) : undefined}
+                        userLat={userLat}
+                        userLng={userLng}
+                      />
+                    ))}
+                  </>
+                )}
+                {historyTasks.length > 0 && (
+                  <>
+                    <View style={{ paddingHorizontal: 20, paddingTop: activeTasks.length > 0 ? 10 : 0, paddingBottom: 8 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: lTertiary(isDark), letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                        Riwayat · {historyTasks.length}
+                      </Text>
+                    </View>
+                    {historyTasks.map((task) => (
+                      <HistoryTaskCard
+                        key={task.id}
+                        task={task}
+                        isDark={isDark}
+                        onPress={() => goToTask(task.id)}
+                      />
+                    ))}
+                  </>
+                )}
+              </>
             )}
           </>
         )}

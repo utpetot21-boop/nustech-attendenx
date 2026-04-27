@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ChevronLeft, AlertTriangle, Calendar, Clock, FileText,
+  ChevronLeft, ChevronRight, AlertTriangle, Calendar, Clock, FileText,
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
   Search, User, ChevronDown, Check, X as XIcon, Ban, Trash2,
@@ -139,6 +139,8 @@ function TaskDetailInner() {
   const [delegatePickerOpen, setDelegatePickerOpen] = useState(false);
   const [delegateSearch, setDelegateSearch] = useState('');
   const [cancelReason, setCancelReason] = useState('');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewNotes, setReviewNotes] = useState('');
 
   const userRole      = useAuthStore((s) => s.user?.role?.name);
   const canApprove    = useAuthStore((s) => s.user?.role?.can_approve ?? false);
@@ -370,6 +372,28 @@ function TaskDetailInner() {
     onError: (err: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Gagal', err.message);
+    },
+  });
+
+  // ── Manager: Tinjauan kunjungan dari task detail ──────────────────────────
+  const reviewMut = useMutation({
+    mutationFn: ({ visitId, status }: { visitId: string; status: 'approved' | 'revision_needed' }) =>
+      visitsService.reviewVisit(visitId, {
+        review_status: status,
+        review_rating: reviewRating,
+        review_notes: reviewNotes.trim() || undefined,
+      }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['task-detail', id] });
+      qc.invalidateQueries({ queryKey: ['visits-completed-all'] });
+      setReviewNotes('');
+      setReviewRating(5);
+      Alert.alert('Tinjauan Tersimpan', 'Hasil tinjauan kunjungan berhasil disimpan.');
+    },
+    onError: (err: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err?.response?.data?.message ?? err?.message ?? 'Terjadi kesalahan.');
     },
   });
 
@@ -918,6 +942,106 @@ function TaskDetailInner() {
                   })} WITA
                 </Text>
               )}
+            </View>
+          </View>
+        )}
+
+        {/* ── Kunjungan Terkini ─────────────────────── */}
+        {task.latest_visit && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
+            <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? C.blue + '33' : C.blue + '14', alignItems: 'center', justifyContent: 'center' }}>
+                  <Target size={16} strokeWidth={1.8} color={C.blue} />
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Kunjungan Terkini</Text>
+              </View>
+
+              {(() => {
+                const v = task.latest_visit!;
+                let label = v.status;
+                let color = '#8E8E93';
+                if (v.status === 'ongoing') { label = 'Berlangsung'; color = C.blue; }
+                else if (v.review_status === 'approved') { label = `Disetujui ★${v.review_rating ?? ''}`; color = C.green; }
+                else if (v.review_status === 'revision_needed') { label = `Perlu Revisi ★${v.review_rating ?? ''}`; color = C.orange; }
+                else if (v.status === 'completed') { label = 'Menunggu Tinjauan'; color = C.teal; }
+                return (
+                  <View style={{ alignSelf: 'flex-start', backgroundColor: color + '18', borderRadius: R.xs, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 10 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color }}>{label}</Text>
+                  </View>
+                );
+              })()}
+
+              {task.latest_visit.check_in_at && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Play size={12} strokeWidth={2} color={textSecondary as string} />
+                  <Text style={{ fontSize: 13, color: textSecondary }}>
+                    Check-in: {new Date(task.latest_visit.check_in_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} WITA
+                  </Text>
+                </View>
+              )}
+              {task.latest_visit.check_out_at && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <CheckCircle2 size={12} strokeWidth={2} color={textSecondary as string} />
+                  <Text style={{ fontSize: 13, color: textSecondary }}>
+                    Check-out: {new Date(task.latest_visit.check_out_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} WITA
+                    {task.latest_visit.duration_minutes ? ` · ${Math.floor(task.latest_visit.duration_minutes / 60)}j ${task.latest_visit.duration_minutes % 60}m` : ''}
+                  </Text>
+                </View>
+              )}
+
+              {task.latest_visit.status === 'completed' && task.latest_visit.review_status === null && canApprove && (
+                <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', paddingTop: 14 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: textPrimary, marginBottom: 10 }}>Tinjauan</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
+                    {[1,2,3,4,5].map((star) => (
+                      <TouchableOpacity key={star} onPress={() => setReviewRating(star)} style={{ padding: 2 }}>
+                        <Text style={{ fontSize: 28, color: star <= reviewRating ? C.orange : (isDark ? 'rgba(255,255,255,0.15)' : '#D1D5DB') }}>★</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TextInput
+                    value={reviewNotes}
+                    onChangeText={setReviewNotes}
+                    placeholder="Catatan tinjauan (opsional)..."
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#CBD5E1'}
+                    multiline numberOfLines={3} textAlignVertical="top"
+                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F8FAFC', borderRadius: 14, borderWidth: 1.5, borderColor: isDark ? C.separator.dark : C.separator.light, padding: 12, fontSize: 14, color: textPrimary, minHeight: 76, marginBottom: 12 }}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => Alert.alert('Perlu Revisi?', 'Kunjungan akan ditandai perlu revisi.', [
+                        { text: 'Batal', style: 'cancel' },
+                        { text: 'Kirim', onPress: () => reviewMut.mutate({ visitId: task.latest_visit!.id, status: 'revision_needed' }) },
+                      ])}
+                      disabled={reviewMut.isPending}
+                      style={{ flex: 1, paddingVertical: 13, borderRadius: 14, backgroundColor: isDark ? C.orange + '1F' : C.orange + '0D', alignItems: 'center', borderWidth: 1.5, borderColor: C.orange + '4D' }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: C.orange }}>Perlu Revisi</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => Alert.alert('Setujui Kunjungan?', 'Kunjungan akan ditandai disetujui.', [
+                        { text: 'Batal', style: 'cancel' },
+                        { text: 'Setujui', onPress: () => reviewMut.mutate({ visitId: task.latest_visit!.id, status: 'approved' }) },
+                      ])}
+                      disabled={reviewMut.isPending}
+                      style={{ flex: 1.4, paddingVertical: 13, borderRadius: 14, backgroundColor: C.green, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                    >
+                      {reviewMut.isPending ? <ActivityIndicator size="small" color="#FFF" /> : <CheckCircle2 size={16} strokeWidth={2.2} color="#FFF" />}
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>Setujui</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() => router.push(`/(main)/visits/${task.latest_visit!.id}` as never)}
+                style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F8FAFC', borderRadius: 12, paddingVertical: 11, borderWidth: 1.5, borderColor: cardBorder }}
+              >
+                <FileText size={14} strokeWidth={1.8} color={textSecondary as string} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: textSecondary }}>Lihat Detail Kunjungan</Text>
+                <ChevronRight size={14} strokeWidth={2} color={textSecondary as string} />
+              </TouchableOpacity>
             </View>
           </View>
         )}

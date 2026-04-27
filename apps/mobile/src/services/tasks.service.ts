@@ -11,6 +11,33 @@ export type TaskStatus =
   | 'completed'
   | 'cancelled';
 
+export interface LatestVisitSummary {
+  id: string;
+  status: string;
+  review_status: 'approved' | 'revision_needed' | null;
+  review_rating: number | null;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  duration_minutes: number | null;
+}
+
+export interface LatestVisitDetail extends LatestVisitSummary {
+  check_in_address?: string | null;
+  work_description?: string | null;
+  findings?: string | null;
+  recommendations?: string | null;
+  materials_used?: { name: string; qty: string }[] | null;
+  photos?: {
+    id: string;
+    phase: 'before' | 'during' | 'after';
+    seq_number: number | null;
+    watermarked_url: string;
+    thumbnail_url: string | null;
+    caption?: string | null;
+    taken_at: string;
+  }[];
+}
+
 export interface TaskSummary {
   id: string;
   title: string;
@@ -30,6 +57,7 @@ export interface TaskSummary {
   cancel_reason?: string | null;
   canceller?: { id: string; full_name: string } | null;
   created_at: string;
+  latest_visit?: LatestVisitSummary | null;
 }
 
 export interface HoldTaskPayload {
@@ -56,6 +84,7 @@ export const tasksService = {
     const res = await api.get(`/tasks/${id}`);
     return res.data as TaskSummary & {
       assignments?: { user_id: string; status: string; offered_at: string }[];
+      latest_visit?: LatestVisitDetail | null;
     };
   },
 

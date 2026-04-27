@@ -9,13 +9,37 @@ import {
   ListTodo, Plus, LayoutGrid, List, AlertTriangle, MapPin,
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
   PauseCircle, RefreshCw, Radio, Target, Check, X,
-  Calendar, Zap, Ban, Trash2, UserPlus,
+  Calendar, Zap, Ban, Trash2, UserPlus, FileText, Play,
 } from 'lucide-react';
 import { getAuthUser } from '@/lib/auth';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
 type TaskStatus   = 'unassigned' | 'pending_confirmation' | 'assigned' | 'in_progress' | 'on_hold' | 'rescheduled' | 'completed' | 'cancelled';
+
+interface LatestVisit {
+  id: string;
+  status: string;
+  review_status: 'approved' | 'revision_needed' | null;
+  review_rating: number | null;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  duration_minutes: number | null;
+}
+
+interface LatestVisitDetail extends LatestVisit {
+  check_in_address?: string | null;
+  work_description?: string | null;
+  findings?: string | null;
+  recommendations?: string | null;
+  materials_used?: { name: string; qty: string }[] | null;
+  photos?: { id: string; phase: string; seq_number: number | null; watermarked_url: string; thumbnail_url: string | null; caption?: string | null; taken_at: string }[];
+}
+
+interface TaskDetail extends Task {
+  notes?: string | null;
+  latest_visit?: LatestVisitDetail | null;
+}
 
 interface Task {
   id: string; title: string; description?: string; type?: string;
@@ -28,6 +52,7 @@ interface Task {
   cancelled_at?: string | null;
   cancel_reason?: string | null;
   canceller?: { id: string; full_name: string } | null;
+  latest_visit?: LatestVisit | null;
 }
 
 interface OnHoldTask {
@@ -75,14 +100,27 @@ const BOARD_COLUMNS: { key: TaskStatus[]; label: string; accent: string; headerB
   { key: ['completed'],              label: 'Selesai',             accent: 'border-t-[#34C759]',  headerBg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.07)]'  },
 ];
 
+// ── Visit badge helper ────────────────────────────────────────────────────────
+function visitBadge(v: LatestVisit | null | undefined): { label: string; color: string } | null {
+  if (!v) return null;
+  if (v.status === 'ongoing') return { label: 'Kunjungan Berlangsung', color: '#007AFF' };
+  if (v.review_status === 'approved') return { label: `Disetujui${v.review_rating ? ` ★${v.review_rating}` : ''}`, color: '#34C759' };
+  if (v.review_status === 'revision_needed') return { label: `Perlu Revisi${v.review_rating ? ` ★${v.review_rating}` : ''}`, color: '#FF9500' };
+  if (v.status === 'completed') return { label: 'Menunggu Tinjauan', color: '#5AC8FA' };
+  return null;
+}
+
 // ── KanbanCard ─────────────────────────────────────────────────────────────────
-function KanbanCard({ task }: { task: Task }) {
+function KanbanCard({ task, onDetail }: { task: Task; onDetail?: () => void }) {
   const p   = PRIORITY_MAP[task.priority] ?? PRIORITY_MAP.normal;
   const now = new Date();
   const isOverdue = task.confirm_deadline && new Date(task.confirm_deadline) < now;
 
   return (
-    <div className={`bg-white dark:bg-white/[0.06] rounded-2xl border p-3.5 shadow-sm hover:shadow-md transition-all duration-150 ${task.priority === 'urgent' ? 'border-l-[3px] border-l-[#FF3B30] border-black/[0.05] dark:border-white/[0.08]' : 'border-black/[0.05] dark:border-white/[0.08]'}`}>
+    <div
+      onClick={onDetail}
+      className={`bg-white dark:bg-white/[0.06] rounded-2xl border p-3.5 shadow-sm hover:shadow-md transition-all duration-150 ${onDetail ? 'cursor-pointer' : ''} ${task.priority === 'urgent' ? 'border-l-[3px] border-l-[#FF3B30] border-black/[0.05] dark:border-white/[0.08]' : 'border-black/[0.05] dark:border-white/[0.08]'}`}
+    >
       {/* Title row */}
       <div className="flex items-start gap-2 mb-2">
         {task.is_emergency && (
@@ -103,6 +141,14 @@ function KanbanCard({ task }: { task: Task }) {
           <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">{task.client.name}</p>
         </div>
       )}
+
+      {/* Visit status badge */}
+      {(() => { const vb = visitBadge(task.latest_visit); if (!vb) return null; return (
+        <div className="flex items-center gap-1 mb-2" style={{ color: vb.color }}>
+          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: vb.color }} />
+          <p className="text-[10px] font-semibold truncate">{vb.label}</p>
+        </div>
+      ); })()}
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-2 mt-1">
@@ -138,11 +184,13 @@ function TaskListCard({
   onAssign,
   onCancel,
   onDelete,
+  onDetail,
 }: {
   task: Task;
   onAssign?: (t: Task) => void;
   onCancel?: (t: Task) => void;
   onDelete?: (t: Task) => void;
+  onDetail?: () => void;
 }) {
   const p = PRIORITY_MAP[task.priority] ?? PRIORITY_MAP.normal;
   const s = STATUS_MAP[task.status]     ?? STATUS_MAP.unassigned;
@@ -153,7 +201,7 @@ function TaskListCard({
   const deletable = !!onDelete;
 
   return (
-    <div className="bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-4 shadow-sm">
+    <div onClick={onDetail} className={`bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] p-4 shadow-sm ${onDetail ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}>
       {/* Top row */}
       <div className="flex items-start gap-3 mb-3">
         <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0 ${p.bg} border ${p.ring}`}>
@@ -202,6 +250,14 @@ function TaskListCard({
           </span>
         )}
 
+        {/* Visit status badge */}
+        {(() => { const vb = visitBadge(task.latest_visit); if (!vb) return null; return (
+          <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border" style={{ color: vb.color, backgroundColor: vb.color + '18', borderColor: vb.color + '44' }}>
+            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: vb.color }} />
+            {vb.label}
+          </span>
+        ); })()}
+
         {/* Deadline */}
         {task.confirm_deadline && (
           <span className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${
@@ -223,7 +279,7 @@ function TaskListCard({
       </div>
 
       {(assignable || cancellable || deletable) && (
-        <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-black/[0.04] dark:border-white/[0.06]">
+        <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-black/[0.04] dark:border-white/[0.06]" onClick={(e) => e.stopPropagation()}>
           {assignable && (
             <button
               onClick={() => onAssign!(task)}
@@ -257,12 +313,216 @@ function TaskListCard({
   );
 }
 
+// ── Task Detail Drawer ────────────────────────────────────────────────────────
+function TaskDetailDrawer({
+  taskId, canAssign, onClose, onInvalidate,
+}: {
+  taskId: string; canAssign: boolean; onClose: () => void; onInvalidate: () => void;
+}) {
+  const qc = useQueryClient();
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewNotes, setReviewNotes] = useState('');
+
+  const { data: task, isLoading } = useQuery({
+    queryKey: ['task-detail-web', taskId],
+    queryFn: () => apiClient.get(`/tasks/${taskId}`).then((r) => r.data as TaskDetail),
+    enabled: !!taskId,
+  });
+
+  const reviewMut = useMutation({
+    mutationFn: ({ visitId, status }: { visitId: string; status: 'approved' | 'revision_needed' }) =>
+      apiClient.post(`/visits/${visitId}/review`, { review_status: status, review_rating: reviewRating, review_notes: reviewNotes.trim() || undefined }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['task-detail-web', taskId] });
+      onInvalidate();
+      setReviewNotes(''); setReviewRating(5);
+      toast.success('Tinjauan berhasil disimpan');
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Gagal menyimpan tinjauan')),
+  });
+
+  const p = task ? (PRIORITY_MAP[task.priority] ?? PRIORITY_MAP.normal) : null;
+  const s = task ? (STATUS_MAP[task.status]   ?? STATUS_MAP.unassigned) : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div
+        className="relative z-10 w-full sm:max-w-[420px] bg-white dark:bg-[#1C1C1E] h-full flex flex-col border-l border-black/[0.06] dark:border-white/[0.10] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-black/[0.06] dark:border-white/[0.08] flex-shrink-0">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white truncate pr-3">Detail Tugas</h2>
+          <button onClick={onClose} className="w-7 h-7 flex-shrink-0 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition">
+            <X size={14} />
+          </button>
+        </div>
+
+        {isLoading || !task ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* Title + badges */}
+            <div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {p && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${p.bg} ${p.text} ${p.ring}`}>{p.label}</span>}
+                {s && <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${s.bg} ${s.color} ${s.ring}`}><s.Icon size={9} />{s.label}</span>}
+                {task.is_emergency && <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.15)] text-[#FF3B30] border border-[#FECACA]"><Zap size={9} />Darurat</span>}
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{task.title}</h3>
+              {task.description && <p className="text-sm text-gray-500 dark:text-white/50 mt-2 leading-relaxed">{task.description}</p>}
+            </div>
+
+            {/* Meta grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                task.client    && { icon: MapPin,    label: 'Klien',    value: task.client.name },
+                task.assignee  && { icon: User,      label: 'Teknisi',  value: task.assignee.full_name },
+                task.scheduled_at && { icon: Calendar, label: 'Jadwal', value: new Date(task.scheduled_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) },
+                { icon: Clock, label: 'Dibuat', value: new Date(task.created_at).toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', year: 'numeric' }) },
+              ].filter(Boolean).map((item) => {
+                const it = item as { icon: typeof MapPin; label: string; value: string };
+                return (
+                  <div key={it.label} className="bg-gray-50 dark:bg-white/[0.04] rounded-xl p-3 border border-black/[0.05] dark:border-white/[0.08]">
+                    <p className="text-[10px] font-semibold text-gray-400 dark:text-white/35 uppercase tracking-wider mb-1">{it.label}</p>
+                    <div className="flex items-center gap-1">
+                      <it.icon size={11} className="text-gray-400 dark:text-white/30 flex-shrink-0" />
+                      <p className="text-xs font-semibold text-gray-800 dark:text-white truncate">{it.value}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Kunjungan Terkini */}
+            {task.latest_visit && (
+              <div className="bg-white dark:bg-white/[0.04] rounded-2xl border border-black/[0.06] dark:border-white/[0.10] overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-black/[0.05] dark:border-white/[0.07] bg-gray-50 dark:bg-white/[0.03]">
+                  <div className="w-6 h-6 rounded-[7px] bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.18)] flex items-center justify-center flex-shrink-0">
+                    <Target size={12} className="text-[#007AFF]" />
+                  </div>
+                  <span className="text-xs font-bold text-gray-700 dark:text-white/70 uppercase tracking-wider">Kunjungan Terkini</span>
+                </div>
+                <div className="p-4 space-y-3">
+                  {/* Status */}
+                  {(() => { const vb = visitBadge(task.latest_visit); if (!vb) return null; return (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: vb.color }} />
+                      <span className="text-xs font-semibold" style={{ color: vb.color }}>{vb.label}</span>
+                    </div>
+                  ); })()}
+
+                  {/* Times */}
+                  {task.latest_visit.check_in_at && (
+                    <div className="flex items-center gap-2">
+                      <Play size={11} className="text-gray-400 dark:text-white/30 flex-shrink-0" />
+                      <span className="text-xs text-gray-600 dark:text-white/60">
+                        Check-in: {new Date(task.latest_visit.check_in_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} WITA
+                      </span>
+                    </div>
+                  )}
+                  {task.latest_visit.check_out_at && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={11} className="text-gray-400 dark:text-white/30 flex-shrink-0" />
+                      <span className="text-xs text-gray-600 dark:text-white/60">
+                        Check-out: {new Date(task.latest_visit.check_out_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} WITA
+                        {task.latest_visit.duration_minutes ? ` · ${Math.floor(task.latest_visit.duration_minutes / 60)}j ${task.latest_visit.duration_minutes % 60}m` : ''}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Work description */}
+                  {task.latest_visit.work_description && (
+                    <div className="p-3 bg-gray-50 dark:bg-white/[0.04] rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+                      <p className="text-[10px] font-semibold text-gray-400 dark:text-white/35 uppercase tracking-wider mb-1.5">Laporan Pekerjaan</p>
+                      <p className="text-xs text-gray-700 dark:text-white/70 leading-relaxed">{task.latest_visit.work_description}</p>
+                    </div>
+                  )}
+
+                  {/* Photos count */}
+                  {task.latest_visit.photos && task.latest_visit.photos.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <FileText size={11} className="text-gray-400 dark:text-white/30 flex-shrink-0" />
+                      <span className="text-xs text-gray-500 dark:text-white/50">{task.latest_visit.photos.length} foto terlampir</span>
+                    </div>
+                  )}
+
+                  {/* Review result (already reviewed) */}
+                  {task.latest_visit.review_status && (
+                    <div className={`p-3 rounded-xl border text-xs font-semibold ${
+                      task.latest_visit.review_status === 'approved'
+                        ? 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.08)] border-[#BBF7D0] dark:border-[rgba(52,199,89,0.25)] text-[#34C759]'
+                        : 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.08)] border-[#FED7AA] dark:border-[rgba(255,149,0,0.25)] text-[#FF9500]'
+                    }`}>
+                      {task.latest_visit.review_status === 'approved' ? '✓ Disetujui' : '⚠ Perlu Revisi'}
+                      {task.latest_visit.review_rating ? ` · ${'★'.repeat(task.latest_visit.review_rating)}` : ''}
+                    </div>
+                  )}
+
+                  {/* Manager review form */}
+                  {task.latest_visit.status === 'completed' && task.latest_visit.review_status === null && canAssign && (
+                    <div className="pt-3 border-t border-black/[0.05] dark:border-white/[0.07] space-y-3">
+                      <p className="text-xs font-bold text-gray-700 dark:text-white/70">Tinjauan Kunjungan</p>
+                      <div className="flex gap-1.5 items-center">
+                        {[1,2,3,4,5].map((star) => (
+                          <button key={star} onClick={() => setReviewRating(star)} className="text-2xl leading-none hover:scale-110 transition-transform" style={{ color: star <= reviewRating ? '#FF9500' : '#D1D5DB' }}>★</button>
+                        ))}
+                        <span className="text-xs text-gray-400 dark:text-white/30 ml-1.5">{reviewRating}/5</span>
+                      </div>
+                      <textarea
+                        value={reviewNotes}
+                        onChange={(e) => setReviewNotes(e.target.value)}
+                        rows={3}
+                        placeholder="Catatan tinjauan (opsional)..."
+                        className="w-full bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-xl px-3 py-2.5 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/25 focus:outline-none focus:border-[#007AFF] focus:ring-2 focus:ring-[#007AFF]/20 transition resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { if (window.confirm('Tandai perlu revisi?')) reviewMut.mutate({ visitId: task.latest_visit!.id, status: 'revision_needed' }); }}
+                          disabled={reviewMut.isPending}
+                          className="flex-1 py-2.5 text-xs font-semibold text-[#FF9500] bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.12)] border border-[#FED7AA] rounded-xl hover:bg-[#FFEDD5] transition disabled:opacity-50"
+                        >
+                          Perlu Revisi
+                        </button>
+                        <button
+                          onClick={() => { if (window.confirm('Setujui kunjungan ini?')) reviewMut.mutate({ visitId: task.latest_visit!.id, status: 'approved' }); }}
+                          disabled={reviewMut.isPending}
+                          className="flex-[1.4] py-2.5 text-xs font-semibold text-white bg-[#34C759] hover:bg-[#2DB34C] rounded-xl transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          {reviewMut.isPending ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle2 size={12} />}
+                          Setujui
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* No visit yet */}
+            {!task.latest_visit && ['assigned', 'in_progress'].includes(task.status) && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/[0.08]">
+                <Target size={13} className="text-gray-300 dark:text-white/20 flex-shrink-0" />
+                <p className="text-xs text-gray-400 dark:text-white/30">Belum ada kunjungan untuk tugas ini</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function TasksPage() {
   const qc = useQueryClient();
   const [viewMode,  setViewMode]  = useState<'board' | 'list'>('board');
   const [showForm,  setShowForm]  = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Task | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
@@ -660,7 +920,7 @@ export default function TasksPage() {
                       {colTasks.length === 0 ? (
                         <div className="flex items-center justify-center py-8 text-gray-300 dark:text-white/15 text-xs">Kosong</div>
                       ) : (
-                        colTasks.map((t) => <KanbanCard key={t.id} task={t} />)
+                        colTasks.map((t) => <KanbanCard key={t.id} task={t} onDetail={() => setDetailTaskId(t.id)} />)
                       )}
                     </div>
                   </div>
@@ -670,13 +930,13 @@ export default function TasksPage() {
 
             {/* Mobile list cards */}
             <div className="md:hidden space-y-3">
-              {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} />)}
+              {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} onDetail={() => setDetailTaskId(t.id)} />)}
             </div>
           </>
         ) : (
           /* ── LIST VIEW ── */
           <div className="space-y-3">
-            {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} />)}
+            {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} onDetail={() => setDetailTaskId(t.id)} />)}
           </div>
         )}
       </div>
@@ -1073,6 +1333,16 @@ export default function TasksPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Task Detail Drawer ─────────────────────────────────────────────── */}
+      {detailTaskId && (
+        <TaskDetailDrawer
+          taskId={detailTaskId}
+          canAssign={canAssign}
+          onClose={() => setDetailTaskId(null)}
+          onInvalidate={() => qc.invalidateQueries({ queryKey: ['tasks-web'] })}
+        />
       )}
 
       {/* ── Delete Task Modal (super_admin) ──────────────────────────────── */}
