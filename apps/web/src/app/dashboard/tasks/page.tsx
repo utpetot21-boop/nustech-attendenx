@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api';
@@ -9,9 +10,10 @@ import {
   ListTodo, Plus, LayoutGrid, List, AlertTriangle, MapPin,
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
   PauseCircle, RefreshCw, Radio, Target, Check, X,
-  Calendar, Zap, Ban, Trash2, UserPlus, FileText, Play,
+  Calendar, Zap, Ban, Trash2, UserPlus, FileText, Play, Navigation,
 } from 'lucide-react';
 import { getAuthUser } from '@/lib/auth';
+import { VisitsTab } from './_visits-tab';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
@@ -517,8 +519,19 @@ function TaskDetailDrawer({
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
+type PageTab = 'tasks' | 'visits' | 'ba';
+
 export default function TasksPage() {
   const qc = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pageTab = (searchParams.get('tab') ?? 'tasks') as PageTab;
+  const setPageTab = (t: PageTab) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set('tab', t);
+    router.push(`/dashboard/tasks?${p.toString()}`);
+  };
+
   const [viewMode,  setViewMode]  = useState<'board' | 'list'>('board');
   const [showForm,  setShowForm]  = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -701,22 +714,49 @@ export default function TasksPage() {
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="px-4 sm:px-6 pt-6 pb-4">
-        <div className="flex items-center justify-between gap-3 mb-5">
+        <div className="flex items-center justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-[20px] sm:text-[22px] font-bold text-gray-900 dark:text-white tracking-tight">Dispatch & Tugas</h1>
-            <p className="text-[12px] text-gray-400 dark:text-white/40 mt-0.5">{total} tugas aktif</p>
+            <h1 className="text-[20px] sm:text-[22px] font-bold text-gray-900 dark:text-white tracking-tight">Tugas & Kunjungan</h1>
+            <p className="text-[12px] text-gray-400 dark:text-white/40 mt-0.5">
+              {pageTab === 'tasks' ? `${total} tugas aktif` : 'Monitor kunjungan & berita acara'}
+            </p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#007AFF] hover:bg-[#0066CC] active:scale-[0.97] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.35)]"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Buat Tugas</span>
-            <span className="sm:hidden">Buat</span>
-          </button>
+          {pageTab === 'tasks' && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#007AFF] hover:bg-[#0066CC] active:scale-[0.97] text-white rounded-xl text-sm font-semibold transition-all shadow-[0_2px_8px_rgba(0,122,255,0.35)]"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">Buat Tugas</span>
+              <span className="sm:hidden">Buat</span>
+            </button>
+          )}
+        </div>
+
+        {/* ── Page Tab Switcher ──────────────────────────────────────────────── */}
+        <div className="flex gap-1 p-1 bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] w-fit mb-5 overflow-x-auto">
+          {([
+            { key: 'tasks' as const,  label: 'Tugas',        icon: ListTodo    },
+            { key: 'visits' as const, label: 'Kunjungan',    icon: Navigation  },
+            { key: 'ba' as const,     label: 'Berita Acara', icon: FileText    },
+          ]).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setPageTab(key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
+                pageTab === key
+                  ? 'bg-[#007AFF] text-white shadow-sm'
+                  : 'text-gray-500 dark:text-white/50 hover:text-gray-700 dark:hover:text-white/70'
+              }`}
+            >
+              <Icon size={14} />
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* ── Summary cards ─────────────────────────────────────────────────── */}
+        {pageTab === 'tasks' && (<>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
             { label: 'Total Tugas',  value: total,      Icon: ListTodo,    bg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.15)]',    color: 'text-[#007AFF]'  },
@@ -780,8 +820,10 @@ export default function TasksPage() {
             ))}
           </div>
         </div>
+        </>)}
       </div>
 
+      {pageTab === 'tasks' && (<>
       {/* ── Delegation approvals banner ────────────────────────────────────── */}
       {pendingDelegations.length > 0 && (
         <div className="px-4 sm:px-6 mb-4">
@@ -940,6 +982,16 @@ export default function TasksPage() {
           </div>
         )}
       </div>
+      </>)}
+
+      {/* ── Visits / Berita Acara Tab ──────────────────────────────────────────── */}
+      {pageTab !== 'tasks' && (
+        <VisitsTab
+          key={pageTab}
+          defaultSubTab={pageTab === 'ba' ? 'ba' : 'visits'}
+          onOpenTask={(taskId) => setDetailTaskId(taskId)}
+        />
+      )}
 
       {/* ── Create Task Modal ──────────────────────────────────────────────────── */}
       {showForm && (
