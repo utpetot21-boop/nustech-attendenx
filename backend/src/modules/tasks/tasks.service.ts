@@ -262,6 +262,7 @@ export class TasksService {
       .leftJoinAndSelect('v.photos', 'p')
       .where('v.task_id = :id', { id })
       .orderBy('v.check_in_at', 'DESC')
+      .addOrderBy('p.seq_number', 'ASC', 'NULLS LAST')
       .getOne();
 
     const latest_visit = latestVisit
@@ -347,7 +348,7 @@ export class TasksService {
   }
 
   async reject(taskId: string, userId: string, dto: RejectTaskDto): Promise<void> {
-    const task = await this.findOne(taskId);
+    await this.findOne(taskId);
 
     await this.assignRepo.update(
       { task_id: taskId, user_id: userId, is_current: true },

@@ -229,7 +229,7 @@ export class VisitsService {
   // ADD PHOTO — ADMIN (dokumentasi tambahan, tidak perlu visit ongoing)
   // ────────────────────────────────────────────────────────────────────────────
   async addAdminPhoto(
-    adminId: string,
+    _adminId: string,
     visitId: string,
     fileBuffer: Buffer,
   ): Promise<VisitPhotoEntity> {
@@ -400,6 +400,7 @@ export class VisitsService {
     const visit = await this.visitRepo.findOne({
       where: { id: visitId, user_id: userId },
       relations: ['client', 'photos'],
+      order: { photos: { seq_number: 'ASC' } },
     });
     if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
     return visit;
@@ -460,6 +461,7 @@ export class VisitsService {
       .leftJoinAndSelect('v.photos', 'p')
       .leftJoinAndSelect('v.service_report', 'sr')
       .orderBy('v.created_at', 'DESC')
+      .addOrderBy('p.seq_number', 'ASC')
       .skip((page - 1) * limit)
       .take(limit);
 
@@ -497,6 +499,7 @@ export class VisitsService {
     const visit = await this.visitRepo.findOne({
       where: { id: visitId },
       relations: ['client', 'photos', 'user', 'service_report', 'reviewer'],
+      order: { photos: { seq_number: 'ASC' } },
     });
     if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
     return visit;

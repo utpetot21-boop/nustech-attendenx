@@ -18,8 +18,17 @@ interface Photo {
   thumbnail_url?: string;
   caption?: string;
   taken_at: string;
+  seq_number?: number | null;
   photo_requirement_id?: string | null;
 }
+
+const sortPhotos = (photos: Photo[]) =>
+  [...photos].sort((a, b) => {
+    if (a.seq_number != null && b.seq_number != null) return a.seq_number - b.seq_number;
+    if (a.seq_number != null) return -1;
+    if (b.seq_number != null) return 1;
+    return new Date(a.taken_at).getTime() - new Date(b.taken_at).getTime();
+  });
 
 interface PhaseSection {
   phase: 'before' | 'during' | 'after';
@@ -109,7 +118,7 @@ function RequirementGroup({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 12, gap: 8 }}
       >
-        {photos.map((photo, idx) => (
+        {sortPhotos(photos).map((photo, idx) => (
           <TouchableOpacity key={photo.id} onPress={() => setPreviewUri(photo.watermarked_url)} style={styles.photoThumb}>
             <Image source={{ uri: photo.thumbnail_url ?? photo.watermarked_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             <View style={styles.seqBadge}>
@@ -211,7 +220,7 @@ export function PhotoPhaseGrid({
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 12, gap: 8 }}>
-              {photos.map((photo, index) => (
+              {sortPhotos(photos).map((photo, index) => (
                 <TouchableOpacity key={photo.id} onPress={() => setPreviewUri(photo.watermarked_url)} style={styles.photoThumb}>
                   <Image source={{ uri: photo.thumbnail_url ?? photo.watermarked_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                   <View style={styles.seqBadge}>
