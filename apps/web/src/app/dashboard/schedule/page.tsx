@@ -496,16 +496,8 @@ export default function SchedulePage() {
         </p>
       </div>
 
-      {/* Stat Cards */}
-      <div className="px-4 sm:px-6 grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <StatCard icon={Clock}        label="Tipe Shift"       value={shifts.length}     color="text-[#007AFF]"  bg="bg-[#007AFF]/10" />
-        <StatCard icon={Users}        label="Total Aktif"      value={activeUsers.length} color="text-[#34C759]"  bg="bg-[#34C759]/10" />
-        <StatCard icon={Building2}    label="Office Hours"     value={ohUsers.length}    color="text-[#AF52DE]"  bg="bg-[#AF52DE]/10" />
-        <StatCard icon={RotateCcw}    label="Karyawan Shift"   value={shiftUsers.length} color="text-[#FF9500]"  bg="bg-[#FF9500]/10" />
-      </div>
-
       {/* Tab Bar */}
-      <div className="px-4 sm:px-6 mb-5">
+      <div className="px-4 sm:px-6 mb-4">
         <div className="flex gap-1 p-1 bg-white dark:bg-white/[0.06] rounded-2xl border border-black/[0.05] dark:border-white/[0.08] w-fit">
           {([
             { key: 'jadwal',     label: 'Jadwal',     icon: CalendarDays },
@@ -521,6 +513,14 @@ export default function SchedulePage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Stat Cards */}
+      <div className="px-4 sm:px-6 grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <StatCard icon={Clock}        label="Tipe Shift"       value={shifts.length}     color="text-[#007AFF]"  bg="bg-[#007AFF]/10" />
+        <StatCard icon={Users}        label="Total Aktif"      value={activeUsers.length} color="text-[#34C759]"  bg="bg-[#34C759]/10" />
+        <StatCard icon={Building2}    label="Office Hours"     value={ohUsers.length}    color="text-[#AF52DE]"  bg="bg-[#AF52DE]/10" />
+        <StatCard icon={RotateCcw}    label="Karyawan Shift"   value={shiftUsers.length} color="text-[#FF9500]"  bg="bg-[#FF9500]/10" />
       </div>
 
       {schedTab === 'jadwal' && (
