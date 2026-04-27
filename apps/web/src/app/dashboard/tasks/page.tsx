@@ -93,14 +93,6 @@ const STATUS_MAP: Record<TaskStatus, { label: string; Icon: typeof CircleDot; co
   cancelled:            { label: 'Dibatalkan',          Icon: Ban,          color: 'text-[#FF3B30]',   bg: 'bg-[#FEF2F2] dark:bg-[rgba(255,59,48,0.12)]',  ring: 'border-[#FECACA]' },
 };
 
-const BOARD_COLUMNS: { key: TaskStatus[]; label: string; accent: string; headerBg: string }[] = [
-  { key: ['unassigned'],             label: 'Belum Ditugaskan',    accent: 'border-t-gray-400',   headerBg: 'bg-gray-50 dark:bg-white/[0.03]'               },
-  { key: ['pending_confirmation'],   label: 'Menunggu Konfirmasi', accent: 'border-t-[#FF9500]',  headerBg: 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.07)]'  },
-  { key: ['assigned'],               label: 'Ditugaskan',          accent: 'border-t-[#007AFF]',  headerBg: 'bg-[#EFF6FF] dark:bg-[rgba(0,122,255,0.07)]'  },
-  { key: ['in_progress'],            label: 'Dikerjakan',          accent: 'border-t-[#34C759]',  headerBg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.07)]'  },
-  { key: ['on_hold', 'rescheduled'], label: 'Ditunda / Dijadwal',  accent: 'border-t-[#AF52DE]',  headerBg: 'bg-[#F5F3FF] dark:bg-[rgba(175,82,222,0.07)]' },
-  { key: ['completed'],              label: 'Selesai',             accent: 'border-t-[#34C759]',  headerBg: 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.07)]'  },
-];
 
 // ── Visit badge helper ────────────────────────────────────────────────────────
 function visitBadge(v: LatestVisit | null | undefined): { label: string; color: string } | null {
@@ -112,75 +104,7 @@ function visitBadge(v: LatestVisit | null | undefined): { label: string; color: 
   return null;
 }
 
-// ── KanbanCard ─────────────────────────────────────────────────────────────────
-function KanbanCard({ task, onDetail }: { task: Task; onDetail?: () => void }) {
-  const p   = PRIORITY_MAP[task.priority] ?? PRIORITY_MAP.normal;
-  const now = new Date();
-  const isOverdue = task.confirm_deadline && new Date(task.confirm_deadline) < now;
-
-  return (
-    <div
-      onClick={onDetail}
-      className={`bg-white dark:bg-white/[0.06] rounded-2xl border p-3.5 shadow-sm hover:shadow-md transition-all duration-150 ${onDetail ? 'cursor-pointer' : ''} ${task.priority === 'urgent' ? 'border-l-[3px] border-l-[#FF3B30] border-black/[0.05] dark:border-white/[0.08]' : 'border-black/[0.05] dark:border-white/[0.08]'}`}
-    >
-      {/* Title row */}
-      <div className="flex items-start gap-2 mb-2">
-        {task.is_emergency && (
-          <div className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-[#FEF2F2] flex items-center justify-center">
-            <AlertTriangle size={10} className="text-[#FF3B30]" />
-          </div>
-        )}
-        <p className="text-xs font-semibold text-gray-900 dark:text-white leading-snug line-clamp-2 flex-1">{task.title}</p>
-        <span className={`flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${p.bg} ${p.text} ${p.ring}`}>
-          {p.label}
-        </span>
-      </div>
-
-      {/* Client */}
-      {task.client && (
-        <div className="flex items-center gap-1 mb-2">
-          <MapPin size={10} className="text-gray-400 dark:text-white/30 flex-shrink-0" />
-          <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">{task.client.name}</p>
-        </div>
-      )}
-
-      {/* Visit status badge */}
-      {(() => { const vb = visitBadge(task.latest_visit); if (!vb) return null; return (
-        <div className="flex items-center gap-1 mb-2" style={{ color: vb.color }}>
-          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: vb.color }} />
-          <p className="text-[10px] font-semibold truncate">{vb.label}</p>
-        </div>
-      ); })()}
-
-      {/* Footer */}
-      <div className="flex items-center justify-between gap-2 mt-1">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div className="w-4 h-4 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-            <User size={9} className="text-gray-400 dark:text-white/30" />
-          </div>
-          <p className="text-[10px] text-gray-500 dark:text-white/40 truncate">
-            {task.assignee?.full_name ?? <span className="italic text-gray-300 dark:text-white/20">Belum ada</span>}
-          </p>
-        </div>
-        {task.confirm_deadline && (
-          <div className={`flex items-center gap-0.5 flex-shrink-0 text-[10px] ${isOverdue ? 'text-[#FF3B30] font-semibold' : 'text-gray-400 dark:text-white/30'}`}>
-            <Clock size={9} />
-            {new Date(task.confirm_deadline).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}
-          </div>
-        )}
-      </div>
-
-      {task.escalated_from && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] text-[#FF9500] font-medium">
-          <ArrowUpRight size={10} />
-          Eskalasi
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── TaskListCard (mobile / table-mode card) ───────────────────────────────────
+// ── TaskListCard ──────────────────────────────────────────────────────────────
 function TaskListCard({
   task,
   onAssign,
@@ -917,36 +841,9 @@ export default function TasksPage() {
           </div>
         ) : (
           /* ── KANBAN BOARD (desktop) / list (mobile) ── */
-          <>
-            {/* Desktop kanban — hidden on mobile, horizontal scroll on tablet */}
-            <div className="hidden md:flex gap-4 overflow-x-auto pb-2">
-              {BOARD_COLUMNS.map((col) => {
-                const colTasks = tasks.filter((t) => col.key.includes(t.status));
-                return (
-                  <div key={col.key[0]} className={`flex-shrink-0 w-[280px] bg-white/60 dark:bg-white/[0.03] rounded-2xl border border-black/[0.05] dark:border-white/[0.07] border-t-2 ${col.accent} overflow-hidden`}>
-                    {/* Column header */}
-                    <div className={`px-3 py-2.5 flex items-center justify-between ${col.headerBg}`}>
-                      <h3 className="text-[11px] font-bold text-gray-700 dark:text-white/70 uppercase tracking-wider">{col.label}</h3>
-                      <span className="text-xs font-bold bg-white dark:bg-white/10 rounded-full px-2 py-0.5 text-gray-600 dark:text-white/60 shadow-sm">{colTasks.length}</span>
-                    </div>
-                    {/* Cards */}
-                    <div className="p-2.5 flex flex-col gap-2 min-h-[200px]">
-                      {colTasks.length === 0 ? (
-                        <div className="flex items-center justify-center py-8 text-gray-300 dark:text-white/15 text-xs">Kosong</div>
-                      ) : (
-                        colTasks.map((t) => <KanbanCard key={t.id} task={t} onDetail={() => setDetailTaskId(t.id)} />)
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Mobile list cards */}
-            <div className="md:hidden space-y-3">
-              {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} onDetail={() => setDetailTaskId(t.id)} />)}
-            </div>
-          </>
+          <div className="space-y-3">
+            {tasks.map((t) => <TaskListCard key={t.id} task={t} onAssign={onAssignHandler} onCancel={onCancelHandler} onDelete={onDeleteHandler} onDetail={() => setDetailTaskId(t.id)} />)}
+          </div>
         )}
       </div>
       </>)}
