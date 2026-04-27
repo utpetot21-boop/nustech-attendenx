@@ -29,6 +29,12 @@ export interface ServiceReportData {
   before_photos: Array<{ url: string; caption?: string }>;
   during_photos: Array<{ url: string; caption?: string }>;
   after_photos: Array<{ url: string; caption?: string }>;
+  has_requirements?: boolean;
+  requirement_photos?: Array<{
+    label: string;
+    phase: string;
+    photos: Array<{ url: string; caption?: string }>;
+  }>;
   tech_signature_url: string | null;
   client_signature_url: string | null;
   is_locked: boolean;
@@ -80,9 +86,13 @@ export class PdfGeneratorService {
 
     // Pre-fetch all images as base64 so Puppeteer makes zero external requests
     const allPhotoUrls = [
-      ...data.before_photos.map((p) => p.url),
-      ...data.during_photos.map((p) => p.url),
-      ...data.after_photos.map((p) => p.url),
+      ...(data.has_requirements && data.requirement_photos
+        ? data.requirement_photos.flatMap((r) => r.photos.map((p) => p.url))
+        : [
+            ...data.before_photos.map((p) => p.url),
+            ...data.during_photos.map((p) => p.url),
+            ...data.after_photos.map((p) => p.url),
+          ]),
       data.tech_signature_url,
       data.client_signature_url,
     ];
@@ -100,6 +110,10 @@ export class PdfGeneratorService {
       before_photos: embedPhotos(data.before_photos),
       during_photos: embedPhotos(data.during_photos),
       after_photos: embedPhotos(data.after_photos),
+      requirement_photos: data.requirement_photos?.map((r) => ({
+        ...r,
+        photos: embedPhotos(r.photos),
+      })),
       tech_signature_url: uriMap.get(data.tech_signature_url ?? '') ?? data.tech_signature_url,
       client_signature_url: uriMap.get(data.client_signature_url ?? '') ?? data.client_signature_url,
     };

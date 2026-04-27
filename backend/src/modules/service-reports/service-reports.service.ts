@@ -16,6 +16,7 @@ import { CreateServiceReportDto } from './dto/create-service-report.dto';
 import { SignClientDto, ClientSignatureType } from './dto/sign-client.dto';
 import { EmailService } from '../notifications/email.service';
 import { CompanyProfileEntity } from '../settings/entities/company-profile.entity';
+import { TemplatePhotoRequirementEntity } from '../templates/entities/template-photo-requirement.entity';
 
 @Injectable()
 export class ServiceReportsService {
@@ -347,11 +348,35 @@ export class ServiceReportsService {
       reportNumber = await this.generateReportNumber(reportId);
     }
 
-    // Ambil foto per fase
-    const photos = await this.photoRepo.find({
-      where: { visit_id: report.visit_id },
-      order: { phase: 'ASC', created_at: 'ASC' },
-    });
+    // Ambil foto dengan join requirement untuk ordering by template
+    const photos = await this.photoRepo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.photo_requirement', 'pr')
+      .where('p.visit_id = :vid', { vid: report.visit_id })
+      .orderBy('pr.order_index', 'ASC', 'NULLS LAST')
+      .addOrderBy('p.seq_number', 'ASC', 'NULLS LAST')
+      .addOrderBy('p.created_at', 'ASC')
+      .getMany();
+
+    // Ambil daftar requirements untuk template ini
+    const photoRequirements = report.visit.template_id
+      ? await this.ds.getRepository(TemplatePhotoRequirementEntity).find({
+          where: { template_id: report.visit.template_id },
+          order: { order_index: 'ASC' },
+        })
+      : [];
+
+    const has_requirements = photoRequirements.length > 0;
+
+    const requirement_photos = photoRequirements
+      .map((req) => ({
+        label: req.label,
+        phase: req.phase,
+        photos: photos
+          .filter((p) => p.photo_requirement_id === req.id)
+          .map((p) => ({ url: p.thumbnail_url ?? p.watermarked_url ?? p.original_url, caption: p.caption ?? '' })),
+      }))
+      .filter((r) => r.photos.length > 0);
 
     // Ambil form sections + field responses (semua field template, nilai diisi jika ada jawaban)
     const rawFormRows = report.visit.template_id
@@ -444,6 +469,8 @@ export class ServiceReportsService {
       before_photos: byPhase('before'),
       during_photos: byPhase('during'),
       after_photos: byPhase('after'),
+      has_requirements,
+      requirement_photos,
       tech_signature_url: report.tech_signature_url,
       client_signature_url: report.client_signature_url,
       is_locked: report.is_locked,

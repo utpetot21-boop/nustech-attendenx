@@ -177,46 +177,60 @@
 </div>
 {{/if}}
 
-{{#if before_photos.length}}
-<div class="section">
-  <div class="section-title">Foto Sebelum ({{ before_photos.length }})</div>
-  <div class="photos-grid">
-    {{#each before_photos}}
-    <div class="photo-item">
-      <img src="{{ this.url }}" alt="Before {{ @index }}">
-      {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+{{#if has_requirements}}
+  {{#each requirement_photos}}
+  <div class="section">
+    <div class="section-title">{{ this.label }} ({{ this.photos.length }})</div>
+    <div class="photos-grid">
+      {{#each this.photos}}
+      <div class="photo-item">
+        <img src="{{ this.url }}" alt="Foto">
+        {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+      </div>
+      {{/each}}
     </div>
-    {{/each}}
   </div>
-</div>
-{{/if}}
-
-{{#if during_photos.length}}
-<div class="section">
-  <div class="section-title">Foto Saat Pengerjaan ({{ during_photos.length }})</div>
-  <div class="photos-grid">
-    {{#each during_photos}}
-    <div class="photo-item">
-      <img src="{{ this.url }}" alt="During {{ @index }}">
-      {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+  {{/each}}
+{{else}}
+  {{#if before_photos.length}}
+  <div class="section">
+    <div class="section-title">Foto Sebelum ({{ before_photos.length }})</div>
+    <div class="photos-grid">
+      {{#each before_photos}}
+      <div class="photo-item">
+        <img src="{{ this.url }}" alt="Before {{ @index }}">
+        {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+      </div>
+      {{/each}}
     </div>
-    {{/each}}
   </div>
-</div>
-{{/if}}
-
-{{#if after_photos.length}}
-<div class="section">
-  <div class="section-title">Foto Setelah ({{ after_photos.length }})</div>
-  <div class="photos-grid">
-    {{#each after_photos}}
-    <div class="photo-item">
-      <img src="{{ this.url }}" alt="After {{ @index }}">
-      {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+  {{/if}}
+  {{#if during_photos.length}}
+  <div class="section">
+    <div class="section-title">Foto Saat Pengerjaan ({{ during_photos.length }})</div>
+    <div class="photos-grid">
+      {{#each during_photos}}
+      <div class="photo-item">
+        <img src="{{ this.url }}" alt="During {{ @index }}">
+        {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+      </div>
+      {{/each}}
     </div>
-    {{/each}}
   </div>
-</div>
+  {{/if}}
+  {{#if after_photos.length}}
+  <div class="section">
+    <div class="section-title">Foto Setelah ({{ after_photos.length }})</div>
+    <div class="photos-grid">
+      {{#each after_photos}}
+      <div class="photo-item">
+        <img src="{{ this.url }}" alt="After {{ @index }}">
+        {{#if this.caption}}<div class="photo-label">{{ this.caption }}</div>{{/if}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
 {{/if}}
 
 <!-- Tanda Tangan -->
