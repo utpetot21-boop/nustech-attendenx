@@ -17,7 +17,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  ActionSheetIOS,
   AppState,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -38,8 +37,8 @@ import { visitsService, VISIT_STATUS_META } from '@/services/visits.service';
 import { socketService } from '@/services/socket.service';
 import { api } from '@/services/api';
 import { PhotoPhaseGrid } from '@/components/visits/PhotoPhaseGrid';
-import { WatermarkCamera } from '@/components/visits/WatermarkCamera';
 import { pageBg, gradients, C, R, B, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
+import { useAuthStore } from '@/stores/auth.store';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ChevronLeft, Calendar } from 'lucide-react-native';
 
@@ -64,12 +63,11 @@ export default function VisitDetailScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((s) => s.user);
+  const isManager = ['manager', 'admin', 'super_admin'].includes(user?.role?.name ?? '');
 
-  // Camera state
-  const [cameraPhase, setCameraPhase] = useState<Phase | null>(null);
   const [uploadingPhase, setUploadingPhase] = useState<Phase | null>(null);
   const [uploadingRequirementId, setUploadingRequirementId] = useState<string | null>(null);
-  const [pendingRequirementId, setPendingRequirementId] = useState<string | null>(null);
 
   // Offline queue state
   const [offlinePendingCount, setOfflinePendingCount] = useState(0);
@@ -91,10 +89,14 @@ export default function VisitDetailScreen() {
   const [formAnswers, setFormAnswers] = useState<Record<string, string>>({});
   const [datePickerFieldId, setDatePickerFieldId] = useState<string | null>(null);
 
+  // Manager review state
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewNotes, setReviewNotes] = useState('');
+
   // Queries
-  const { data: visit, isLoading } = useQuery({
-    queryKey: ['visit', visitId],
-    queryFn: () => visitsService.getDetail(visitId!),
+  const { data: visit, isLoading, isError } = useQuery({
+    queryKey: ['visit', visitId, isManager ? 'admin' : 'user'],
+    queryFn: () => isManager ? visitsService.getAdminDetail(visitId!) : visitsService.getDetail(visitId!),
     enabled: !!visitId,
     refetchInterval: (query) => (query.state.data?.status === 'ongoing' ? 15000 : false),
   });
@@ -282,7 +284,6 @@ export default function VisitDetailScreen() {
     onSettled: () => {
       setUploadingPhase(null);
       setUploadingRequirementId(null);
-      setCameraPhase(null);
     },
   });
 
@@ -320,18 +321,20 @@ export default function VisitDetailScreen() {
     },
   });
 
-  const handleCameraCapture = useCallback(
-    (uri: string, lat: number, lng: number) => {
-      if (!cameraPhase) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setUploadingPhase(cameraPhase);
-      setUploadingRequirementId(pendingRequirementId);
-      setCameraPhase(null);
-      setPendingRequirementId(null);
-      addPhotoMutation.mutate({ phase: cameraPhase, uri, lat, lng, requirementId: pendingRequirementId ?? undefined, source: 'camera' });
+  const reviewMutation = useMutation({
+    mutationFn: (payload: { review_status: 'approved' | 'revision_needed'; review_rating: number; review_notes?: string }) =>
+      visitsService.reviewVisit(visitId!, payload),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['visit', visitId, 'admin'] });
+      qc.invalidateQueries({ queryKey: ['visits-completed-all'] });
+      Alert.alert('Evaluasi Tersimpan', 'Kunjungan berhasil dievaluasi.');
     },
-    [cameraPhase, pendingRequirementId, addPhotoMutation],
-  );
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message ?? 'Terjadi kesalahan.');
+    },
+  });
 
   const handleGalleryPick = useCallback(
     async (phase: Phase, requirementId?: string) => {
@@ -357,34 +360,7 @@ export default function VisitDetailScreen() {
 
   const handleAddPhotoTap = useCallback(
     (phase: Phase, requirementId?: string) => {
-      if (Platform.OS === 'ios') {
-        ActionSheetIOS.showActionSheetWithOptions(
-          { options: ['Batal', 'Kamera', 'Dari Galeri'], cancelButtonIndex: 0 },
-          (index) => {
-            if (index === 1) {
-              setPendingRequirementId(requirementId ?? null);
-              setCameraPhase(phase);
-            } else if (index === 2) {
-              void handleGalleryPick(phase, requirementId);
-            }
-          },
-        );
-      } else {
-        Alert.alert('Tambah Foto', 'Pilih sumber foto', [
-          { text: 'Batal', style: 'cancel' },
-          {
-            text: 'Kamera',
-            onPress: () => {
-              setPendingRequirementId(requirementId ?? null);
-              setCameraPhase(phase);
-            },
-          },
-          {
-            text: 'Dari Galeri',
-            onPress: () => { void handleGalleryPick(phase, requirementId); },
-          },
-        ]);
-      }
+      void handleGalleryPick(phase, requirementId);
     },
     [handleGalleryPick],
   );
@@ -423,22 +399,29 @@ export default function VisitDetailScreen() {
     return `Foto ${PHASE_LABELS[phase]} (${c.count}/${c.max})`;
   };
 
-  if (isLoading || !visit) {
+  if (isLoading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: pageBg(isDark),
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <View style={{ flex: 1, backgroundColor: pageBg(isDark), alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={isDark ? '#FFF' : '#007AFF'} />
       </View>
     );
   }
 
-  const isOngoing = visit.status === 'ongoing';
+  if (isError || !visit) {
+    return (
+      <View style={{ flex: 1, backgroundColor: pageBg(isDark), alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+          <ChevronLeft size={20} strokeWidth={2.5} color="#007AFF" />
+          <Text style={{ fontSize: 15, color: '#007AFF' }}>Kembali</Text>
+        </TouchableOpacity>
+        <Text style={{ fontSize: 16, color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280', textAlign: 'center' }}>
+          Kunjungan tidak ditemukan atau Anda tidak memiliki akses.
+        </Text>
+      </View>
+    );
+  }
+
+  const isOngoing = visit.status === 'ongoing' && !isManager;
   const visitStatusMeta = VISIT_STATUS_META[visit.status] ?? VISIT_STATUS_META.ongoing;
   const canCheckout =
     isOngoing &&
@@ -861,8 +844,84 @@ export default function VisitDetailScreen() {
               </View>
             )}
 
-            {/* Belum direview — info ringan */}
-            {!isOngoing && !visit.review_status && (
+            {/* Manager review form — hanya jika belum direview */}
+            {!isOngoing && !visit.review_status && isManager && (
+              <View style={{
+                marginHorizontal: 16, marginBottom: 16,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#FFFFFF',
+                borderRadius: 16, borderWidth: 0.5,
+                borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                padding: 16,
+              }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: isDark ? '#FFF' : '#111', marginBottom: 14, letterSpacing: -0.3 }}>
+                  Evaluasi Kunjungan
+                </Text>
+
+                <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  RATING
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 14 }}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <TouchableOpacity key={s} onPress={() => setReviewRating(s)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                      <Text style={{ fontSize: 28, opacity: s <= reviewRating ? 1 : 0.22 }}>⭐</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={{ fontSize: 11, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  CATATAN (opsional)
+                </Text>
+                <TextInput
+                  value={reviewNotes}
+                  onChangeText={setReviewNotes}
+                  placeholder="Catatan evaluasi atau instruksi revisi..."
+                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F9FAFB',
+                    borderRadius: 12, borderWidth: 0.5,
+                    borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+                    padding: 12, fontSize: 14,
+                    color: isDark ? '#FFF' : '#111',
+                    minHeight: 80, marginBottom: 14,
+                  }}
+                />
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => reviewMutation.mutate({ review_status: 'revision_needed', review_rating: reviewRating, review_notes: reviewNotes.trim() || undefined })}
+                    disabled={reviewMutation.isPending}
+                    activeOpacity={0.8}
+                    style={{
+                      flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
+                      backgroundColor: isDark ? 'rgba(255,149,0,0.15)' : '#FFF7ED',
+                      borderWidth: 1, borderColor: isDark ? 'rgba(255,149,0,0.35)' : 'rgba(255,149,0,0.3)',
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#FF9500' }}>Perlu Revisi</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => reviewMutation.mutate({ review_status: 'approved', review_rating: reviewRating, review_notes: reviewNotes.trim() || undefined })}
+                    disabled={reviewMutation.isPending}
+                    activeOpacity={0.8}
+                    style={{
+                      flex: 1.2, paddingVertical: 13, borderRadius: 12, alignItems: 'center',
+                      backgroundColor: '#34C759',
+                    }}
+                  >
+                    {reviewMutation.isPending
+                      ? <ActivityIndicator color="#FFF" size="small" />
+                      : <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>Setujui</Text>
+                    }
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Belum direview — info ringan (teknisi view) */}
+            {!isOngoing && !visit.review_status && !isManager && (
               <View style={{
                 marginHorizontal: 16, marginBottom: 16,
                 backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
@@ -1079,17 +1138,6 @@ export default function VisitDetailScreen() {
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
-
-      {/* Watermark Camera Modal */}
-      <Modal visible={!!cameraPhase} animationType="slide">
-        {cameraPhase && (
-          <WatermarkCamera
-            phaseLabel={getPhotoLabel(cameraPhase)}
-            onCapture={handleCameraCapture}
-            onCancel={() => setCameraPhase(null)}
-          />
-        )}
-      </Modal>
 
       {/* Check-out form Modal */}
       <Modal visible={showCheckoutForm} animationType="slide" presentationStyle="pageSheet">
