@@ -948,129 +948,159 @@ function TaskDetailInner() {
         )}
 
         {/* ── Kunjungan Terkini ─────────────────────── */}
-        {task.latest_visit && (
-          <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-            <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        {task.latest_visit && (() => {
+          const v = task.latest_visit!;
+          const fmtDt = (iso: string) =>
+            new Date(iso).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' WITA';
+
+          let statusLabel = v.status;
+          let statusColor = '#8E8E93';
+          if (v.status === 'ongoing') { statusLabel = 'Berlangsung'; statusColor = C.blue; }
+          else if (v.review_status === 'approved') { statusLabel = `Disetujui ★${v.review_rating ?? ''}`; statusColor = C.green; }
+          else if (v.review_status === 'revision_needed') { statusLabel = `Perlu Revisi ★${v.review_rating ?? ''}`; statusColor = C.orange; }
+          else if (v.status === 'completed') { statusLabel = 'Menunggu Tinjauan'; statusColor = C.teal; }
+
+          const phases = ['before', 'during', 'after'] as const;
+          const phaseLabels: Record<string, string> = { before: 'Sebelum', during: 'Selama', after: 'Sesudah' };
+          const hasPhotos = !!v.photos && v.photos.length > 0;
+          const feedbackCount = v.photos?.filter((p) => p.admin_feedback).length ?? 0;
+          const materials = v.materials_used ?? [];
+          const canReview = v.status === 'completed' && v.review_status === null && canApprove && task.creator?.id === currentUserId;
+
+          return (
+            <View style={{ paddingHorizontal: 20, marginBottom: 14, gap: 12 }}>
+              {/* Section title */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: isDark ? C.blue + '33' : C.blue + '14', alignItems: 'center', justifyContent: 'center' }}>
                   <Target size={16} strokeWidth={1.8} color={C.blue} />
                 </View>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Kunjungan Terkini</Text>
               </View>
 
-              {(() => {
-                const v = task.latest_visit!;
-                let label = v.status;
-                let color = '#8E8E93';
-                if (v.status === 'ongoing') { label = 'Berlangsung'; color = C.blue; }
-                else if (v.review_status === 'approved') { label = `Disetujui ★${v.review_rating ?? ''}`; color = C.green; }
-                else if (v.review_status === 'revision_needed') { label = `Perlu Revisi ★${v.review_rating ?? ''}`; color = C.orange; }
-                else if (v.status === 'completed') { label = 'Menunggu Tinjauan'; color = C.teal; }
-                return (
-                  <View style={{ alignSelf: 'flex-start', backgroundColor: color + '18', borderRadius: R.xs, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 10 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color }}>{label}</Text>
-                  </View>
-                );
-              })()}
+              {/* Card 1: Informasi Kunjungan */}
+              <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+                <VisitSectionTitle title="Informasi Kunjungan" />
+                <View style={{ alignSelf: 'flex-start', backgroundColor: statusColor + '18', borderRadius: R.xs, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 12 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: statusColor }}>{statusLabel}</Text>
+                </View>
+                {task.client?.name && (
+                  <VisitInfoRow label="Klien" value={task.client.name} textPrimary={textPrimary} textSecondary={textSecondary} />
+                )}
+                {v.check_in_at && (
+                  <VisitInfoRow label="Check-in" value={fmtDt(v.check_in_at)} textPrimary={textPrimary} textSecondary={textSecondary} />
+                )}
+                {v.check_out_at && (
+                  <VisitInfoRow label="Check-out" value={fmtDt(v.check_out_at)} textPrimary={textPrimary} textSecondary={textSecondary} />
+                )}
+                {v.duration_minutes != null && (
+                  <VisitInfoRow
+                    label="Durasi"
+                    value={`${Math.floor(v.duration_minutes / 60)} jam ${v.duration_minutes % 60} menit`}
+                    textPrimary={textPrimary} textSecondary={textSecondary}
+                  />
+                )}
+                {v.check_in_address && (
+                  <VisitInfoRow label="Lokasi" value={v.check_in_address} textPrimary={textPrimary} textSecondary={textSecondary} />
+                )}
+              </View>
 
-              {task.latest_visit.check_in_at && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <Play size={12} strokeWidth={2} color={textSecondary as string} />
-                  <Text style={{ fontSize: 13, color: textSecondary }}>
-                    Check-in: {new Date(task.latest_visit.check_in_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} WITA
-                  </Text>
+              {/* Card 2: Foto */}
+              {hasPhotos && (
+                <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+                  <VisitSectionTitle title="Dokumentasi Foto" />
+                  {feedbackCount > 0 && (
+                    <View style={{
+                      backgroundColor: isDark ? 'rgba(255,149,0,0.14)' : '#FFF3CD',
+                      borderRadius: 12, padding: 12, marginBottom: 12,
+                      borderLeftWidth: 4, borderLeftColor: C.orange,
+                      flexDirection: 'row', alignItems: 'center', gap: 10,
+                    }}>
+                      <AlertTriangle size={18} color={C.orange} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontWeight: '700', color: isDark ? C.orange : '#92400E', fontSize: 13 }}>
+                          {feedbackCount} foto perlu diambil ulang
+                        </Text>
+                        <Text style={{ color: isDark ? C.orange : '#92400E', fontSize: 12, marginTop: 2 }}>
+                          Tap foto dengan border oranye untuk melihat catatan admin
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                  {phases.map((key) => {
+                    const phasePhotos = v.photos!.filter((p) => p.phase === key);
+                    if (phasePhotos.length === 0) return null;
+                    return (
+                      <View key={key} style={{ marginBottom: 12 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
+                          {phaseLabels[key]}
+                        </Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                          <View style={{ flexDirection: 'row', gap: 8, paddingRight: 4 }}>
+                            {phasePhotos.map((photo) => (
+                              <TouchableOpacity
+                                key={photo.id}
+                                activeOpacity={photo.admin_feedback ? 0.75 : 1}
+                                onPress={photo.admin_feedback ? () => setFeedbackPhoto({ feedback: photo.admin_feedback!, phase: phaseLabels[key] }) : undefined}
+                                style={{ width: 80, height: 80, borderRadius: 10, overflow: 'hidden', borderWidth: photo.needs_retake ? 2 : 0, borderColor: C.orange }}
+                              >
+                                <Image
+                                  source={{ uri: photo.thumbnail_url ?? photo.watermarked_url }}
+                                  style={{ width: '100%', height: '100%', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }}
+                                  resizeMode="cover"
+                                />
+                                {photo.admin_feedback && (
+                                  <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: C.orange, borderRadius: 8, padding: 2 }}>
+                                    <AlertCircle size={12} strokeWidth={2.5} color="#FFF" />
+                                  </View>
+                                )}
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </ScrollView>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
-              {task.latest_visit.check_out_at && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <CheckCircle2 size={12} strokeWidth={2} color={textSecondary as string} />
-                  <Text style={{ fontSize: 13, color: textSecondary }}>
-                    Check-out: {new Date(task.latest_visit.check_out_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} WITA
-                    {task.latest_visit.duration_minutes ? ` · ${Math.floor(task.latest_visit.duration_minutes / 60)}j ${task.latest_visit.duration_minutes % 60}m` : ''}
-                  </Text>
+
+              {/* Card 3: Deskripsi Pekerjaan */}
+              {v.work_description && (
+                <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+                  <VisitSectionTitle title="Deskripsi Pekerjaan" />
+                  <Text style={{ fontSize: 14, color: textSecondary, lineHeight: 22 }}>{v.work_description}</Text>
                 </View>
               )}
 
-              {/* ── Dokumentasi Kunjungan (foto + laporan) ── */}
-              {(() => {
-                const v = task.latest_visit!;
-                const phases = [
-                  { key: 'before', label: 'Sebelum' },
-                  { key: 'during', label: 'Selama' },
-                  { key: 'after',  label: 'Sesudah' },
-                ] as const;
-                const hasPhotos = v.photos && v.photos.length > 0;
-                const hasReport = v.work_description || v.findings || v.recommendations || (v.materials_used && v.materials_used.length > 0);
-                if (!hasPhotos && !hasReport) return null;
-                return (
-                  <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', paddingTop: 14 }}>
-                    {hasPhotos && phases.map(({ key, label }) => {
-                      const phasePhotos = v.photos!.filter((p) => p.phase === key);
-                      if (phasePhotos.length === 0) return null;
-                      return (
-                        <View key={key} style={{ marginBottom: 12 }}>
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
-                            {label}
-                          </Text>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            <View style={{ flexDirection: 'row', gap: 8, paddingRight: 4 }}>
-                              {phasePhotos.map((photo) => (
-                                <TouchableOpacity
-                                  key={photo.id}
-                                  activeOpacity={photo.admin_feedback ? 0.75 : 1}
-                                  onPress={photo.admin_feedback ? () => setFeedbackPhoto({ feedback: photo.admin_feedback!, phase: label }) : undefined}
-                                  style={{ width: 80, height: 80, borderRadius: 10, overflow: 'hidden', borderWidth: photo.needs_retake ? 2 : 0, borderColor: C.orange }}
-                                >
-                                  <Image
-                                    source={{ uri: photo.thumbnail_url ?? photo.watermarked_url }}
-                                    style={{ width: '100%', height: '100%', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }}
-                                    resizeMode="cover"
-                                  />
-                                  {photo.admin_feedback && (
-                                    <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: C.orange, borderRadius: 8, padding: 2 }}>
-                                      <AlertCircle size={12} strokeWidth={2.5} color="#FFF" />
-                                    </View>
-                                  )}
-                                </TouchableOpacity>
-                              ))}
-                            </View>
-                          </ScrollView>
-                        </View>
-                      );
-                    })}
-                    {v.work_description && (
-                      <View style={{ marginBottom: 10 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Deskripsi Pekerjaan</Text>
-                        <Text style={{ fontSize: 13, color: textPrimary, lineHeight: 20 }}>{v.work_description}</Text>
-                      </View>
-                    )}
-                    {v.findings && (
-                      <View style={{ marginBottom: 10 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Temuan</Text>
-                        <Text style={{ fontSize: 13, color: textPrimary, lineHeight: 20 }}>{v.findings}</Text>
-                      </View>
-                    )}
-                    {v.recommendations && (
-                      <View style={{ marginBottom: 10 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Rekomendasi</Text>
-                        <Text style={{ fontSize: 13, color: textPrimary, lineHeight: 20 }}>{v.recommendations}</Text>
-                      </View>
-                    )}
-                    {v.materials_used && v.materials_used.length > 0 && (
-                      <View style={{ marginBottom: 10 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Material Digunakan</Text>
-                        {v.materials_used.map((m, i) => (
-                          <Text key={i} style={{ fontSize: 13, color: textPrimary, lineHeight: 20 }}>• {m.name} — {m.qty}</Text>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                );
-              })()}
+              {/* Card 4: Temuan */}
+              {v.findings && (
+                <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+                  <VisitSectionTitle title="Temuan" />
+                  <Text style={{ fontSize: 14, color: textSecondary, lineHeight: 22 }}>{v.findings}</Text>
+                </View>
+              )}
 
-              {task.latest_visit.status === 'completed' && task.latest_visit.review_status === null && canApprove && task.creator?.id === currentUserId && (
-                <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', paddingTop: 14 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: textPrimary, marginBottom: 10 }}>Tinjauan</Text>
+              {/* Card 5: Rekomendasi */}
+              {v.recommendations && (
+                <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+                  <VisitSectionTitle title="Rekomendasi" />
+                  <Text style={{ fontSize: 14, color: textSecondary, lineHeight: 22 }}>{v.recommendations}</Text>
+                </View>
+              )}
+
+              {/* Card 6: Material Digunakan */}
+              {materials.length > 0 && (
+                <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+                  <VisitSectionTitle title="Material Digunakan" />
+                  {materials.map((m, i) => (
+                    <Text key={i} style={{ fontSize: 14, color: textSecondary, lineHeight: 22 }}>• {m.name} — {m.qty}</Text>
+                  ))}
+                </View>
+              )}
+
+              {/* Card 7: Tinjauan */}
+              {canReview && (
+                <View style={{ backgroundColor: cardBg, borderRadius: 20, borderWidth: 1.5, borderColor: cardBorder, padding: 18 }}>
+                  <VisitSectionTitle title="Tinjauan" />
                   <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
                     {[1,2,3,4,5].map((star) => (
                       <TouchableOpacity key={star} onPress={() => setReviewRating(star)} style={{ padding: 2 }}>
@@ -1090,7 +1120,7 @@ function TaskDetailInner() {
                     <TouchableOpacity
                       onPress={() => Alert.alert('Perlu Revisi?', 'Kunjungan akan ditandai perlu revisi.', [
                         { text: 'Batal', style: 'cancel' },
-                        { text: 'Kirim', onPress: () => reviewMut.mutate({ visitId: task.latest_visit!.id, status: 'revision_needed' }) },
+                        { text: 'Kirim', onPress: () => reviewMut.mutate({ visitId: v.id, status: 'revision_needed' }) },
                       ])}
                       disabled={reviewMut.isPending}
                       style={{ flex: 1, paddingVertical: 13, borderRadius: 14, backgroundColor: isDark ? C.orange + '1F' : C.orange + '0D', alignItems: 'center', borderWidth: 1.5, borderColor: C.orange + '4D' }}
@@ -1100,7 +1130,7 @@ function TaskDetailInner() {
                     <TouchableOpacity
                       onPress={() => Alert.alert('Setujui Kunjungan?', 'Kunjungan akan ditandai disetujui.', [
                         { text: 'Batal', style: 'cancel' },
-                        { text: 'Setujui', onPress: () => reviewMut.mutate({ visitId: task.latest_visit!.id, status: 'approved' }) },
+                        { text: 'Setujui', onPress: () => reviewMut.mutate({ visitId: v.id, status: 'approved' }) },
                       ])}
                       disabled={reviewMut.isPending}
                       style={{ flex: 1.4, paddingVertical: 13, borderRadius: 14, backgroundColor: C.green, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
@@ -1112,17 +1142,28 @@ function TaskDetailInner() {
                 </View>
               )}
 
+              {/* Tombol navigasi */}
               <TouchableOpacity
-                onPress={() => router.push(`/(main)/visits/${task.latest_visit!.id}` as never)}
-                style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F8FAFC', borderRadius: 12, paddingVertical: 11, borderWidth: 1.5, borderColor: cardBorder }}
+                onPress={() => router.push(`/(main)/visits/${v.id}` as never)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F8FAFC', borderRadius: 12, paddingVertical: 11, borderWidth: 1.5, borderColor: cardBorder }}
               >
                 <FileText size={14} strokeWidth={1.8} color={textSecondary as string} />
                 <Text style={{ fontSize: 14, fontWeight: '600', color: textSecondary }}>Lihat Detail Kunjungan</Text>
                 <ChevronRight size={14} strokeWidth={2} color={textSecondary as string} />
               </TouchableOpacity>
+
+              {v.status === 'completed' && (
+                <TouchableOpacity
+                  onPress={() => router.push(`/(main)/visits/${v.id}` as never)}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.green, borderRadius: 14, paddingVertical: 13, shadowColor: C.green, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 }}
+                >
+                  <FileText size={16} strokeWidth={2} color="#FFF" />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>Lihat Berita Acara</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
-        )}
+          );
+        })()}
 
         {/* ── Admin: Tugaskan ───────────────────────── */}
         {assignable && (
@@ -1860,6 +1901,25 @@ function TaskDetailInner() {
           </View>
         </View>
       </Modal>
+    </View>
+  );
+}
+
+// ── Sub-components (Kunjungan Terkini) ────────────────────────────────────────
+
+function VisitSectionTitle({ title }: { title: string }) {
+  return (
+    <Text style={{ fontSize: 11, fontWeight: '700', color: C.blue, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
+      {title}
+    </Text>
+  );
+}
+
+function VisitInfoRow({ label, value, textPrimary, textSecondary }: { label: string; value: string; textPrimary: string; textSecondary: string }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+      <Text style={{ width: 90, fontSize: 13, color: textSecondary }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: textPrimary }}>{value}</Text>
     </View>
   );
 }

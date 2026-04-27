@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { ServiceReportsService } from './service-reports.service';
 import { CreateServiceReportDto } from './dto/create-service-report.dto';
 import { SignTechnicianDto } from './dto/sign-technician.dto';
@@ -67,7 +68,7 @@ export class ServiceReportsController {
     return this.svc.signClient(user.id, id, dto, file?.buffer);
   }
 
-  // GET /service-reports/:id/pdf  — stream PDF ke browser
+  // GET /service-reports/:id/pdf  — stream PDF ke browser (Bearer auth)
   @Get(':id/pdf')
   @RequirePermission('task:own', 'task:assign')
   async downloadPdf(
@@ -77,7 +78,32 @@ export class ServiceReportsController {
   ) {
     const buf = await this.svc.generatePdf(user.id, id, user.role?.name ?? '');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="BA-${id}.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="BA-${id}.pdf"`);
+    res.send(buf);
+  }
+
+  // GET /service-reports/:id/pdf-token  — ambil token 10 menit untuk buka PDF di browser
+  @Get(':id/pdf-token')
+  @RequirePermission('task:own', 'task:assign')
+  async getPdfToken(
+    @CurrentUser() user: UserEntity,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const token = await this.svc.generatePdfToken(user.id, id);
+    return { token };
+  }
+
+  // GET /service-reports/:id/pdf-view?token=xxx  — buka PDF via token (public, untuk browser)
+  @Public()
+  @Get(':id/pdf-view')
+  async viewPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('token') token: string,
+    @Res() res: Response,
+  ) {
+    const buf = await this.svc.generatePdfWithToken(token, id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="BA-${id}.pdf"`);
     res.send(buf);
   }
 

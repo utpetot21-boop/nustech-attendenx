@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { JwtService } from '@nestjs/jwt';
 import { DataSource, Repository } from 'typeorm';
 import { ServiceReportEntity } from '../visits/entities/service-report.entity';
 import { VisitEntity } from '../visits/entities/visit.entity';
@@ -32,6 +33,7 @@ export class ServiceReportsService {
     private readonly storage: StorageService,
     private readonly pdfGen: PdfGeneratorService,
     private readonly email: EmailService,
+    private readonly jwtService: JwtService,
   ) {}
 
   // ── Create draft BA ─────────────────────────────────────────────────────────
@@ -252,6 +254,30 @@ export class ServiceReportsService {
 
     await this.reportRepo.update(reportId, { sent_to_client: true, sent_at: new Date() });
     return { success: true, sent_to: clientEmail };
+  }
+
+  // ── Generate short-lived PDF token (10 menit) ────────────────────────────────
+  async generatePdfToken(userId: string, reportId: string): Promise<string> {
+    const report = await this.findReportOrThrow(reportId);
+    if (!report.is_locked) throw new BadRequestException('BA belum dikunci — PDF belum tersedia');
+    return this.jwtService.sign(
+      { sub: userId, reportId, type: 'pdf_token' },
+      { expiresIn: '10m' },
+    );
+  }
+
+  // ── Generate PDF menggunakan short-lived token (untuk pdf-view endpoint) ──────
+  async generatePdfWithToken(token: string, reportId: string): Promise<Buffer> {
+    let payload: { sub: string; reportId: string; type: string };
+    try {
+      payload = this.jwtService.verify<{ sub: string; reportId: string; type: string }>(token);
+    } catch {
+      throw new ForbiddenException('Token tidak valid atau sudah kadaluarsa');
+    }
+    if (payload.type !== 'pdf_token' || payload.reportId !== reportId) {
+      throw new ForbiddenException('Token tidak valid untuk laporan ini');
+    }
+    return this.generatePdf(payload.sub, reportId, 'karyawan');
   }
 
   // ──────────────────────────────────────────────────────────────────────────────

@@ -2,20 +2,16 @@ import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Alert, Modal, TextInput, Image,
-  ActivityIndicator, useColorScheme, KeyboardAvoidingView, Platform,
+  ActivityIndicator, useColorScheme, KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as SecureStore from 'expo-secure-store';
 import {
   getServiceReport,
   signTechnician,
   signClientDigital,
   ServiceReport,
-  getPdfUrl,
 } from '@/services/service-reports.service';
 import { api as apiClient } from '@/services/api';
 import { C, R, B, pageBg, cardBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
@@ -67,41 +63,16 @@ export default function ServiceReportDetailScreen() {
     onError: () => Alert.alert('Gagal', 'Tanda tangan klien gagal disimpan'),
   });
 
-  const downloadPdf = async () => {
+  const openPdf = async () => {
     if (!report?.is_locked) return;
+    setDownloading(true);
     try {
-      setDownloading(true);
-      const safeFileName = (report.report_number ?? id).replace(/\//g, '-');
-      // documentDirectory: persisten, tidak dihapus OS (beda dari cacheDirectory)
-      const filePath = `${FileSystem.documentDirectory}${safeFileName}.pdf`;
-
-      const token = await SecureStore.getItemAsync('access_token');
-      if (!token) {
-        Alert.alert('Sesi Berakhir', 'Silakan login ulang untuk mengunduh PDF.');
-        return;
-      }
-      const baseUrl = String(apiClient.defaults.baseURL ?? '');
-
-      const dl = await FileSystem.downloadAsync(
-        `${baseUrl}${getPdfUrl(id)}`,
-        filePath,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-
-      if (dl.status !== 200) {
-        Alert.alert('Gagal', `Server mengembalikan error ${dl.status}. Coba beberapa saat lagi.`);
-        return;
-      }
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(dl.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
-      } else {
-        Alert.alert('Info', `PDF tersimpan di: ${dl.uri}`);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Gagal', `Gagal mengunduh PDF: ${msg}`);
+      const res = await apiClient.get<{ token: string }>(`/service-reports/${id}/pdf-token`);
+      const baseUrl = String(apiClient.defaults.baseURL ?? '').replace(/\/$/, '');
+      const url = `${baseUrl}/service-reports/${id}/pdf-view?token=${res.data.token}`;
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Gagal', 'Tidak bisa membuka PDF. Coba lagi.');
     } finally {
       setDownloading(false);
     }
@@ -143,6 +114,33 @@ export default function ServiceReportDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* ── Lihat PDF (hero button, tampil di atas jika sudah locked) ── */}
+        {report.is_locked && (
+          <TouchableOpacity
+            style={{
+              backgroundColor: C.green, borderRadius: 18, padding: 18,
+              alignItems: 'center', opacity: downloading ? 0.7 : 1,
+              shadowColor: C.green, shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
+            }}
+            onPress={openPdf}
+            disabled={downloading}
+          >
+            {downloading ? (
+              <View style={{ alignItems: 'center', gap: 6 }}>
+                <ActivityIndicator color="#fff" />
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>
+                  Membuka PDF…
+                </Text>
+              </View>
+            ) : (
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
+                📄 Lihat PDF Berita Acara
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* ── Informasi Kunjungan ── */}
         <View style={{ backgroundColor: card, borderRadius: 20, borderWidth: B.default, borderColor, padding: 18 }}>
@@ -213,32 +211,6 @@ export default function ServiceReportDetailScreen() {
           </View>
         </View>
 
-        {/* ── Lihat / Download PDF ── */}
-        {report.is_locked && (
-          <TouchableOpacity
-            style={{
-              backgroundColor: C.green, borderRadius: 18, padding: 18,
-              alignItems: 'center', opacity: downloading ? 0.7 : 1,
-              shadowColor: C.green, shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
-            }}
-            onPress={downloadPdf}
-            disabled={downloading}
-          >
-            {downloading ? (
-              <View style={{ alignItems: 'center', gap: 6 }}>
-                <ActivityIndicator color="#fff" />
-                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>
-                  Membuka PDF…
-                </Text>
-              </View>
-            ) : (
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
-                Lihat PDF Berita Acara
-              </Text>
-            )}
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
       {/* ── Modal: Tanda Tangan Teknisi ── */}
