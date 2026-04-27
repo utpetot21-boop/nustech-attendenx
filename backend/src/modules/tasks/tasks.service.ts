@@ -208,7 +208,37 @@ export class TasksService {
     if (filters.priority) qb.andWhere('t.priority = :priority', { priority: filters.priority });
 
     const [items, total] = await qb.getManyAndCount();
-    return { items, total, page, limit };
+
+    // Enrich with latest_visit summary per task
+    let latestVisitMap = new Map<string, object>();
+    if (items.length > 0) {
+      const taskIds = items.map((t) => t.id);
+      const visits = await this.visitRepo
+        .createQueryBuilder('v')
+        .where('v.task_id IN (:...taskIds)', { taskIds })
+        .orderBy('v.check_in_at', 'DESC')
+        .getMany();
+      for (const v of visits) {
+        if (v.task_id && !latestVisitMap.has(v.task_id)) {
+          latestVisitMap.set(v.task_id, {
+            id: v.id,
+            status: v.status,
+            review_status: v.review_status,
+            review_rating: v.review_rating,
+            check_in_at: v.check_in_at,
+            check_out_at: v.check_out_at,
+            duration_minutes: v.duration_minutes,
+          });
+        }
+      }
+    }
+
+    return {
+      items: items.map((t) => ({ ...t, latest_visit: latestVisitMap.get(t.id) ?? null })),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: string): Promise<TaskEntity> {
@@ -218,6 +248,51 @@ export class TasksService {
     });
     if (!task) throw new NotFoundException('Tugas tidak ditemukan.');
     return task;
+  }
+
+  async findOneDetail(id: string) {
+    const task = await this.taskRepo.findOne({
+      where: { id },
+      relations: ['client', 'assignee', 'creator', 'canceller', 'assignments', 'delegations'],
+    });
+    if (!task) throw new NotFoundException('Tugas tidak ditemukan.');
+
+    const latestVisit = await this.visitRepo
+      .createQueryBuilder('v')
+      .leftJoinAndSelect('v.photos', 'p')
+      .where('v.task_id = :id', { id })
+      .orderBy('v.check_in_at', 'DESC')
+      .getOne();
+
+    const latest_visit = latestVisit
+      ? {
+          id: latestVisit.id,
+          status: latestVisit.status,
+          review_status: latestVisit.review_status,
+          review_rating: latestVisit.review_rating,
+          check_in_at: latestVisit.check_in_at,
+          check_out_at: latestVisit.check_out_at,
+          duration_minutes: latestVisit.duration_minutes,
+          check_in_address: latestVisit.check_in_address,
+          work_description: latestVisit.work_description,
+          findings: latestVisit.findings,
+          recommendations: latestVisit.recommendations,
+          materials_used: latestVisit.materials_used,
+          photos: (latestVisit.photos ?? [])
+            .sort((a, b) => a.seq_number! - b.seq_number!)
+            .map((p) => ({
+              id: p.id,
+              phase: p.phase,
+              seq_number: p.seq_number,
+              watermarked_url: p.watermarked_url,
+              thumbnail_url: p.thumbnail_url,
+              caption: p.caption,
+              taken_at: p.taken_at,
+            })),
+        }
+      : null;
+
+    return { ...task, latest_visit };
   }
 
   // ────────────────────────────────────────────────────────────────────────────

@@ -115,7 +115,7 @@ export class TasksController {
 
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tasks.findOne(id);
+    return this.tasks.findOneDetail(id);
   }
 
   @Get(':id/holds')
