@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import {
   Megaphone, Plus, X, Info, AlertTriangle, Sun, BookOpen,
-  Pin, Send, Clock, CheckCircle2, FileEdit, Trash2, ChevronRight,
+  Pin, Send, CheckCircle2, FileEdit, Trash2, ChevronRight,
   Search, type LucideIcon,
 } from 'lucide-react-native';
 import { api } from '@/services/api';
@@ -72,19 +72,31 @@ export default function AnnouncementsScreen() {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
-  const roleName = user?.role?.name ?? '';
-  const canCreate     = ['admin', 'manager', 'super_admin'].includes(roleName);
-  const canSendDirect = ['manager', 'super_admin'].includes(roleName);
+  const roleName      = user?.role?.name ?? '';
+  const canCreate     = true;
+  const canSendDirect = ['manager', 'admin', 'super_admin'].includes(roleName);
+  const canApprove    = (user?.role?.permissions?.includes('announcement:approve') ?? false) &&
+    (roleName !== 'admin' || user?.position?.name === 'DIREKTUR');
 
-  const [filter, setFilter] = useState<FilterKey>('all');
-  const [selected, setSelected] = useState<Announcement | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [filter, setFilter]             = useState<FilterKey>('all');
+  const [selected, setSelected]         = useState<Announcement | null>(null);
+  const [showCreate, setShowCreate]     = useState(false);
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [rejectReason, setRejectReason]       = useState('');
+
+  const closeDetail = useCallback(() => {
+    setSelected(null);
+    setShowRejectInput(false);
+    setRejectReason('');
+  }, []);
 
   const { data: list = [], isLoading, isRefetching, refetch } = useQuery<Announcement[]>({
-    queryKey: ['announcements-admin', filter],
+    queryKey: ['announcements-admin', filter, canSendDirect, canApprove],
     queryFn: () => {
+      const isKaryawan = !canSendDirect && !canApprove;
+      const base = isKaryawan ? '/announcements/mine' : '/announcements';
       const q = filter !== 'all' ? `?status=${filter}` : '';
-      return api.get(`/announcements${q}`).then((r) => r.data);
+      return api.get(`${base}${q}`).then((r) => r.data);
     },
     refetchInterval: 30_000,
   });
@@ -94,7 +106,7 @@ export default function AnnouncementsScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['announcements-admin'] });
-      setSelected(null);
+      closeDetail();
     },
     onError: () => Alert.alert('Gagal', 'Tidak dapat menghapus pengumuman.'),
   });
@@ -105,7 +117,7 @@ export default function AnnouncementsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['announcements-admin'] });
       qc.invalidateQueries({ queryKey: ['announcements', 'unread-count'] });
-      setSelected(null);
+      closeDetail();
       Alert.alert('Berhasil', 'Pengumuman berhasil dikirim.');
     },
     onError: () => Alert.alert('Gagal', 'Gagal mengirim pengumuman.'),
@@ -116,16 +128,46 @@ export default function AnnouncementsScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['announcements-admin'] });
-      setSelected(null);
+      closeDetail();
       Alert.alert('Berhasil', 'Pengumuman diajukan untuk persetujuan.');
     },
     onError: () => Alert.alert('Gagal', 'Gagal mengajukan pengumuman.'),
+  });
+
+  const approveMut = useMutation({
+    mutationFn: (id: string) => api.post(`/announcements/${id}/approve`),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['announcements-admin'] });
+      qc.invalidateQueries({ queryKey: ['announcements', 'unread-count'] });
+      closeDetail();
+      Alert.alert('Berhasil', 'Pengumuman disetujui dan dikirim.');
+    },
+    onError: () => Alert.alert('Gagal', 'Gagal menyetujui pengumuman.'),
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.post(`/announcements/${id}/reject`, { reason }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['announcements-admin'] });
+      closeDetail();
+      Alert.alert('Berhasil', 'Pengumuman ditolak.');
+    },
+    onError: () => Alert.alert('Gagal', 'Gagal menolak pengumuman.'),
   });
 
   const confirmDelete = (id: string) =>
     Alert.alert('Hapus Pengumuman', 'Tindakan ini tidak dapat dibatalkan.', [
       { text: 'Batal', style: 'cancel' },
       { text: 'Hapus', style: 'destructive', onPress: () => deleteMut.mutate(id) },
+    ]);
+
+  const confirmApprove = (id: string) =>
+    Alert.alert('Setujui Pengumuman', 'Pengumuman akan langsung dikirim setelah disetujui.', [
+      { text: 'Batal', style: 'cancel' },
+      { text: 'Setujui & Kirim', onPress: () => approveMut.mutate(id) },
     ]);
 
   return (
@@ -251,11 +293,12 @@ export default function AnnouncementsScreen() {
       </ScrollView>
 
       {/* ── Detail Modal ── */}
-      <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
+      <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeDetail}>
         {selected && (() => {
           const tm = TYPE_META[selected.type] ?? TYPE_META.info;
           const sm = STATUS_META[selected.status] ?? STATUS_META.draft;
-          const actionPending = sendMut.isPending || submitMut.isPending || deleteMut.isPending;
+          const actionPending = sendMut.isPending || submitMut.isPending || deleteMut.isPending
+            || approveMut.isPending || rejectMut.isPending;
           return (
             <View style={{ flex: 1, backgroundColor: pageBg(isDark) }}>
               <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
@@ -283,7 +326,7 @@ export default function AnnouncementsScreen() {
                   </View>
                 </View>
                 <TouchableOpacity
-                  onPress={() => setSelected(null)}
+                  onPress={closeDetail}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)', alignItems: 'center', justifyContent: 'center' }}
                 >
@@ -348,7 +391,7 @@ export default function AnnouncementsScreen() {
                     >
                       {submitMut.isPending ? <ActivityIndicator color="#FFF" size="small" /> : <Send size={16} strokeWidth={2} color="#FFF" />}
                       <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>
-                        {submitMut.isPending ? 'Mengajukan…' : (selected.status === 'rejected' ? 'Ajukan Ulang' : 'Ajukan ke Manager')}
+                        {submitMut.isPending ? 'Mengajukan…' : (selected.status === 'rejected' ? 'Ajukan Ulang' : 'Ajukan untuk Persetujuan')}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -362,6 +405,74 @@ export default function AnnouncementsScreen() {
                     <Trash2 size={16} strokeWidth={2} color={C.red} />
                     <Text style={{ color: C.red, fontWeight: '700', fontSize: 15 }}>Hapus Pengumuman</Text>
                   </TouchableOpacity>
+
+                  {/* Approve/reject — hanya untuk user dengan announcement:approve + DIREKTUR */}
+                  {canApprove && selected.status === 'pending_approval' && !showRejectInput && (
+                    <>
+                      <TouchableOpacity
+                        onPress={() => confirmApprove(selected.id)}
+                        disabled={actionPending}
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: R.md, backgroundColor: C.green, opacity: actionPending ? 0.6 : 1 }}
+                      >
+                        {approveMut.isPending
+                          ? <ActivityIndicator color="#FFF" size="small" />
+                          : <CheckCircle2 size={16} strokeWidth={2} color="#FFF" />}
+                        <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>
+                          {approveMut.isPending ? 'Menyetujui…' : 'Setujui & Kirim'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => setShowRejectInput(true)}
+                        disabled={actionPending}
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: R.md, backgroundColor: `${C.orange}14`, borderWidth: 0.5, borderColor: `${C.orange}30`, opacity: actionPending ? 0.6 : 1 }}
+                      >
+                        <X size={16} strokeWidth={2} color={C.orange} />
+                        <Text style={{ color: C.orange, fontWeight: '700', fontSize: 15 }}>Tolak</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {/* Reject reason form (inline, cross-platform) */}
+                  {canApprove && selected.status === 'pending_approval' && showRejectInput && (
+                    <View style={{ gap: 10 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark) }}>
+                        Alasan penolakan *
+                      </Text>
+                      <TextInput
+                        value={rejectReason}
+                        onChangeText={setRejectReason}
+                        placeholder="Tulis alasan penolakan…"
+                        placeholderTextColor={lTertiary(isDark)}
+                        multiline
+                        numberOfLines={3}
+                        textAlignVertical="top"
+                        style={{
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF',
+                          borderRadius: 12, borderWidth: 0.5,
+                          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)',
+                          padding: 12, fontSize: 14, color: lPrimary(isDark), minHeight: 80,
+                        }}
+                      />
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => { setShowRejectInput(false); setRejectReason(''); }}
+                          style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.10)' }}
+                        >
+                          <Text style={{ fontWeight: '600', color: lSecondary(isDark) }}>Batal</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => { if (rejectReason.trim()) rejectMut.mutate({ id: selected.id, reason: rejectReason.trim() }); }}
+                          disabled={!rejectReason.trim() || rejectMut.isPending}
+                          style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: R.md, backgroundColor: C.red, opacity: (!rejectReason.trim() || rejectMut.isPending) ? 0.5 : 1 }}
+                        >
+                          {rejectMut.isPending
+                            ? <ActivityIndicator color="#FFF" size="small" />
+                            : <Text style={{ fontWeight: '700', color: '#FFF' }}>Konfirmasi Tolak</Text>}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
                 </View>
               </ScrollView>
             </View>
@@ -735,7 +846,7 @@ function CreateSheet({
               >
                 {createMut.isPending ? <ActivityIndicator color="#FFF" size="small" /> : <Send size={16} strokeWidth={2} color={canSubmit ? '#FFF' : lTertiary(isDark)} />}
                 <Text style={{ fontSize: 15, fontWeight: '700', color: canSubmit ? '#FFF' : lTertiary(isDark) }}>
-                  {createMut.isPending ? 'Mengajukan…' : 'Ajukan ke Manager'}
+                  {createMut.isPending ? 'Mengajukan…' : 'Ajukan untuk Persetujuan'}
                 </Text>
               </TouchableOpacity>
             )}
