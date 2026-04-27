@@ -399,7 +399,7 @@ function TaskWorkCard({
               {task.client.name}
               {task.client.address ? ` · ${task.client.address}` : ''}
             </Text>
-            {distLabel && (
+            {distLabel && task.status === 'assigned' && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.blue + '12', borderRadius: R.xs, paddingHorizontal: 6, paddingVertical: 2 }}>
                 <Navigation size={10} strokeWidth={2} color={C.blue} />
                 <Text style={{ fontSize: 11, fontWeight: '600', color: C.blue }}>{distLabel}</Text>
@@ -613,6 +613,23 @@ function ManagerTaskCard({
             </Text>
           )}
         </View>
+
+        <TouchableOpacity
+          onPress={onPress}
+          style={{
+            marginTop: 10,
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+            backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
+            borderRadius: R.sm, paddingVertical: 9,
+            borderWidth: 0.5,
+            borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+          }}
+          activeOpacity={0.7}
+        >
+          <FileText size={13} strokeWidth={1.8} color={lSecondary(isDark)} />
+          <Text style={{ fontSize: 13, fontWeight: '600', color: lSecondary(isDark) }}>Lihat Detail</Text>
+          <ChevronRight size={13} strokeWidth={2} color={lSecondary(isDark)} />
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );

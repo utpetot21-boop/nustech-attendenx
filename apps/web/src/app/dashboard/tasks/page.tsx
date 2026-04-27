@@ -11,6 +11,7 @@ import {
   Clock, User, ArrowUpRight, CheckCircle2, CircleDot,
   PauseCircle, RefreshCw, Radio, Target, Check, X,
   Calendar, Zap, Ban, Trash2, UserPlus, FileText, Play, Navigation,
+  Pencil, AlertCircle, ChevronDown,
 } from 'lucide-react';
 import { getAuthUser } from '@/lib/auth';
 import { VisitsTab } from './_visits-tab';
@@ -35,7 +36,7 @@ interface LatestVisitDetail extends LatestVisit {
   findings?: string | null;
   recommendations?: string | null;
   materials_used?: { name: string; qty: string }[] | null;
-  photos?: { id: string; phase: string; seq_number: number | null; watermarked_url: string; thumbnail_url: string | null; caption?: string | null; taken_at: string }[];
+  photos?: { id: string; phase: string; seq_number: number | null; watermarked_url: string; thumbnail_url: string | null; caption?: string | null; taken_at: string; admin_feedback?: string | null; needs_retake?: boolean }[];
 }
 
 interface TaskDetail extends Task {
@@ -248,11 +249,62 @@ function TaskDetailDrawer({
   const qc = useQueryClient();
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [photoTab, setPhotoTab] = useState<'before' | 'during' | 'after'>('before');
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [feedbackTarget, setFeedbackTarget] = useState<{ photoId: string; phase: string } | null>(null);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [editDesc, setEditDesc] = useState('');
+  const [editFindings, setEditFindings] = useState('');
+  const [editRecommendations, setEditRecommendations] = useState('');
+  const [showAudit, setShowAudit] = useState(false);
+  const isAdmin = ['admin', 'super_admin'].includes(getAuthUser()?.role?.name ?? '');
 
   const { data: task, isLoading } = useQuery({
     queryKey: ['task-detail-web', taskId],
     queryFn: () => apiClient.get(`/tasks/${taskId}`).then((r) => r.data as TaskDetail),
     enabled: !!taskId,
+  });
+
+  const feedbackMut = useMutation({
+    mutationFn: ({ visitId, photoId, feedback }: { visitId: string; photoId: string; feedback: string }) =>
+      apiClient.patch(`/visits/${visitId}/photos/${photoId}/feedback`, { feedback, needs_retake: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['task-detail-web', taskId] });
+      setFeedbackTarget(null);
+      setFeedbackText('');
+      toast.success('Catatan berhasil disimpan. Teknisi akan dinotifikasi.');
+    },
+    onError: () => toast.error('Gagal menyimpan catatan'),
+  });
+
+  const clearFeedbackMut = useMutation({
+    mutationFn: ({ visitId, photoId }: { visitId: string; photoId: string }) =>
+      apiClient.delete(`/visits/${visitId}/photos/${photoId}/feedback`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['task-detail-web', taskId] });
+      toast.success('Catatan dihapus');
+    },
+  });
+
+  const editMut = useMutation({
+    mutationFn: ({ visitId }: { visitId: string }) => apiClient.patch(`/visits/${visitId}`, {
+      work_description: editDesc.trim() || undefined,
+      findings: editFindings.trim() || undefined,
+      recommendations: editRecommendations.trim() || undefined,
+    }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['task-detail-web', taskId] });
+      setEditMode(false);
+      toast.success('Laporan berhasil diperbarui');
+    },
+    onError: () => toast.error('Gagal memperbarui laporan'),
+  });
+
+  const { data: auditLog } = useQuery<{ id: string; action: string; user: { full_name: string } | null; old_data: Record<string, unknown> | null; new_data: Record<string, unknown> | null; created_at: string }[]>({
+    queryKey: ['visit-audit', task?.latest_visit?.id],
+    queryFn: () => apiClient.get(`/visits/${task!.latest_visit!.id}/audit-log`).then((r) => r.data),
+    enabled: showAudit && isAdmin && !!task?.latest_visit?.id,
   });
 
   const reviewMut = useMutation({
@@ -360,19 +412,164 @@ function TaskDetailDrawer({
                     </div>
                   )}
 
-                  {/* Work description */}
-                  {task.latest_visit.work_description && (
+                  {/* Laporan Pekerjaan dengan edit */}
+                  {(task.latest_visit.work_description || isAdmin) && (
                     <div className="p-3 bg-gray-50 dark:bg-white/[0.04] rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-                      <p className="text-[10px] font-semibold text-gray-400 dark:text-white/35 uppercase tracking-wider mb-1.5">Laporan Pekerjaan</p>
-                      <p className="text-xs text-gray-700 dark:text-white/70 leading-relaxed">{task.latest_visit.work_description}</p>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[10px] font-semibold text-gray-400 dark:text-white/35 uppercase tracking-wider">Laporan Pekerjaan</p>
+                        {isAdmin && !editMode && task.latest_visit.work_description && (
+                          <button onClick={() => { setEditMode(true); setEditDesc(task.latest_visit?.work_description ?? ''); setEditFindings(task.latest_visit?.findings ?? ''); setEditRecommendations(task.latest_visit?.recommendations ?? ''); }}
+                            className="flex items-center gap-0.5 text-[10px] text-[#007AFF] font-semibold hover:underline">
+                            <Pencil size={9} /> Edit
+                          </button>
+                        )}
+                      </div>
+                      {editMode ? (
+                        <div className="space-y-2">
+                          <div>
+                            <p className="text-[10px] text-gray-400 dark:text-white/30 mb-0.5">Deskripsi Pekerjaan</p>
+                            <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={3}
+                              className="w-full text-xs bg-white dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-lg px-2 py-1.5 resize-none focus:outline-none focus:border-[#007AFF] text-gray-900 dark:text-white" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-400 dark:text-white/30 mb-0.5">Temuan</p>
+                            <textarea value={editFindings} onChange={e => setEditFindings(e.target.value)} rows={2}
+                              className="w-full text-xs bg-white dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-lg px-2 py-1.5 resize-none focus:outline-none focus:border-[#007AFF] text-gray-900 dark:text-white" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-400 dark:text-white/30 mb-0.5">Rekomendasi</p>
+                            <textarea value={editRecommendations} onChange={e => setEditRecommendations(e.target.value)} rows={2}
+                              className="w-full text-xs bg-white dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.10] rounded-lg px-2 py-1.5 resize-none focus:outline-none focus:border-[#007AFF] text-gray-900 dark:text-white" />
+                          </div>
+                          <div className="flex gap-1.5">
+                            <button onClick={() => editMut.mutate({ visitId: task.latest_visit!.id })} disabled={editMut.isPending}
+                              className="flex-1 py-1.5 text-[11px] font-semibold text-white bg-[#007AFF] rounded-lg disabled:opacity-50 transition">Simpan</button>
+                            <button onClick={() => setEditMode(false)}
+                              className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 bg-gray-100 dark:bg-white/[0.08] rounded-lg transition">Batal</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-xs text-gray-700 dark:text-white/70 leading-relaxed">{task.latest_visit.work_description ?? '—'}</p>
+                          {task.latest_visit.findings && (
+                            <>
+                              <p className="text-[10px] font-semibold text-gray-400 dark:text-white/35 uppercase tracking-wider mt-2 mb-0.5">Temuan</p>
+                              <p className="text-xs text-gray-700 dark:text-white/70 leading-relaxed">{task.latest_visit.findings}</p>
+                            </>
+                          )}
+                          {task.latest_visit.recommendations && (
+                            <>
+                              <p className="text-[10px] font-semibold text-gray-400 dark:text-white/35 uppercase tracking-wider mt-2 mb-0.5">Rekomendasi</p>
+                              <p className="text-xs text-gray-700 dark:text-white/70 leading-relaxed">{task.latest_visit.recommendations}</p>
+                            </>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
 
-                  {/* Photos count */}
-                  {task.latest_visit.photos && task.latest_visit.photos.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <FileText size={11} className="text-gray-400 dark:text-white/30 flex-shrink-0" />
-                      <span className="text-xs text-gray-500 dark:text-white/50">{task.latest_visit.photos.length} foto terlampir</span>
+                  {/* Foto grid dengan feedback */}
+                  {task.latest_visit.photos && task.latest_visit.photos.length > 0 && (() => {
+                    const byPhase = {
+                      before: task.latest_visit.photos!.filter(p => p.phase === 'before'),
+                      during: task.latest_visit.photos!.filter(p => p.phase === 'during'),
+                      after:  task.latest_visit.photos!.filter(p => p.phase === 'after'),
+                    };
+                    const tabLabels = { before: 'Sebelum', during: 'Proses', after: 'Sesudah' } as const;
+                    const currentPhotos = byPhase[photoTab];
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex gap-1">
+                          {(['before', 'during', 'after'] as const).map(tab => (
+                            <button key={tab} onClick={() => setPhotoTab(tab)}
+                              className={`flex-1 py-1 text-[11px] font-semibold rounded-lg transition ${photoTab === tab ? 'bg-[#007AFF] text-white' : 'bg-gray-100 dark:bg-white/[0.06] text-gray-500 dark:text-white/40'}`}>
+                              {tabLabels[tab]} ({byPhase[tab].length})
+                            </button>
+                          ))}
+                        </div>
+                        {currentPhotos.length === 0 ? (
+                          <p className="text-xs text-gray-400 dark:text-white/30 text-center py-2">Belum ada foto</p>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {currentPhotos.map(photo => (
+                              <div key={photo.id} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-white/[0.06]"
+                                style={{ outline: photo.needs_retake ? '2px solid #FF9500' : undefined }}>
+                                <img src={photo.thumbnail_url ?? photo.watermarked_url} alt=""
+                                  className="w-full h-full object-cover cursor-pointer"
+                                  onClick={() => setLightboxUrl(photo.watermarked_url)} />
+                                {photo.admin_feedback && (
+                                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[#FF9500] flex items-center justify-center shadow-md">
+                                    <AlertCircle size={10} className="text-white" />
+                                  </div>
+                                )}
+                                {isAdmin && (
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                    {photo.admin_feedback ? (
+                                      <button onClick={e => { e.stopPropagation(); clearFeedbackMut.mutate({ visitId: task.latest_visit!.id, photoId: photo.id }); }}
+                                        className="px-2 py-1 bg-[#FF3B30] text-white text-[10px] rounded-lg font-semibold shadow">Hapus</button>
+                                    ) : (
+                                      <button onClick={e => { e.stopPropagation(); setFeedbackTarget({ photoId: photo.id, phase: photo.phase }); setFeedbackText(''); }}
+                                        className="px-2 py-1 bg-[#FF9500] text-white text-[10px] rounded-lg font-semibold shadow">Catatan</button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {feedbackTarget && (
+                          <div className="p-3 bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.08)] rounded-xl border border-[#FED7AA] dark:border-[rgba(255,149,0,0.25)]">
+                            <p className="text-[10px] font-semibold text-[#FF9500] mb-1.5">
+                              Catatan foto {feedbackTarget.phase === 'before' ? 'Sebelum' : feedbackTarget.phase === 'during' ? 'Proses' : 'Sesudah'}
+                            </p>
+                            <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} rows={2}
+                              placeholder="Tulis keterangan untuk teknisi..."
+                              className="w-full text-xs bg-white dark:bg-white/[0.06] border border-[#FED7AA] rounded-lg px-2 py-1.5 resize-none focus:outline-none text-gray-900 dark:text-white placeholder:text-gray-400" />
+                            <div className="flex gap-1.5 mt-1.5">
+                              <button onClick={() => feedbackMut.mutate({ visitId: task.latest_visit!.id, photoId: feedbackTarget.photoId, feedback: feedbackText })}
+                                disabled={!feedbackText.trim() || feedbackMut.isPending}
+                                className="flex-1 py-1.5 text-[11px] font-semibold text-white bg-[#FF9500] rounded-lg disabled:opacity-50 transition">Simpan</button>
+                              <button onClick={() => setFeedbackTarget(null)}
+                                className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 bg-gray-100 dark:bg-white/[0.08] rounded-lg transition">Batal</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Audit Trail */}
+                  {isAdmin && task.latest_visit.id && (
+                    <div>
+                      <button onClick={() => setShowAudit(!showAudit)}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 dark:text-white/40 hover:text-gray-700 dark:hover:text-white/60 transition">
+                        <ChevronDown size={12} className={`transition-transform ${showAudit ? 'rotate-180' : ''}`} />
+                        Riwayat Perubahan
+                      </button>
+                      {showAudit && (
+                        <div className="mt-2 space-y-1.5">
+                          {!auditLog ? (
+                            <div className="w-4 h-4 border-2 border-[#007AFF] border-t-transparent rounded-full animate-spin mx-auto" />
+                          ) : auditLog.length === 0 ? (
+                            <p className="text-xs text-gray-400 dark:text-white/30 text-center py-2">Belum ada riwayat perubahan</p>
+                          ) : auditLog.map(log => (
+                            <div key={log.id} className="p-2 bg-gray-50 dark:bg-white/[0.04] rounded-lg border border-black/[0.04] dark:border-white/[0.06] text-[11px]">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-semibold text-gray-700 dark:text-white/70">{log.user?.full_name ?? 'Sistem'}</span>
+                                <span className="text-gray-400 dark:text-white/30">{new Date(log.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              {log.new_data && Object.keys(log.new_data).map(field => (
+                                <div key={field} className="text-gray-500 dark:text-white/40 truncate">
+                                  <span className="text-gray-400">{field}:</span>{' '}
+                                  <span className="line-through text-[#FF3B30]">{String((log.old_data as Record<string, unknown> | null)?.[field] ?? '—').slice(0, 40)}</span>
+                                  {' → '}
+                                  <span className="text-[#34C759]">{String((log.new_data as Record<string, unknown>)[field] ?? '—').slice(0, 40)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -438,6 +635,16 @@ function TaskDetailDrawer({
           </div>
         )}
       </div>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
+          <img src={lightboxUrl} alt="" className="max-w-full max-h-full rounded-xl object-contain" onClick={e => e.stopPropagation()} />
+          <button onClick={() => setLightboxUrl(null)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition">
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

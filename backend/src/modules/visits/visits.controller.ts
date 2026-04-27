@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -23,6 +25,8 @@ import { CheckInVisitDto } from './dto/check-in-visit.dto';
 import { AddPhotoDto } from './dto/add-photo.dto';
 import { CheckOutVisitDto } from './dto/check-out-visit.dto';
 import { ReviewVisitDto } from './dto/review-visit.dto';
+import { GivePhotoFeedbackDto } from './dto/give-photo-feedback.dto';
+import { AdminUpdateVisitDto } from './dto/admin-update-visit.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('visits')
@@ -203,5 +207,45 @@ export class VisitsController {
       page: page ? +page : 1,
       limit: limit ? +limit : 50,
     });
+  }
+
+  // PATCH /visits/:visitId/photos/:photoId/feedback — admin beri catatan pada foto
+  @Patch(':visitId/photos/:photoId/feedback')
+  @RequirePermission('task:assign')
+  givePhotoFeedback(
+    @CurrentUser('id') adminId: string,
+    @Param('visitId', ParseUUIDPipe) visitId: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+    @Body() dto: GivePhotoFeedbackDto,
+  ) {
+    return this.visitsService.givePhotoFeedback(visitId, photoId, adminId, dto);
+  }
+
+  // DELETE /visits/:visitId/photos/:photoId/feedback — admin hapus catatan foto
+  @Delete(':visitId/photos/:photoId/feedback')
+  @RequirePermission('task:assign')
+  clearPhotoFeedback(
+    @Param('visitId', ParseUUIDPipe) visitId: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+  ) {
+    return this.visitsService.clearPhotoFeedback(visitId, photoId);
+  }
+
+  // PATCH /visits/:id — admin edit data laporan kunjungan
+  @Patch(':id')
+  @RequirePermission('task:assign')
+  adminUpdateVisit(
+    @CurrentUser('id') adminId: string,
+    @Param('id', ParseUUIDPipe) visitId: string,
+    @Body() dto: AdminUpdateVisitDto,
+  ) {
+    return this.visitsService.adminUpdateVisit(visitId, adminId, dto);
+  }
+
+  // GET /visits/:id/audit-log — riwayat perubahan kunjungan
+  @Get(':id/audit-log')
+  @RequirePermission('task:assign')
+  getAuditLog(@Param('id', ParseUUIDPipe) visitId: string) {
+    return this.visitsService.getVisitAuditLog(visitId);
   }
 }

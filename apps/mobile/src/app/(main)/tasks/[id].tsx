@@ -17,7 +17,7 @@ import {
   Building2, MapPin, ArrowUpCircle, ArrowDownCircle, MinusCircle,
   Zap, PauseCircle, CheckCircle2, XCircle, CornerUpRight,
   Search, User, ChevronDown, Check, X as XIcon, Ban, Trash2,
-  UserPlus, Target, Radio, Play, Camera, ImagePlus,
+  UserPlus, Target, Radio, Play, Camera, ImagePlus, AlertCircle,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -116,6 +116,7 @@ function TaskDetailInner() {
   const qc = useQueryClient();
   const insets = useSafeAreaInsets();
 
+  const [feedbackPhoto, setFeedbackPhoto] = useState<{ feedback: string; phase: string } | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [showDelegateModal, setShowDelegateModal] = useState(false);
@@ -1014,12 +1015,23 @@ function TaskDetailInner() {
                           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             <View style={{ flexDirection: 'row', gap: 8, paddingRight: 4 }}>
                               {phasePhotos.map((photo) => (
-                                <Image
+                                <TouchableOpacity
                                   key={photo.id}
-                                  source={{ uri: photo.thumbnail_url ?? photo.watermarked_url }}
-                                  style={{ width: 80, height: 80, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }}
-                                  resizeMode="cover"
-                                />
+                                  activeOpacity={photo.admin_feedback ? 0.75 : 1}
+                                  onPress={photo.admin_feedback ? () => setFeedbackPhoto({ feedback: photo.admin_feedback!, phase: label }) : undefined}
+                                  style={{ width: 80, height: 80, borderRadius: 10, overflow: 'hidden', borderWidth: photo.needs_retake ? 2 : 0, borderColor: C.orange }}
+                                >
+                                  <Image
+                                    source={{ uri: photo.thumbnail_url ?? photo.watermarked_url }}
+                                    style={{ width: '100%', height: '100%', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }}
+                                    resizeMode="cover"
+                                  />
+                                  {photo.admin_feedback && (
+                                    <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: C.orange, borderRadius: 8, padding: 2 }}>
+                                      <AlertCircle size={12} strokeWidth={2.5} color="#FFF" />
+                                    </View>
+                                  )}
+                                </TouchableOpacity>
                               ))}
                             </View>
                           </ScrollView>
@@ -1823,6 +1835,30 @@ function TaskDetailInner() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Modal: Catatan Foto dari Admin ── */}
+      <Modal visible={!!feedbackPhoto} transparent animationType="fade" onRequestClose={() => setFeedbackPhoto(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <AlertCircle size={18} strokeWidth={2} color={C.orange} />
+              <Text style={{ fontSize: 16, fontWeight: '800', color: lPrimary(isDark) }}>Catatan Admin — Foto {feedbackPhoto?.phase}</Text>
+            </View>
+            <Text style={{ fontSize: 14, color: lSecondary(isDark), lineHeight: 22, marginBottom: 20 }}>
+              {feedbackPhoto?.feedback}
+            </Text>
+            <Text style={{ fontSize: 12, color: C.orange, fontWeight: '600', marginBottom: 20 }}>
+              Foto ini perlu diambil ulang. Buka kunjungan dan unggah foto yang sesuai.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setFeedbackPhoto(null)}
+              style={{ backgroundColor: C.orange, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Mengerti</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );

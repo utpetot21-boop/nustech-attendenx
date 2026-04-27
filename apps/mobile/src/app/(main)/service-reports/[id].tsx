@@ -213,7 +213,7 @@ export default function ServiceReportDetailScreen() {
           </View>
         </View>
 
-        {/* ── Download PDF ── */}
+        {/* ── Lihat / Download PDF ── */}
         {report.is_locked && (
           <TouchableOpacity
             style={{
@@ -229,12 +229,12 @@ export default function ServiceReportDetailScreen() {
               <View style={{ alignItems: 'center', gap: 6 }}>
                 <ActivityIndicator color="#fff" />
                 <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>
-                  Sedang generate PDF…
+                  Membuka PDF…
                 </Text>
               </View>
             ) : (
               <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>
-                ↓ Download PDF Berita Acara
+                Lihat PDF Berita Acara
               </Text>
             )}
           </TouchableOpacity>

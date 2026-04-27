@@ -14,6 +14,8 @@ import { CheckInVisitDto } from './dto/check-in-visit.dto';
 import { AddPhotoDto } from './dto/add-photo.dto';
 import { CheckOutVisitDto } from './dto/check-out-visit.dto';
 import { FormResponseItemDto } from './dto/save-form-responses.dto';
+import { GivePhotoFeedbackDto } from './dto/give-photo-feedback.dto';
+import { AdminUpdateVisitDto } from './dto/admin-update-visit.dto';
 import { NominatimService } from '../../services/nominatim.service';
 import { StorageService } from '../../services/storage.service';
 import { PhotoWatermarkService } from './photo-watermark.service';
@@ -24,6 +26,7 @@ import { TaskEntity } from '../tasks/entities/task.entity';
 import { TaskHoldEntity } from '../tasks/entities/task-hold.entity';
 import { ReviewVisitDto } from './dto/review-visit.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuditLogEntity } from '../audit/entities/audit-log.entity';
 
 // Photo phase limits (min / max)
 const PHOTO_LIMITS: Record<string, { min: number; max: number }> = {
@@ -51,6 +54,8 @@ export class VisitsService {
     private readonly holdRepo: Repository<TaskHoldEntity>,
     @InjectRepository(TemplatePhotoRequirementEntity)
     private readonly photoReqRepo: Repository<TemplatePhotoRequirementEntity>,
+    @InjectRepository(AuditLogEntity)
+    private readonly auditLogRepo: Repository<AuditLogEntity>,
     private readonly nominatim: NominatimService,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
@@ -619,6 +624,83 @@ export class VisitsService {
       where: { visit_id: visitId },
       relations: ['field'],
       order: { created_at: 'ASC' },
+    });
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // ADMIN: FEEDBACK FOTO
+  // ────────────────────────────────────────────────────────────────────────────
+
+  async givePhotoFeedback(
+    visitId: string,
+    photoId: string,
+    adminId: string,
+    dto: GivePhotoFeedbackDto,
+  ): Promise<VisitPhotoEntity> {
+    const photo = await this.photoRepo.findOne({ where: { id: photoId, visit_id: visitId } });
+    if (!photo) throw new NotFoundException('Foto tidak ditemukan');
+
+    photo.admin_feedback = dto.feedback;
+    photo.needs_retake = dto.needs_retake ?? true;
+    photo.feedback_by = adminId;
+    photo.feedback_at = new Date();
+    const saved = await this.photoRepo.save(photo);
+
+    const visit = await this.visitRepo.findOne({ where: { id: visitId } });
+    if (visit) {
+      await this.notifications.send({
+        userId: visit.user_id,
+        type: 'photo_feedback',
+        title: 'Foto Perlu Diperbaiki',
+        body: `Foto fase ${photo.phase}: "${dto.feedback}"`,
+        channels: ['push'],
+      });
+    }
+    return saved;
+  }
+
+  async clearPhotoFeedback(visitId: string, photoId: string): Promise<VisitPhotoEntity> {
+    const photo = await this.photoRepo.findOne({ where: { id: photoId, visit_id: visitId } });
+    if (!photo) throw new NotFoundException('Foto tidak ditemukan');
+
+    photo.admin_feedback = null;
+    photo.needs_retake = false;
+    photo.feedback_by = null;
+    photo.feedback_at = null;
+    return this.photoRepo.save(photo);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // ADMIN: EDIT DATA KUNJUNGAN + AUDIT TRAIL
+  // ────────────────────────────────────────────────────────────────────────────
+
+  async adminUpdateVisit(id: string, adminId: string, dto: AdminUpdateVisitDto): Promise<VisitEntity> {
+    const visit = await this.visitRepo.findOne({ where: { id } });
+    if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan');
+
+    const fields = Object.keys(dto) as (keyof AdminUpdateVisitDto)[];
+    const oldData = Object.fromEntries(fields.map((k) => [k, visit[k as keyof VisitEntity]]));
+    Object.assign(visit, dto);
+    const saved = await this.visitRepo.save(visit);
+
+    await this.auditLogRepo.save(
+      this.auditLogRepo.create({
+        user_id: adminId,
+        action: 'update',
+        entity_type: 'visit',
+        entity_id: id,
+        old_data: oldData,
+        new_data: Object.fromEntries(fields.map((k) => [k, saved[k as keyof VisitEntity]])),
+      }),
+    );
+    return saved;
+  }
+
+  async getVisitAuditLog(id: string): Promise<AuditLogEntity[]> {
+    return this.auditLogRepo.find({
+      where: { entity_type: 'visit', entity_id: id },
+      relations: ['user'],
+      order: { created_at: 'DESC' },
     });
   }
 

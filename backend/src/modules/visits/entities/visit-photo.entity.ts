@@ -69,6 +69,18 @@ export class VisitPhotoEntity {
   @Column({ type: 'varchar', length: 10, default: 'camera' })
   source: 'camera' | 'gallery' | 'admin';
 
+  @Column({ type: 'text', nullable: true })
+  admin_feedback: string | null;
+
+  @Column({ default: false })
+  needs_retake: boolean;
+
+  @Column({ type: 'uuid', nullable: true })
+  feedback_by: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  feedback_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 }

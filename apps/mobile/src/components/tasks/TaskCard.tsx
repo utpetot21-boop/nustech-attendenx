@@ -158,8 +158,8 @@ export function TaskCard({ task, onPress, userLat: _userLat, userLng: _userLng }
         </View>
       )}
 
-      {/* Navigation — buka Google Maps / Waze langsung, tanpa native MapView */}
-      {task.client?.lat && task.client?.lng && (
+      {/* Navigation — hanya saat tugas berstatus assigned (belum dimulai) */}
+      {task.client?.lat && task.client?.lng && task.status === 'assigned' && (
         <View style={{ marginTop: 12 }}>
           <NavigationButton
             lat={Number(task.client.lat)}

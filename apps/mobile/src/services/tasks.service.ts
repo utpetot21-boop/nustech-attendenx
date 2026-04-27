@@ -35,6 +35,8 @@ export interface LatestVisitDetail extends LatestVisitSummary {
     thumbnail_url: string | null;
     caption?: string | null;
     taken_at: string;
+    admin_feedback?: string | null;
+    needs_retake?: boolean;
   }[];
 }
 

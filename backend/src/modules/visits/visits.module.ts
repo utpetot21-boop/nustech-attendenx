@@ -10,6 +10,7 @@ import { VisitFormResponseEntity } from '../templates/entities/visit-form-respon
 import { TemplatePhotoRequirementEntity } from '../templates/entities/template-photo-requirement.entity';
 import { TaskEntity } from '../tasks/entities/task.entity';
 import { TaskHoldEntity } from '../tasks/entities/task-hold.entity';
+import { AuditLogEntity } from '../audit/entities/audit-log.entity';
 import { VisitsService } from './visits.service';
 import { VisitsController } from './visits.controller';
 import { PhotoWatermarkService } from './photo-watermark.service';
@@ -31,6 +32,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       TemplatePhotoRequirementEntity,
       TaskEntity,
       TaskHoldEntity,
+      AuditLogEntity,
     ]),
   ],
   controllers: [VisitsController],

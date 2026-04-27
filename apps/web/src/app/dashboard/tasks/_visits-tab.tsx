@@ -7,8 +7,10 @@ import {
   Activity, CheckCircle2, Pause, RefreshCw, XCircle, X,
   Calendar, ChevronRight, Building2,
   ExternalLink, Image as ImageIcon, Star, ThumbsUp, AlertCircle, Send,
+  Pencil, History, ChevronDown as ChevronDownIcon,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { getAuthUser } from '@/lib/auth';
 import { toast } from 'sonner';
 
 const PHOTO_MIN_TOTAL = 16;
@@ -40,7 +42,7 @@ export type Visit = {
   materials_used: Record<string, unknown>[] | null;
   user: { id: string; full_name: string };
   client: { id: string; name: string };
-  photos: { id: string; phase: string; watermarked_url: string | null; original_url: string }[];
+  photos: { id: string; phase: string; watermarked_url: string | null; original_url: string; admin_feedback?: string | null; needs_retake?: boolean }[];
   service_report: { id: string; report_number: string; status?: string; pdf_url: string | null } | null;
   review_status: string | null;
   review_rating: number | null;
@@ -307,6 +309,23 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
   const [reviewRating, setReviewRating] = useState(visit.review_rating ?? 5);
   const [reviewStatus, setReviewStatus] = useState(visit.review_status ?? 'approved');
   const [reviewNotes, setReviewNotes] = useState(visit.review_notes ?? '');
+
+  // Photo feedback state
+  const [feedbackTarget, setFeedbackTarget] = useState<{ photoId: string; phase: string } | null>(null);
+  const [feedbackText, setFeedbackText] = useState('');
+
+  // Edit laporan state
+  const [editMode, setEditMode] = useState(false);
+  const [editDesc, setEditDesc] = useState(visit.work_description ?? '');
+  const [editFindings, setEditFindings] = useState(visit.findings ?? '');
+  const [editRecommendations, setEditRecommendations] = useState(visit.recommendations ?? '');
+
+  // Audit trail state
+  const [showAudit, setShowAudit] = useState(false);
+
+  const authUser = getAuthUser();
+  const isAdmin = ['admin', 'super_admin'].includes(authUser?.role?.name ?? '');
+
   const qc = useQueryClient();
 
   const adminUploadMut = useMutation({
@@ -335,6 +354,47 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
       onReviewed(updated);
       toast.success('Evaluasi berhasil disimpan');
     },
+  });
+
+  const feedbackMut = useMutation({
+    mutationFn: ({ photoId, feedback }: { photoId: string; feedback: string }) =>
+      apiClient.patch(`/visits/${visit.id}/photos/${photoId}/feedback`, { feedback, needs_retake: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-visits'] });
+      setFeedbackTarget(null);
+      setFeedbackText('');
+      toast.success('Catatan berhasil disimpan. Teknisi akan dinotifikasi.');
+    },
+    onError: () => toast.error('Gagal menyimpan catatan'),
+  });
+
+  const clearFeedbackMut = useMutation({
+    mutationFn: (photoId: string) =>
+      apiClient.delete(`/visits/${visit.id}/photos/${photoId}/feedback`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-visits'] });
+      toast.success('Catatan dihapus');
+    },
+  });
+
+  const editMut = useMutation({
+    mutationFn: () => apiClient.patch(`/visits/${visit.id}`, {
+      work_description: editDesc.trim() || undefined,
+      findings: editFindings.trim() || undefined,
+      recommendations: editRecommendations.trim() || undefined,
+    }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-visits'] });
+      setEditMode(false);
+      toast.success('Laporan berhasil diperbarui');
+    },
+    onError: () => toast.error('Gagal memperbarui laporan'),
+  });
+
+  const { data: auditLog } = useQuery<{ id: string; action: string; user: { full_name: string } | null; old_data: Record<string, unknown> | null; new_data: Record<string, unknown> | null; created_at: string }[]>({
+    queryKey: ['visit-audit', visit.id],
+    queryFn: () => apiClient.get(`/visits/${visit.id}/audit-log`).then((r) => r.data),
+    enabled: showAudit && isAdmin,
   });
 
   const photosByPhase = {
@@ -447,31 +507,155 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
               <div className="grid grid-cols-4 gap-1.5">
                 {photosByPhase[photoTab].map((photo) => {
                   const url = photo.watermarked_url ?? photo.original_url;
+                  const hasFeedback = !!photo.admin_feedback;
                   return (
-                    <button key={photo.id} onClick={() => setLightbox(url)}
-                      className="aspect-square overflow-hidden rounded-xl group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
-                    </button>
+                    <div key={photo.id} className="relative group aspect-square">
+                      <button onClick={() => setLightbox(url)}
+                        className={`w-full h-full overflow-hidden rounded-xl ${hasFeedback ? 'ring-2 ring-[#FF9500]' : ''}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
+                      </button>
+                      {hasFeedback && (
+                        <div className="absolute top-1 right-1 bg-[#FF9500] rounded-full p-0.5">
+                          <AlertCircle size={10} className="text-white" strokeWidth={2.5} />
+                        </div>
+                      )}
+                      {isAdmin && (
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-xl transition flex items-end justify-center pb-1 opacity-0 group-hover:opacity-100">
+                          {hasFeedback ? (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); clearFeedbackMut.mutate(photo.id); }}
+                              className="text-[10px] bg-white/90 text-[#FF3B30] font-semibold px-2 py-0.5 rounded-full">
+                              Hapus Catatan
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setFeedbackTarget({ photoId: photo.id, phase: photoTab }); setFeedbackText(''); }}
+                              className="text-[10px] bg-white/90 text-[#FF9500] font-semibold px-2 py-0.5 rounded-full">
+                              Beri Catatan
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
             )}
+
+            {/* Feedback form inline */}
+            {feedbackTarget && (
+              <div className="mt-3 bg-[#FFF7ED] dark:bg-[#FF9500]/10 border border-[#FF9500]/30 rounded-xl p-3">
+                <p className="text-xs font-semibold text-[#9A3412] dark:text-[#FF9500] mb-2">
+                  Catatan untuk foto fase {feedbackTarget.phase === 'before' ? 'Sebelum' : feedbackTarget.phase === 'during' ? 'Proses' : 'Sesudah'}
+                </p>
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Jelaskan masalah pada foto ini (mis: blur, sudut salah, kurang jelas...)"
+                  rows={3}
+                  className="w-full text-xs bg-white dark:bg-white/10 border border-[#FF9500]/30 rounded-lg p-2 resize-none text-gray-700 dark:text-white/80 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500]/50"
+                />
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => setFeedbackTarget(null)} className="flex-1 py-1.5 text-xs text-gray-500 dark:text-white/50 bg-gray-100 dark:bg-white/[0.08] rounded-lg font-semibold">
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => feedbackMut.mutate({ photoId: feedbackTarget.photoId, feedback: feedbackText })}
+                    disabled={!feedbackText.trim() || feedbackMut.isPending}
+                    className="flex-1 py-1.5 text-xs text-white bg-[#FF9500] disabled:opacity-50 rounded-lg font-semibold">
+                    {feedbackMut.isPending ? 'Menyimpan…' : 'Simpan & Notifikasi Teknisi'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {(visit.work_description || visit.findings || visit.recommendations) && (
+          {(visit.work_description || visit.findings || visit.recommendations || isAdmin) && (
             <div className="space-y-3">
-              <p className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wide">Laporan Pekerjaan</p>
-              {[
-                { key: 'work_description', label: 'Deskripsi Pekerjaan', value: visit.work_description },
-                { key: 'findings', label: 'Temuan', value: visit.findings },
-                { key: 'recommendations', label: 'Rekomendasi', value: visit.recommendations },
-              ].filter((f) => f.value).map(({ key, label, value }) => (
-                <div key={key} className="bg-gray-50 dark:bg-white/[0.04] rounded-xl p-3">
-                  <p className="text-[11px] text-gray-400 dark:text-white/30 mb-1">{label}</p>
-                  <p className="text-xs text-gray-700 dark:text-white/70 leading-relaxed">{value}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wide">Laporan Pekerjaan</p>
+                {isAdmin && !editMode && (
+                  <button onClick={() => setEditMode(true)}
+                    className="flex items-center gap-1 text-[11px] text-[#007AFF] font-semibold hover:opacity-70 transition">
+                    <Pencil size={11} /> Edit
+                  </button>
+                )}
+              </div>
+
+              {editMode ? (
+                <div className="space-y-2">
+                  {[
+                    { label: 'Deskripsi Pekerjaan', value: editDesc, onChange: setEditDesc },
+                    { label: 'Temuan', value: editFindings, onChange: setEditFindings },
+                    { label: 'Rekomendasi', value: editRecommendations, onChange: setEditRecommendations },
+                  ].map(({ label, value, onChange }) => (
+                    <div key={label}>
+                      <p className="text-[11px] text-gray-400 dark:text-white/30 mb-1">{label}</p>
+                      <textarea
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        rows={3}
+                        className="w-full text-xs bg-gray-50 dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.1] rounded-xl p-2.5 resize-none text-gray-700 dark:text-white/80 focus:outline-none focus:ring-1 focus:ring-[#007AFF]/50"
+                      />
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => setEditMode(false)}
+                      className="flex-1 py-2 text-xs text-gray-500 dark:text-white/50 bg-gray-100 dark:bg-white/[0.08] rounded-xl font-semibold">
+                      Batal
+                    </button>
+                    <button onClick={() => editMut.mutate()} disabled={editMut.isPending}
+                      className="flex-1 py-2 text-xs text-white bg-[#007AFF] disabled:opacity-50 rounded-xl font-semibold">
+                      {editMut.isPending ? 'Menyimpan…' : 'Simpan Perubahan'}
+                    </button>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                [
+                  { key: 'work_description', label: 'Deskripsi Pekerjaan', value: visit.work_description },
+                  { key: 'findings', label: 'Temuan', value: visit.findings },
+                  { key: 'recommendations', label: 'Rekomendasi', value: visit.recommendations },
+                ].filter((f) => f.value).map(({ key, label, value }) => (
+                  <div key={key} className="bg-gray-50 dark:bg-white/[0.04] rounded-xl p-3">
+                    <p className="text-[11px] text-gray-400 dark:text-white/30 mb-1">{label}</p>
+                    <p className="text-xs text-gray-700 dark:text-white/70 leading-relaxed">{value}</p>
+                  </div>
+                ))
+              )}
+
+              {/* Audit trail */}
+              {isAdmin && (
+                <button onClick={() => setShowAudit((v) => !v)}
+                  className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-white/30 hover:text-gray-600 dark:hover:text-white/50 transition mt-1">
+                  <History size={12} />
+                  Riwayat Perubahan
+                  <ChevronDownIcon size={12} className={`transition-transform ${showAudit ? 'rotate-180' : ''}`} />
+                </button>
+              )}
+              {showAudit && (
+                <div className="space-y-2 pt-1">
+                  {!auditLog || auditLog.length === 0 ? (
+                    <p className="text-xs text-gray-400 dark:text-white/30 text-center py-3">Belum ada perubahan tercatat</p>
+                  ) : auditLog.map((log) => (
+                    <div key={log.id} className="bg-gray-50 dark:bg-white/[0.03] rounded-xl p-3 border border-black/[0.04] dark:border-white/[0.06]">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-bold text-[#007AFF] uppercase">{log.action}</span>
+                        <span className="text-[10px] text-gray-400 dark:text-white/30">
+                          {log.user?.full_name ?? '—'} · {new Date(log.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })}
+                        </span>
+                      </div>
+                      {log.new_data && Object.keys(log.new_data).map((field) => (
+                        <div key={field} className="text-[10px] text-gray-600 dark:text-white/50">
+                          <span className="font-semibold">{field}:</span>{' '}
+                          <span className="line-through text-red-400/70">{String(log.old_data?.[field] ?? '—').slice(0, 60)}</span>{' → '}
+                          <span className="text-[#166534] dark:text-[#34C759]">{String((log.new_data as Record<string, unknown>)[field] ?? '—').slice(0, 60)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
