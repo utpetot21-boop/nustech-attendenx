@@ -600,8 +600,8 @@ function TaskDetailInner() {
                 </View>
               )}
 
-              {/* Navigation button — sembunyikan saat tugas sudah selesai atau dibatalkan */}
-              {task.client.lat && task.client.lng && !isCompleted && !isCancelled && (
+              {/* Navigation — hanya untuk teknisi yang ditugaskan & tugas belum dimulai */}
+              {task.client.lat && task.client.lng && isAssigned && isAssignee && (
                 <View style={{ marginTop: 14 }}>
                   <NavigationButton
                     lat={Number(task.client.lat)}
@@ -990,7 +990,73 @@ function TaskDetailInner() {
                 </View>
               )}
 
-              {task.latest_visit.status === 'completed' && task.latest_visit.review_status === null && canApprove && (
+              {/* ── Dokumentasi Kunjungan (foto + laporan) ── */}
+              {(() => {
+                const v = task.latest_visit!;
+                const phases = [
+                  { key: 'before', label: 'Sebelum' },
+                  { key: 'during', label: 'Selama' },
+                  { key: 'after',  label: 'Sesudah' },
+                ] as const;
+                const hasPhotos = v.photos && v.photos.length > 0;
+                const hasReport = v.work_description || v.findings || v.recommendations || (v.materials_used && v.materials_used.length > 0);
+                if (!hasPhotos && !hasReport) return null;
+                return (
+                  <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', paddingTop: 14 }}>
+                    {hasPhotos && phases.map(({ key, label }) => {
+                      const phasePhotos = v.photos!.filter((p) => p.phase === key);
+                      if (phasePhotos.length === 0) return null;
+                      return (
+                        <View key={key} style={{ marginBottom: 12 }}>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
+                            {label}
+                          </Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <View style={{ flexDirection: 'row', gap: 8, paddingRight: 4 }}>
+                              {phasePhotos.map((photo) => (
+                                <Image
+                                  key={photo.id}
+                                  source={{ uri: photo.thumbnail_url ?? photo.watermarked_url }}
+                                  style={{ width: 80, height: 80, borderRadius: 10, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' }}
+                                  resizeMode="cover"
+                                />
+                              ))}
+                            </View>
+                          </ScrollView>
+                        </View>
+                      );
+                    })}
+                    {v.work_description && (
+                      <View style={{ marginBottom: 10 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Deskripsi Pekerjaan</Text>
+                        <Text style={{ fontSize: 13, color: textPrimary, lineHeight: 20 }}>{v.work_description}</Text>
+                      </View>
+                    )}
+                    {v.findings && (
+                      <View style={{ marginBottom: 10 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Temuan</Text>
+                        <Text style={{ fontSize: 13, color: textPrimary, lineHeight: 20 }}>{v.findings}</Text>
+                      </View>
+                    )}
+                    {v.recommendations && (
+                      <View style={{ marginBottom: 10 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Rekomendasi</Text>
+                        <Text style={{ fontSize: 13, color: textPrimary, lineHeight: 20 }}>{v.recommendations}</Text>
+                      </View>
+                    )}
+                    {v.materials_used && v.materials_used.length > 0 && (
+                      <View style={{ marginBottom: 10 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Material Digunakan</Text>
+                        {v.materials_used.map((m, i) => (
+                          <Text key={i} style={{ fontSize: 13, color: textPrimary, lineHeight: 20 }}>• {m.name} — {m.qty}</Text>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
+
+              {task.latest_visit.status === 'completed' && task.latest_visit.review_status === null && canApprove && task.creator?.id === currentUserId && (
                 <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', paddingTop: 14 }}>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: textPrimary, marginBottom: 10 }}>Tinjauan</Text>
                   <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
