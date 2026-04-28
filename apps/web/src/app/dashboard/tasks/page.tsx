@@ -31,12 +31,15 @@ interface LatestVisit {
 }
 
 interface LatestVisitDetail extends LatestVisit {
+  template_id?: string | null;
   check_in_address?: string | null;
   work_description?: string | null;
   findings?: string | null;
   recommendations?: string | null;
   materials_used?: { name: string; qty: string }[] | null;
-  photos?: { id: string; phase: string; seq_number: number | null; watermarked_url: string; thumbnail_url: string | null; caption?: string | null; taken_at: string; admin_feedback?: string | null; needs_retake?: boolean }[];
+  form_sections?: { title: string; fields: { label: string; value: string | null; is_required: boolean }[] }[];
+  photo_requirements?: { id: string; label: string; phase: string; order_index: number }[];
+  photos?: { id: string; phase: string; seq_number: number | null; photo_requirement_id?: string | null; watermarked_url: string; thumbnail_url: string | null; caption?: string | null; taken_at: string; admin_feedback?: string | null; needs_retake?: boolean }[];
 }
 
 interface TaskDetail extends Task {
@@ -468,15 +471,110 @@ function TaskDetailDrawer({
                     </div>
                   )}
 
-                  {/* Foto grid dengan feedback */}
+                  {/* Form Template Fields */}
+                  {task.latest_visit.form_sections && task.latest_visit.form_sections.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-semibold text-gray-400 dark:text-white/35 uppercase tracking-wider">Formulir Kunjungan</p>
+                      {task.latest_visit.form_sections.map((section) => (
+                        <div key={section.title} className="rounded-xl border border-black/[0.05] dark:border-white/[0.08] overflow-hidden">
+                          <div className="px-3 py-2 bg-gray-50 dark:bg-white/[0.04] border-b border-black/[0.04] dark:border-white/[0.06]">
+                            <p className="text-[10px] font-bold text-gray-600 dark:text-white/60">{section.title}</p>
+                          </div>
+                          {section.fields.map((field) => (
+                            <div key={field.label} className="flex items-start gap-2 px-3 py-2 border-b border-black/[0.03] dark:border-white/[0.04] last:border-0">
+                              <p className="text-[11px] text-gray-400 dark:text-white/35 w-2/5 flex-shrink-0 pt-0.5">
+                                {field.label}{field.is_required && <span className="text-[#FF3B30] ml-0.5">*</span>}
+                              </p>
+                              <p className={`text-[11px] flex-1 ${field.value ? 'text-gray-700 dark:text-white/70 font-medium' : 'text-gray-300 dark:text-white/20 italic'}`}>
+                                {field.value ?? '—'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Foto — per-requirement jika ada template, per-fase jika tidak */}
                   {task.latest_visit.photos && task.latest_visit.photos.length > 0 && (() => {
+                    const photos = task.latest_visit.photos!;
+                    const requirements = task.latest_visit.photo_requirements ?? [];
+                    const hasReq = requirements.length > 0;
+
+                    const PhotoGrid = ({ items }: { items: typeof photos }) => (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {items.map(photo => (
+                          <div key={photo.id} className="relative group aspect-video rounded-xl overflow-hidden bg-gray-100 dark:bg-white/[0.06]"
+                            style={{ outline: photo.needs_retake ? '2px solid #FF9500' : undefined }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={photo.thumbnail_url ?? photo.watermarked_url} alt=""
+                              className="w-full h-full object-cover cursor-pointer"
+                              onClick={() => setLightboxUrl(photo.watermarked_url)} />
+                            {photo.caption && (
+                              <div className="absolute bottom-0 inset-x-0 bg-black/50 px-1.5 py-0.5">
+                                <p className="text-[9px] text-white truncate">{photo.caption}</p>
+                              </div>
+                            )}
+                            {photo.admin_feedback && (
+                              <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[#FF9500] flex items-center justify-center shadow-md">
+                                <AlertCircle size={10} className="text-white" />
+                              </div>
+                            )}
+                            {isAdmin && (
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                {photo.admin_feedback ? (
+                                  <button onClick={e => { e.stopPropagation(); clearFeedbackMut.mutate({ visitId: task.latest_visit!.id, photoId: photo.id }); }}
+                                    className="px-2 py-1 bg-[#FF3B30] text-white text-[10px] rounded-lg font-semibold shadow">Hapus</button>
+                                ) : (
+                                  <button onClick={e => { e.stopPropagation(); setFeedbackTarget({ photoId: photo.id, phase: photo.phase }); setFeedbackText(''); }}
+                                    className="px-2 py-1 bg-[#FF9500] text-white text-[10px] rounded-lg font-semibold shadow">Catatan</button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+
+                    if (hasReq) {
+                      return (
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-semibold text-gray-400 dark:text-white/35 uppercase tracking-wider">Foto Kunjungan</p>
+                          {requirements.map(req => {
+                            const reqPhotos = photos.filter(p => p.photo_requirement_id === req.id);
+                            if (reqPhotos.length === 0) return null;
+                            return (
+                              <div key={req.id}>
+                                <p className="text-[11px] font-semibold text-gray-500 dark:text-white/50 mb-1.5">
+                                  {req.label} <span className="font-normal text-gray-400 dark:text-white/30">({reqPhotos.length})</span>
+                                </p>
+                                <PhotoGrid items={reqPhotos} />
+                              </div>
+                            );
+                          })}
+                          {/* Foto tanpa requirement */}
+                          {(() => {
+                            const reqIds = new Set(requirements.map(r => r.id));
+                            const orphans = photos.filter(p => !p.photo_requirement_id || !reqIds.has(p.photo_requirement_id));
+                            if (orphans.length === 0) return null;
+                            return (
+                              <div>
+                                <p className="text-[11px] font-semibold text-gray-500 dark:text-white/50 mb-1.5">Lainnya ({orphans.length})</p>
+                                <PhotoGrid items={orphans} />
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      );
+                    }
+
+                    // Tidak ada template — tampilkan per-fase dengan tab
                     const byPhase = {
-                      before: task.latest_visit.photos!.filter(p => p.phase === 'before'),
-                      during: task.latest_visit.photos!.filter(p => p.phase === 'during'),
-                      after:  task.latest_visit.photos!.filter(p => p.phase === 'after'),
+                      before: photos.filter(p => p.phase === 'before'),
+                      during: photos.filter(p => p.phase === 'during'),
+                      after:  photos.filter(p => p.phase === 'after'),
                     };
                     const tabLabels = { before: 'Sebelum', during: 'Proses', after: 'Sesudah' } as const;
-                    const currentPhotos = byPhase[photoTab];
                     return (
                       <div className="space-y-2">
                         <div className="flex gap-1">
@@ -487,56 +585,31 @@ function TaskDetailDrawer({
                             </button>
                           ))}
                         </div>
-                        {currentPhotos.length === 0 ? (
-                          <p className="text-xs text-gray-400 dark:text-white/30 text-center py-2">Belum ada foto</p>
-                        ) : (
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {currentPhotos.map(photo => (
-                              <div key={photo.id} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-white/[0.06]"
-                                style={{ outline: photo.needs_retake ? '2px solid #FF9500' : undefined }}>
-                                <img src={photo.thumbnail_url ?? photo.watermarked_url} alt=""
-                                  className="w-full h-full object-cover cursor-pointer"
-                                  onClick={() => setLightboxUrl(photo.watermarked_url)} />
-                                {photo.admin_feedback && (
-                                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[#FF9500] flex items-center justify-center shadow-md">
-                                    <AlertCircle size={10} className="text-white" />
-                                  </div>
-                                )}
-                                {isAdmin && (
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                    {photo.admin_feedback ? (
-                                      <button onClick={e => { e.stopPropagation(); clearFeedbackMut.mutate({ visitId: task.latest_visit!.id, photoId: photo.id }); }}
-                                        className="px-2 py-1 bg-[#FF3B30] text-white text-[10px] rounded-lg font-semibold shadow">Hapus</button>
-                                    ) : (
-                                      <button onClick={e => { e.stopPropagation(); setFeedbackTarget({ photoId: photo.id, phase: photo.phase }); setFeedbackText(''); }}
-                                        className="px-2 py-1 bg-[#FF9500] text-white text-[10px] rounded-lg font-semibold shadow">Catatan</button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {feedbackTarget && (
-                          <div className="p-3 bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.08)] rounded-xl border border-[#FED7AA] dark:border-[rgba(255,149,0,0.25)]">
-                            <p className="text-[10px] font-semibold text-[#FF9500] mb-1.5">
-                              Catatan foto {feedbackTarget.phase === 'before' ? 'Sebelum' : feedbackTarget.phase === 'during' ? 'Proses' : 'Sesudah'}
-                            </p>
-                            <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} rows={2}
-                              placeholder="Tulis keterangan untuk teknisi..."
-                              className="w-full text-xs bg-white dark:bg-white/[0.06] border border-[#FED7AA] rounded-lg px-2 py-1.5 resize-none focus:outline-none text-gray-900 dark:text-white placeholder:text-gray-400" />
-                            <div className="flex gap-1.5 mt-1.5">
-                              <button onClick={() => feedbackMut.mutate({ visitId: task.latest_visit!.id, photoId: feedbackTarget.photoId, feedback: feedbackText })}
-                                disabled={!feedbackText.trim() || feedbackMut.isPending}
-                                className="flex-1 py-1.5 text-[11px] font-semibold text-white bg-[#FF9500] rounded-lg disabled:opacity-50 transition">Simpan</button>
-                              <button onClick={() => setFeedbackTarget(null)}
-                                className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 bg-gray-100 dark:bg-white/[0.08] rounded-lg transition">Batal</button>
-                            </div>
-                          </div>
-                        )}
+                        {byPhase[photoTab].length === 0
+                          ? <p className="text-xs text-gray-400 dark:text-white/30 text-center py-2">Belum ada foto</p>
+                          : <PhotoGrid items={byPhase[photoTab]} />
+                        }
                       </div>
                     );
                   })()}
+
+                  {feedbackTarget && (
+                    <div className="p-3 bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.08)] rounded-xl border border-[#FED7AA] dark:border-[rgba(255,149,0,0.25)]">
+                      <p className="text-[10px] font-semibold text-[#FF9500] mb-1.5">
+                        Catatan foto {feedbackTarget.phase === 'before' ? 'Sebelum' : feedbackTarget.phase === 'during' ? 'Proses' : 'Sesudah'}
+                      </p>
+                      <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} rows={2}
+                        placeholder="Tulis keterangan untuk teknisi..."
+                        className="w-full text-xs bg-white dark:bg-white/[0.06] border border-[#FED7AA] rounded-lg px-2 py-1.5 resize-none focus:outline-none text-gray-900 dark:text-white placeholder:text-gray-400" />
+                      <div className="flex gap-1.5 mt-1.5">
+                        <button onClick={() => feedbackMut.mutate({ visitId: task.latest_visit!.id, photoId: feedbackTarget.photoId, feedback: feedbackText })}
+                          disabled={!feedbackText.trim() || feedbackMut.isPending}
+                          className="flex-1 py-1.5 text-[11px] font-semibold text-white bg-[#FF9500] rounded-lg disabled:opacity-50 transition">Simpan</button>
+                        <button onClick={() => setFeedbackTarget(null)}
+                          className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 bg-gray-100 dark:bg-white/[0.08] rounded-lg transition">Batal</button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Audit Trail */}
                   {isAdmin && task.latest_visit.id && (
@@ -573,15 +646,11 @@ function TaskDetailDrawer({
                     </div>
                   )}
 
-                  {/* Review result (already reviewed) */}
-                  {task.latest_visit.review_status && (
-                    <div className={`p-3 rounded-xl border text-xs font-semibold ${
-                      task.latest_visit.review_status === 'approved'
-                        ? 'bg-[#F0FDF4] dark:bg-[rgba(52,199,89,0.08)] border-[#BBF7D0] dark:border-[rgba(52,199,89,0.25)] text-[#34C759]'
-                        : 'bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.08)] border-[#FED7AA] dark:border-[rgba(255,149,0,0.25)] text-[#FF9500]'
-                    }`}>
-                      {task.latest_visit.review_status === 'approved' ? '✓ Disetujui' : '⚠ Perlu Revisi'}
-                      {task.latest_visit.review_rating ? ` · ${'★'.repeat(task.latest_visit.review_rating)}` : ''}
+                  {/* Menunggu revisi banner */}
+                  {task.latest_visit.review_status === 'revision_needed' && (
+                    <div className="flex items-start gap-2 p-3 bg-[#FFF7ED] dark:bg-[rgba(255,149,0,0.08)] border border-[#FED7AA] dark:border-[rgba(255,149,0,0.25)] rounded-xl">
+                      <AlertCircle size={13} className="text-[#FF9500] flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-[#9A3412] dark:text-[#FF9500]/80">Menunggu teknisi memperbaiki laporan. Form evaluasi akan muncul kembali setelah revisi dikumpulkan.</p>
                     </div>
                   )}
 

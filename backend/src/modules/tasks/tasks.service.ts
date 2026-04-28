@@ -5,8 +5,8 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 
 import { TaskEntity } from './entities/task.entity';
 import { TaskAssignmentEntity } from './entities/task-assignment.entity';
@@ -68,6 +68,7 @@ export class TasksService {
     private readonly visitRepo: Repository<VisitEntity>,
     private readonly dispatch: DispatchService,
     private readonly notifications: NotificationsService,
+    @InjectDataSource() private readonly ds: DataSource,
     @Optional() private readonly realtime?: RealtimeGateway,
   ) {}
 
@@ -265,9 +266,45 @@ export class TasksService {
       .addOrderBy('p.seq_number', 'ASC', 'NULLS LAST')
       .getOne();
 
+    // Fetch form sections + responses dan photo requirements jika visit pakai template
+    let form_sections: { title: string; fields: { label: string; value: string | null; is_required: boolean }[] }[] = [];
+    let photo_requirements: { id: string; label: string; phase: string; order_index: number }[] = [];
+
+    if (latestVisit?.template_id) {
+      const rawRows = await this.ds.query<{
+        section_title: string; section_order: number;
+        field_label: string; is_required: boolean; field_order: number; value: string | null;
+      }[]>(
+        `SELECT ts.title AS section_title, ts.order_index AS section_order,
+                tf.label AS field_label, tf.is_required,
+                tf.order_index AS field_order, vfr.value
+         FROM template_sections ts
+         JOIN template_fields tf ON tf.section_id = ts.id
+         LEFT JOIN visit_form_responses vfr ON vfr.field_id = tf.id AND vfr.visit_id = $1
+         WHERE ts.template_id = $2
+         ORDER BY ts.order_index ASC, tf.order_index ASC`,
+        [latestVisit.id, latestVisit.template_id],
+      );
+      form_sections = rawRows.reduce<typeof form_sections>((acc, row) => {
+        let section = acc.find((s) => s.title === row.section_title);
+        if (!section) { section = { title: row.section_title, fields: [] }; acc.push(section); }
+        section.fields.push({ label: row.field_label, value: row.value, is_required: row.is_required });
+        return acc;
+      }, []);
+
+      photo_requirements = await this.ds.query<{ id: string; label: string; phase: string; order_index: number }[]>(
+        `SELECT id, label, phase, order_index
+         FROM template_photo_requirements
+         WHERE template_id = $1
+         ORDER BY order_index ASC`,
+        [latestVisit.template_id],
+      );
+    }
+
     const latest_visit = latestVisit
       ? {
           id: latestVisit.id,
+          template_id: latestVisit.template_id,
           status: latestVisit.status,
           review_status: latestVisit.review_status,
           review_rating: latestVisit.review_rating,
@@ -279,6 +316,8 @@ export class TasksService {
           findings: latestVisit.findings,
           recommendations: latestVisit.recommendations,
           materials_used: latestVisit.materials_used,
+          form_sections,
+          photo_requirements,
           photos: (latestVisit.photos ?? [])
             .sort((a, b) => (a.seq_number ?? 0) - (b.seq_number ?? 0))
             .map((p) => ({
