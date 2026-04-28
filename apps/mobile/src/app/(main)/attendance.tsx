@@ -203,6 +203,7 @@ export default function AttendanceScreen() {
   const [requestModalType, setRequestModalType] = useState<AttendanceRequestType>('late_arrival');
   const [requestReason, setRequestReason] = useState('');
   const [requestEstTime, setRequestEstTime] = useState('');
+  const [checkOutGpsLoading, setCheckOutGpsLoading] = useState(false);
   // openHistoryParam dari notifikasi tap auto-expand riwayat
   const [showHistory, setShowHistory] = useState(openHistoryParam === '1');
   useEffect(() => {
@@ -337,21 +338,8 @@ export default function AttendanceScreen() {
   });
 
   const checkOutMutation = useMutation({
-    mutationFn: async () => {
-      let lat: number | undefined;
-      let lng: number | undefined;
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          lat = pos.coords.latitude;
-          lng = pos.coords.longitude;
-        }
-      } catch {
-        // GPS tidak tersedia — kirim tanpa koordinat, backend tetap proses
-      }
-      return attendanceService.checkOut({ method: 'manual', lat, lng });
-    },
+    mutationFn: (coords: { lat: number; lng: number }) =>
+      attendanceService.checkOut({ method: 'manual', lat: coords.lat, lng: coords.lng }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['attendance-today'] });
@@ -371,6 +359,52 @@ export default function AttendanceScreen() {
       }
     },
   });
+
+  const handleCheckOut = useCallback(async () => {
+    if (checkOutGpsLoading || checkOutMutation.isPending) return;
+    setCheckOutGpsLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'GPS Diperlukan',
+          'Izin lokasi diperlukan untuk check-out. Aktifkan GPS dan coba lagi.',
+        );
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+
+      if ((loc as any).mocked === true) {
+        Alert.alert(
+          'GPS Tidak Valid',
+          'Terdeteksi penggunaan GPS palsu (mock location). Matikan "Allow mock locations" di developer options dan coba lagi.',
+        );
+        return;
+      }
+
+      const lat = parseFloat(loc.coords.latitude.toFixed(6));
+      const lng = parseFloat(loc.coords.longitude.toFixed(6));
+      const accuracy = loc.coords.accuracy ?? 999;
+
+      if (accuracy > 150) {
+        Alert.alert(
+          'Sinyal GPS Lemah',
+          `Akurasi GPS tidak cukup (${Math.round(accuracy)}m). Pindah ke area terbuka dan coba lagi.`,
+        );
+        return;
+      }
+
+      checkOutMutation.mutate({ lat, lng });
+    } catch {
+      Alert.alert(
+        'GPS Tidak Tersedia',
+        'Tidak dapat mengambil lokasi saat ini. Pastikan GPS aktif, sinyal baik, lalu coba lagi.',
+      );
+    } finally {
+      setCheckOutGpsLoading(false);
+    }
+  }, [checkOutGpsLoading, checkOutMutation]);
 
   // ── Flow check-in ─────────────────────────────────────────────
   const startCheckIn = useCallback(async () => {
@@ -752,9 +786,9 @@ export default function AttendanceScreen() {
 
             <View style={{ alignItems: 'center', marginTop: 4 }}>
               <HoldButton
-                onComplete={() => checkOutMutation.mutate()}
-                disabled={!canCheckout || checkOutMutation.isPending}
-                loading={checkOutMutation.isPending}
+                onComplete={handleCheckOut}
+                disabled={!canCheckout || checkOutMutation.isPending || checkOutGpsLoading}
+                loading={checkOutMutation.isPending || checkOutGpsLoading}
                 label={canCheckout ? 'Absen Pulang' : 'Menunggu 8 Jam...'}
                 sublabel={canCheckout ? 'Tahan untuk absen' : undefined}
                 color={canCheckout ? C.blue : (isDark ? 'rgba(255,255,255,0.25)' : '#9CA3AF')}

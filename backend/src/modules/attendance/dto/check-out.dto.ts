@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsEnum, IsNumber, Max, Min } from 'class-validator';
 
 export type CheckOutMethod = 'manual' | 'qr';
 
@@ -7,14 +7,12 @@ export class CheckOutDto {
   method: CheckOutMethod;
 
   @IsNumber()
-  @IsOptional()
   @Min(-90)
   @Max(90)
-  lat?: number;
+  lat: number;
 
   @IsNumber()
-  @IsOptional()
   @Min(-180)
   @Max(180)
-  lng?: number;
+  lng: number;
 }
