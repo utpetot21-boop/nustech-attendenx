@@ -4,7 +4,7 @@
  * Jika biometrik gagal 3x → PIN 6 digit fallback
  * Checkout terkunci sampai 8 jam sejak check-in
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -205,6 +205,9 @@ export default function AttendanceScreen() {
   const [requestEstTime, setRequestEstTime] = useState('');
   // openHistoryParam dari notifikasi tap auto-expand riwayat
   const [showHistory, setShowHistory] = useState(openHistoryParam === '1');
+  useEffect(() => {
+    if (openHistoryParam === '1') setShowHistory(true);
+  }, [openHistoryParam]);
 
   const { verify: verifyBiometric, failCount: biometricFailCount } = useBiometric();
 
@@ -371,7 +374,8 @@ export default function AttendanceScreen() {
       Alert.alert('Verifikasi Gagal', result.error);
       setUiState('idle');
     }
-  }, [verifyBiometric]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyBiometric]); // proceedWithGPS diakses via closure — didefinisikan setelah callback ini
 
   const handlePINComplete = useCallback(async (pin: string) => {
     if (uiState !== 'show_pin') return; // P1-3: cegah re-entry
@@ -394,7 +398,8 @@ export default function AttendanceScreen() {
         setPinError('Gagal verifikasi. Coba lagi.');
       }
     }
-  }, [uiState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uiState]); // proceedWithGPS diakses via closure — didefinisikan setelah callback ini
 
   const proceedWithGPS = useCallback(async (method: string) => {
     setPendingMethod(method);
@@ -901,6 +906,7 @@ export default function AttendanceScreen() {
           setShowLateModal(false);
           setLateNote('');
           setPendingPayload(null);
+          setGpsResult(null);
           setUiState('idle');
         }}
       >
@@ -916,6 +922,7 @@ export default function AttendanceScreen() {
               setShowLateModal(false);
               setLateNote('');
               setPendingPayload(null);
+              setGpsResult(null);
               setUiState('idle');
             }}
           />

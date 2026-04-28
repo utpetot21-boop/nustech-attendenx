@@ -59,6 +59,7 @@ export function useBiometric() {
       });
 
       if (result.success) {
+        failCountRef.current = 0;
         setFailCount(0);
         const method = hasFaceId ? 'face_id' : 'fingerprint';
         return { success: true, method };

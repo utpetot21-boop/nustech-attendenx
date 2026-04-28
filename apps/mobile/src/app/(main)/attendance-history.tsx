@@ -325,7 +325,7 @@ export default function AttendanceHistoryScreen() {
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
-        {(isLoading || isFetching) ? (
+        {isLoading ? (
           <ActivityIndicator color={C.blue} style={{ marginTop: 48 }} />
         ) : records.length === 0 ? (
           <EmptyState
