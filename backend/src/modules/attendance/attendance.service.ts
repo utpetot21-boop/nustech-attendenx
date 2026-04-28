@@ -159,6 +159,14 @@ export class AttendanceService {
     // Jika terlambat tapi ada izin approved → tetap terlambat tapi flag late_approved = true
     const status = rawStatus;
 
+    // Wajib isi alasan jika terlambat dan tidak ada izin approved — enforce di backend
+    // agar tidak bisa di-bypass meski jam device dimanipulasi (frontend skip modal)
+    if (rawStatus === 'terlambat' && !approvedLate && !dto.notes?.trim()) {
+      throw new BadRequestException(
+        'Anda terlambat. Wajib mengisi alasan keterlambatan.',
+      );
+    }
+
     // Checkout earliest = check_in_at + 8 jam
     const checkoutEarliest = new Date(checkInAt.getTime() + 8 * 60 * 60 * 1000);
 

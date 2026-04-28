@@ -419,9 +419,31 @@ export default function AttendanceScreen() {
       }
 
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+
+      // Deteksi mock location (Android developer options)
+      if ((loc as any).mocked === true) {
+        Alert.alert(
+          'GPS Tidak Valid',
+          'Terdeteksi penggunaan GPS palsu (mock location). Matikan "Allow mock locations" di developer options dan coba lagi.',
+          [{ text: 'OK', onPress: () => setUiState('idle') }],
+        );
+        return;
+      }
+
       const lat = parseFloat(loc.coords.latitude.toFixed(6));
       const lng = parseFloat(loc.coords.longitude.toFixed(6));
-      const accuracy = loc.coords.accuracy;
+      const accuracy = loc.coords.accuracy ?? 999;
+
+      // Tolak jika sinyal GPS terlalu lemah (>150m accuracy)
+      if (accuracy > 150) {
+        Alert.alert(
+          'Sinyal GPS Lemah',
+          `Akurasi GPS tidak cukup (${Math.round(accuracy)}m). Pindah ke area terbuka dan coba lagi.`,
+          [{ text: 'OK', onPress: () => setUiState('idle') }],
+        );
+        return;
+      }
+
       setPendingCoords({ lat, lng });
 
       // Client-side geofence display (backend tetap authoritative)
