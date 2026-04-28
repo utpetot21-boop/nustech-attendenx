@@ -68,6 +68,9 @@ export const NOTIF_ROUTE_MAP: Record<string, string> = {
   task_hold_rejected:              '/(main)/tasks',
   delegation_request:              '/(main)/tasks',
   delegation_rejected:             '/(main)/tasks',
+  // Kunjungan / Visit review
+  visit_reviewed:                  '/(main)/tasks',
+  visit_revision_submitted:        '/(main)/tasks',
   // Berita Acara
   ba_generated:                    '/(main)/service-reports',
   // SOS

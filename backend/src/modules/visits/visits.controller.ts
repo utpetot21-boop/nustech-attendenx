@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UploadedFile,
   UseGuards,
@@ -27,6 +28,7 @@ import { CheckOutVisitDto } from './dto/check-out-visit.dto';
 import { ReviewVisitDto } from './dto/review-visit.dto';
 import { GivePhotoFeedbackDto } from './dto/give-photo-feedback.dto';
 import { AdminUpdateVisitDto } from './dto/admin-update-visit.dto';
+import { UpdateVisitReportDto } from './dto/update-visit-report.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('visits')
@@ -247,5 +249,50 @@ export class VisitsController {
   @RequirePermission('task:assign')
   getAuditLog(@Param('id', ParseUUIDPipe) visitId: string) {
     return this.visitsService.getVisitAuditLog(visitId);
+  }
+
+  // ── Revision Flow (Opsi C) ──────────────────────────────────────────────────
+
+  // PATCH /visits/:id/report — teknisi edit teks laporan saat revision_needed
+  @Patch(':id/report')
+  updateReport(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) visitId: string,
+    @Body() dto: UpdateVisitReportDto,
+  ) {
+    return this.visitsService.updateReport(userId, visitId, dto);
+  }
+
+  // PUT /visits/:visitId/photos/:photoId — teknisi ganti foto needs_retake
+  @Put(':visitId/photos/:photoId')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 15 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          cb(new Error('Hanya file gambar yang diizinkan.'), false);
+        } else {
+          cb(null, true);
+        }
+      },
+    }),
+  )
+  replacePhoto(
+    @CurrentUser('id') userId: string,
+    @Param('visitId', ParseUUIDPipe) visitId: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new Error('File foto wajib diunggah.');
+    return this.visitsService.replacePhoto(userId, visitId, photoId, file.buffer);
+  }
+
+  // POST /visits/:id/submit-revision — teknisi submit revisi selesai
+  @Post(':id/submit-revision')
+  submitRevision(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) visitId: string,
+  ) {
+    return this.visitsService.submitRevision(userId, visitId);
   }
 }

@@ -13,6 +13,7 @@ import { SlaBreachEntity } from './entities/sla-breach.entity';
 import { CheckInVisitDto } from './dto/check-in-visit.dto';
 import { AddPhotoDto } from './dto/add-photo.dto';
 import { CheckOutVisitDto } from './dto/check-out-visit.dto';
+import { UpdateVisitReportDto } from './dto/update-visit-report.dto';
 import { FormResponseItemDto } from './dto/save-form-responses.dto';
 import { GivePhotoFeedbackDto } from './dto/give-photo-feedback.dto';
 import { AdminUpdateVisitDto } from './dto/admin-update-visit.dto';
@@ -705,6 +706,153 @@ export class VisitsService {
       relations: ['user'],
       order: { created_at: 'DESC' },
     });
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // REVISION FLOW (Opsi C)
+  // ────────────────────────────────────────────────────────────────────────────
+
+  async updateReport(userId: string, visitId: string, dto: UpdateVisitReportDto): Promise<VisitEntity> {
+    const visit = await this.visitRepo.findOne({ where: { id: visitId, user_id: userId } });
+    if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
+    if (visit.review_status !== 'revision_needed') {
+      throw new BadRequestException('Laporan hanya dapat diedit saat status revisi.');
+    }
+
+    if (dto.work_description !== undefined) visit.work_description = dto.work_description;
+    if (dto.findings !== undefined) visit.findings = dto.findings ?? null;
+    if (dto.recommendations !== undefined) visit.recommendations = dto.recommendations ?? null;
+    if (dto.materials_used !== undefined) visit.materials_used = (dto.materials_used as unknown) as Record<string, unknown>[] | null;
+
+    const saved = await this.visitRepo.save(visit);
+
+    if (dto.form_responses?.length) {
+      for (const r of dto.form_responses) {
+        await this.formResponseRepo.upsert(
+          { visit_id: visitId, field_id: r.field_id, value: r.value ?? null },
+          { conflictPaths: ['visit_id', 'field_id'] },
+        );
+      }
+    }
+
+    return saved;
+  }
+
+  async replacePhoto(
+    userId: string,
+    visitId: string,
+    photoId: string,
+    fileBuffer: Buffer,
+  ): Promise<VisitPhotoEntity> {
+    const visit = await this.visitRepo.findOne({ where: { id: visitId, user_id: userId } });
+    if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
+    if (visit.review_status !== 'revision_needed') {
+      throw new BadRequestException('Foto hanya dapat diganti saat status revisi.');
+    }
+
+    const oldPhoto = await this.photoRepo.findOne({ where: { id: photoId, visit_id: visitId } });
+    if (!oldPhoto) throw new NotFoundException('Foto tidak ditemukan.');
+    if (!oldPhoto.needs_retake) {
+      throw new BadRequestException('Hanya foto yang diflag "perlu ganti" yang dapat diganti.');
+    }
+
+    const client = await this.clientRepo.findOneOrFail({ where: { id: visit.client_id } });
+    const takenAt = new Date();
+
+    const { originalBuffer, watermarkedBuffer, thumbnailBuffer, fileSizeKb } =
+      await this.watermark.process({
+        imageBuffer: fileBuffer,
+        takenAt,
+        lat: 0,
+        lng: 0,
+        district: '',
+        province: '',
+        locationName: client.name,
+        source: 'gallery',
+      });
+
+    const folder = `visits/${visitId}/${oldPhoto.phase}`;
+    const [originalUrl, watermarkedUrl, thumbnailUrl] = await Promise.all([
+      this.storage.upload(`${folder}/original`, 'jpg', originalBuffer),
+      this.storage.upload(`${folder}/watermarked`, 'jpg', watermarkedBuffer),
+      this.storage.upload(`${folder}/thumbnail`, 'jpg', thumbnailBuffer),
+    ]);
+
+    // Hapus file lama dari R2 (fire-and-forget — jangan block response)
+    void Promise.allSettled([
+      this.storage.delete(oldPhoto.original_url),
+      oldPhoto.thumbnail_url ? this.storage.delete(oldPhoto.thumbnail_url) : Promise.resolve(),
+      oldPhoto.watermarked_url !== oldPhoto.original_url
+        ? this.storage.delete(oldPhoto.watermarked_url)
+        : Promise.resolve(),
+    ]);
+
+    await this.photoRepo.delete(photoId);
+
+    const newPhoto = this.photoRepo.create({
+      visit_id: visitId,
+      phase: oldPhoto.phase,
+      seq_number: oldPhoto.seq_number,
+      original_url: originalUrl,
+      watermarked_url: watermarkedUrl,
+      thumbnail_url: thumbnailUrl,
+      caption: oldPhoto.caption,
+      taken_at: takenAt,
+      lat: null,
+      lng: null,
+      district: null,
+      province: null,
+      file_size_kb: fileSizeKb,
+      photo_requirement_id: oldPhoto.photo_requirement_id,
+      source: 'gallery',
+      admin_feedback: null,
+      needs_retake: false,
+      feedback_by: null,
+      feedback_at: null,
+    });
+
+    return this.photoRepo.save(newPhoto);
+  }
+
+  async submitRevision(userId: string, visitId: string): Promise<VisitEntity> {
+    const visit = await this.visitRepo.findOne({
+      where: { id: visitId, user_id: userId },
+      relations: ['user'],
+    });
+    if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
+    if (visit.review_status !== 'revision_needed') {
+      throw new BadRequestException('Kunjungan tidak dalam status revisi.');
+    }
+
+    const pendingRetake = await this.photoRepo.count({ where: { visit_id: visitId, needs_retake: true } });
+    if (pendingRetake > 0) {
+      throw new BadRequestException(`Masih ada ${pendingRetake} foto yang perlu diganti sebelum dapat mengirim perbaikan.`);
+    }
+
+    await this.visitRepo.update(visitId, {
+      review_status: null,
+      review_rating: null,
+      review_notes: null,
+      reviewed_by: null,
+      reviewed_at: null,
+    });
+
+    const techName = visit.user?.full_name ?? 'Teknisi';
+    const adminIds = await this.notifications.getFyiViewerIds([userId]);
+    await Promise.all(
+      adminIds.map((adminId) =>
+        this.notifications.send({
+          userId: adminId,
+          type: 'visit_revision_submitted',
+          title: 'Laporan Kunjungan Diperbaiki',
+          body: `${techName} telah memperbaiki laporan. Mohon ditinjau ulang.`,
+          data: { visit_id: visitId, type: 'visit_revision_submitted' },
+          channels: ['push'],
+        }),
+      ),
+    );
+
+    return this.visitRepo.findOne({ where: { id: visitId }, relations: ['client', 'photos', 'user'] }) as Promise<VisitEntity>;
   }
 
   private haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {

@@ -143,12 +143,75 @@ export const visitsService = {
         thumbnail_url: string;
         caption?: string;
         taken_at: string;
+        needs_retake?: boolean;
+        admin_feedback?: string | null;
+        photo_requirement_id?: string | null;
       }[];
     };
+  },
+
+  async getAdminDetail(visitId: string) {
+    const res = await api.get(`/visits/admin/${visitId}`);
+    return res.data as VisitSummary & {
+      template_id?: string | null;
+      check_in_address?: string;
+      check_in_district?: string;
+      check_in_province?: string;
+      work_description?: string;
+      findings?: string;
+      recommendations?: string;
+      materials_used?: { name: string; qty: string }[];
+      photos?: {
+        id: string;
+        phase: 'before' | 'during' | 'after';
+        seq_number: number;
+        watermarked_url: string;
+        thumbnail_url: string;
+        caption?: string;
+        taken_at: string;
+        needs_retake?: boolean;
+        admin_feedback?: string | null;
+        photo_requirement_id?: string | null;
+      }[];
+      user?: { id: string; full_name: string };
+    };
+  },
+
+  async reviewVisit(visitId: string, payload: { review_status: 'approved' | 'revision_needed'; review_rating: number; review_notes?: string }) {
+    const res = await api.post(`/visits/${visitId}/review`, payload);
+    return res.data as VisitSummary;
   },
 
   async getPhotoCounts(visitId: string) {
     const res = await api.get(`/visits/${visitId}/photo-counts`);
     return res.data as PhotoCounts;
+  },
+
+  async updateReport(visitId: string, payload: {
+    work_description?: string;
+    findings?: string;
+    recommendations?: string;
+    materials_used?: { name: string; qty: string }[];
+    form_responses?: { field_id: string; value: string }[];
+  }) {
+    const res = await api.patch(`/visits/${visitId}/report`, payload);
+    return res.data;
+  },
+
+  async replacePhoto(visitId: string, photoId: string, imageUri: string): Promise<void> {
+    const filename = imageUri.split('/').pop() ?? 'retake.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const mimeType = match ? `image/${match[1].toLowerCase()}` : 'image/jpeg';
+    const form = new FormData();
+    form.append('file', { uri: imageUri, name: filename, type: mimeType } as unknown as Blob);
+    await api.put(`/visits/${visitId}/photos/${photoId}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60_000,
+    });
+  },
+
+  async submitRevision(visitId: string) {
+    const res = await api.post(`/visits/${visitId}/submit-revision`);
+    return res.data;
   },
 };

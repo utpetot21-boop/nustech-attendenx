@@ -93,6 +93,15 @@ export default function VisitDetailScreen() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewNotes, setReviewNotes] = useState('');
 
+  // Revision state
+  const [showEditReportModal, setShowEditReportModal] = useState(false);
+  const [editWorkDesc, setEditWorkDesc] = useState('');
+  const [editFindings, setEditFindings] = useState('');
+  const [editRecommendations, setEditRecommendations] = useState('');
+  const [editMaterials, setEditMaterials] = useState<{ name: string; qty: string }[]>([]);
+  const [editFormAnswers, setEditFormAnswers] = useState<Record<string, string>>({});
+  const [isReportSaved, setIsReportSaved] = useState(false);
+
   // Queries
   const { data: visit, isLoading, isError } = useQuery({
     queryKey: ['visit', visitId, isManager ? 'admin' : 'user'],
@@ -336,6 +345,87 @@ export default function VisitDetailScreen() {
     },
   });
 
+  const updateReportMutation = useMutation({
+    mutationFn: () =>
+      visitsService.updateReport(visitId!, {
+        work_description: editWorkDesc.trim(),
+        findings: editFindings.trim() || undefined,
+        recommendations: editRecommendations.trim() || undefined,
+        materials_used: editMaterials.filter((m) => m.name.trim()),
+        form_responses: Object.entries(editFormAnswers).map(([field_id, value]) => ({ field_id, value })),
+      }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['visit', visitId] });
+      setIsReportSaved(true);
+      setShowEditReportModal(false);
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal Menyimpan', err.message ?? 'Terjadi kesalahan.');
+    },
+  });
+
+  const replacePhotoMutation = useMutation({
+    mutationFn: ({ photoId, imageUri }: { photoId: string; imageUri: string }) =>
+      visitsService.replacePhoto(visitId!, photoId, imageUri),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['visit', visitId] });
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal Upload', err.message ?? 'Terjadi kesalahan saat mengunggah foto pengganti.');
+    },
+  });
+
+  const submitRevisionMutation = useMutation({
+    mutationFn: () => visitsService.submitRevision(visitId!),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['visit', visitId] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
+      Alert.alert('Perbaikan Terkirim', 'Admin akan segera meninjau ulang laporan Anda.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    },
+    onError: (err: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Gagal', err.message ?? 'Terjadi kesalahan.');
+    },
+  });
+
+  const handleRevisionGalleryPick = useCallback(async (photoId: string) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin Diperlukan', 'Izinkan akses galeri di Pengaturan untuk menggunakan fitur ini.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.9,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    replacePhotoMutation.mutate({ photoId, imageUri: result.assets[0].uri });
+  }, [replacePhotoMutation]);
+
+  const openEditReportModal = useCallback(() => {
+    if (!visit) return;
+    setEditWorkDesc(visit.work_description ?? '');
+    setEditFindings(visit.findings ?? '');
+    setEditRecommendations(visit.recommendations ?? '');
+    setEditMaterials(visit.materials_used ?? []);
+    // pre-fill form answers from existing responses
+    if (existingResponses) {
+      const merged: Record<string, string> = {};
+      existingResponses.forEach((r) => { merged[r.field_id] = r.value ?? ''; });
+      setEditFormAnswers(merged);
+    }
+    setShowEditReportModal(true);
+  }, [visit, existingResponses]);
+
   const handleGalleryPick = useCallback(
     async (phase: Phase, requirementId?: string) => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -392,6 +482,10 @@ export default function VisitDetailScreen() {
 
   const photosOf = (phase: Phase) =>
     (visit?.photos ?? []).filter((p) => p.phase === phase);
+
+  const pendingRetakePhotos = (visit?.photos ?? []).filter((p) => p.needs_retake);
+  const pendingRetakeCount = pendingRetakePhotos.length;
+  const isRevisionMode = !isManager && visit?.review_status === 'revision_needed';
 
   const getPhotoLabel = (phase: Phase) => {
     const c = photoCounts?.[phase];
@@ -555,6 +649,42 @@ export default function VisitDetailScreen() {
               </TouchableOpacity>
             )}
 
+            {/* Revision banner — hanya untuk teknisi saat revision_needed */}
+            {isRevisionMode && (
+              <View
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 12,
+                  backgroundColor: isDark ? 'rgba(255,149,0,0.15)' : '#FFF7ED',
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderLeftWidth: 4,
+                  borderColor: isDark ? 'rgba(255,149,0,0.35)' : 'rgba(255,149,0,0.3)',
+                  borderLeftColor: '#FF9500',
+                  padding: 14,
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#FF9500', marginBottom: 6 }}>
+                  ⚠ Laporan Perlu Diperbaiki
+                </Text>
+                {visit.review_notes ? (
+                  <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.75)' : '#374151', lineHeight: 19, marginBottom: 8 }}>
+                    "{visit.review_notes}"
+                  </Text>
+                ) : null}
+                <View style={{ flexDirection: 'row', gap: 4, marginBottom: visit.reviewer ? 6 : 0 }}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Text key={s} style={{ fontSize: 14, opacity: s <= (visit.review_rating ?? 0) ? 1 : 0.22 }}>⭐</Text>
+                  ))}
+                </View>
+                {visit.reviewer && (
+                  <Text style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.4)' : '#9CA3AF' }}>
+                    Ditinjau oleh {visit.reviewer.full_name}
+                  </Text>
+                )}
+              </View>
+            )}
+
             {/* Location info card */}
             {visit.check_in_address && (
               <View
@@ -661,6 +791,111 @@ export default function VisitDetailScreen() {
                 />
               )}
             </View>
+
+            {/* Revision: foto needs_retake */}
+            {isRevisionMode && pendingRetakePhotos.length > 0 && (
+              <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+                <View style={{
+                  backgroundColor: isDark ? 'rgba(255,149,0,0.1)' : '#FFF7ED',
+                  borderRadius: 14, borderWidth: 1,
+                  borderColor: isDark ? 'rgba(255,149,0,0.25)' : 'rgba(255,149,0,0.25)',
+                  padding: 14,
+                }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#FF9500', marginBottom: 12 }}>
+                    {pendingRetakeCount} foto perlu diganti
+                  </Text>
+                  {pendingRetakePhotos.map((photo) => (
+                    <View key={photo.id} style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                      borderRadius: 10, padding: 10,
+                    }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.75)' : '#374151' }}>
+                          {photo.phase === 'before' ? 'Sebelum' : photo.phase === 'during' ? 'Selama' : 'Sesudah'} · #{photo.seq_number}
+                        </Text>
+                        {photo.admin_feedback ? (
+                          <Text style={{ fontSize: 11, color: '#FF9500', marginTop: 2 }} numberOfLines={2}>
+                            {photo.admin_feedback}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => handleRevisionGalleryPick(photo.id)}
+                        disabled={replacePhotoMutation.isPending}
+                        activeOpacity={0.8}
+                        style={{
+                          paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+                          backgroundColor: '#FF9500',
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFF' }}>
+                          {replacePhotoMutation.isPending ? '...' : 'Ganti'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Revision: Perbaiki Laporan + Kirim Perbaikan buttons */}
+            {isRevisionMode && (
+              <View style={{ marginHorizontal: 16, marginBottom: 12, gap: 10 }}>
+                <TouchableOpacity
+                  onPress={openEditReportModal}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#F3F4F6',
+                    borderRadius: 14, borderWidth: 1,
+                    borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#D1D5DB',
+                    padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: isDark ? '#FFF' : '#111' }}>
+                    ✏️ Perbaiki Laporan
+                  </Text>
+                  {isReportSaved && (
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#34C759' }}>✓ Tersimpan</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      'Kirim Perbaikan',
+                      'Pastikan semua revisi sudah selesai. Laporan akan dikirim ke admin untuk ditinjau ulang.',
+                      [
+                        { text: 'Batal', style: 'cancel' },
+                        { text: 'Kirim', style: 'default', onPress: () => submitRevisionMutation.mutate() },
+                      ],
+                    );
+                  }}
+                  disabled={pendingRetakeCount > 0 || submitRevisionMutation.isPending}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: pendingRetakeCount > 0 ? (isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB') : '#007AFF',
+                    borderRadius: 14, padding: 16, alignItems: 'center',
+                  }}
+                >
+                  {submitRevisionMutation.isPending
+                    ? <ActivityIndicator color="#FFF" size="small" />
+                    : (
+                      <>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: pendingRetakeCount > 0 ? (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF') : '#FFF', letterSpacing: -0.3 }}>
+                          Kirim Perbaikan
+                        </Text>
+                        {pendingRetakeCount > 0 && (
+                          <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF', marginTop: 3 }}>
+                            Ganti {pendingRetakeCount} foto terlebih dahulu
+                          </Text>
+                        )}
+                      </>
+                    )
+                  }
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Progress summary bar (ongoing only) */}
             {isOngoing && photoCounts && (
@@ -1314,6 +1549,154 @@ export default function VisitDetailScreen() {
                     Konfirmasi Check-Out
                   </Text>
                 )}
+              </TouchableOpacity>
+
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Edit Report Modal — Revision */}
+      <Modal visible={showEditReportModal} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: pageBg(isDark), padding: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: isDark ? '#FFF' : '#111', letterSpacing: -0.4 }}>
+                Perbaiki Laporan
+              </Text>
+              <TouchableOpacity onPress={() => setShowEditReportModal(false)}>
+                <Text style={{ fontSize: 15, color: '#007AFF' }}>Batal</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                { label: 'Deskripsi Pekerjaan *', value: editWorkDesc, setter: setEditWorkDesc, placeholder: 'Jelaskan pekerjaan yang dilakukan...' },
+                { label: 'Temuan', value: editFindings, setter: setEditFindings, placeholder: 'Temuan atau masalah yang ditemukan...' },
+                { label: 'Rekomendasi', value: editRecommendations, setter: setEditRecommendations, placeholder: 'Rekomendasi tindak lanjut...' },
+              ].map((field) => (
+                <View key={field.label} style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', marginBottom: 6 }}>
+                    {field.label}
+                  </Text>
+                  <TextInput
+                    value={field.value}
+                    onChangeText={field.setter}
+                    placeholder={field.placeholder}
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                    multiline numberOfLines={4} textAlignVertical="top"
+                    style={{
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF',
+                      borderRadius: 14, borderWidth: 0.5,
+                      borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+                      padding: 14, fontSize: 14, color: isDark ? '#FFF' : '#111', minHeight: 100,
+                    }}
+                  />
+                </View>
+              ))}
+
+              {/* Material digunakan */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280', marginBottom: 10 }}>
+                  Material Digunakan (opsional)
+                </Text>
+                {editMaterials.map((mat, i) => (
+                  <View key={i} style={{ flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                    <TextInput
+                      value={mat.name}
+                      onChangeText={(v) => setEditMaterials((m) => m.map((item, idx) => idx === i ? { ...item, name: v } : item))}
+                      placeholder="Nama material"
+                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                      style={{ flex: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: isDark ? '#FFF' : '#111' }}
+                    />
+                    <TextInput
+                      value={mat.qty}
+                      onChangeText={(v) => setEditMaterials((m) => m.map((item, idx) => idx === i ? { ...item, qty: v } : item))}
+                      placeholder="Qty"
+                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                      style={{ flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 12, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: isDark ? '#FFF' : '#111' }}
+                    />
+                    <TouchableOpacity onPress={() => setEditMaterials((m) => m.filter((_, idx) => idx !== i))}
+                      style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,69,58,0.2)' : '#FEE2E2', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#FF453A', fontSize: 18, lineHeight: 20 }}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  onPress={() => setEditMaterials((m) => [...m, { name: '', qty: '' }])}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: isDark ? 'rgba(0,122,255,0.4)' : 'rgba(0,122,255,0.3)' }}
+                >
+                  <Text style={{ color: '#007AFF', fontSize: 14, fontWeight: '600' }}>+ Tambah Material</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Template fields (jika ada) */}
+              {template && template.sections.length > 0 && (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: isDark ? '#FFF' : '#111', marginBottom: 12 }}>
+                    Checklist Pekerjaan
+                  </Text>
+                  {template.sections.slice().sort((a, b) => a.order_index - b.order_index).map((sec) => (
+                    <View key={sec.id} style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.88)', borderRadius: 14, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', padding: 14, marginBottom: 10 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.5)' : '#6B7280', marginBottom: 10, textTransform: 'uppercase' }}>{sec.title}</Text>
+                      {sec.fields.slice().sort((a, b) => a.order_index - b.order_index).map((field) => {
+                        const val = editFormAnswers[field.id] ?? '';
+                        const setVal = (v: string) => setEditFormAnswers((prev) => ({ ...prev, [field.id]: v }));
+                        const inputStyle = { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFF', borderRadius: 10, borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: isDark ? '#FFF' : '#111' };
+                        return (
+                          <View key={field.id} style={{ marginBottom: 10 }}>
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? 'rgba(255,255,255,0.75)' : '#374151', marginBottom: 5 }}>
+                              {field.label}{field.is_required ? ' *' : ''}
+                            </Text>
+                            {(field.field_type === 'text' || field.field_type === 'number') && (
+                              <TextInput value={val} onChangeText={setVal} placeholder={field.label}
+                                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'}
+                                keyboardType={field.field_type === 'number' ? 'numeric' : 'default'} style={inputStyle} />
+                            )}
+                            {field.field_type === 'textarea' && (
+                              <TextInput value={val} onChangeText={setVal} placeholder={field.label} multiline numberOfLines={3} textAlignVertical="top"
+                                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF'} style={{ ...inputStyle, minHeight: 72 }} />
+                            )}
+                            {field.field_type === 'checkbox' && (
+                              <TouchableOpacity onPress={() => setVal(val === 'true' ? '' : 'true')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: val === 'true' ? '#007AFF' : (isDark ? 'rgba(255,255,255,0.3)' : '#D1D5DB'), backgroundColor: val === 'true' ? '#007AFF' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                                  {val === 'true' && <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>✓</Text>}
+                                </View>
+                                <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.75)' : '#374151' }}>{val === 'true' ? 'Ya' : 'Tidak / Belum diisi'}</Text>
+                              </TouchableOpacity>
+                            )}
+                            {(field.field_type === 'radio' || field.field_type === 'select') && field.options && (
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                {field.options.map((opt) => (
+                                  <TouchableOpacity key={opt} onPress={() => setVal(val === opt ? '' : opt)}
+                                    style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, borderColor: val === opt ? '#007AFF' : (isDark ? 'rgba(255,255,255,0.2)' : '#D1D5DB'), backgroundColor: val === opt ? (isDark ? 'rgba(0,122,255,0.2)' : '#EFF6FF') : 'transparent' }}>
+                                    <Text style={{ fontSize: 13, fontWeight: '600', color: val === opt ? '#007AFF' : (isDark ? 'rgba(255,255,255,0.6)' : '#6B7280') }}>{opt}</Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() => updateReportMutation.mutate()}
+                disabled={updateReportMutation.isPending || !editWorkDesc.trim()}
+                style={{
+                  backgroundColor: !editWorkDesc.trim() || updateReportMutation.isPending ? (isDark ? 'rgba(255,255,255,0.12)' : '#E5E7EB') : '#007AFF',
+                  borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 8,
+                }}
+                activeOpacity={0.8}
+              >
+                {updateReportMutation.isPending
+                  ? <ActivityIndicator color="#FFF" />
+                  : <Text style={{ fontSize: 16, fontWeight: '700', color: !editWorkDesc.trim() ? (isDark ? 'rgba(255,255,255,0.3)' : '#9CA3AF') : '#FFF' }}>Simpan Perubahan</Text>
+                }
               </TouchableOpacity>
 
               <View style={{ height: 40 }} />
