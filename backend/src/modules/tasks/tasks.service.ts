@@ -290,6 +290,8 @@ export class TasksService {
               thumbnail_url: p.thumbnail_url,
               caption: p.caption,
               taken_at: p.taken_at,
+              admin_feedback: p.admin_feedback,
+              needs_retake: p.needs_retake,
             })),
         }
       : null;

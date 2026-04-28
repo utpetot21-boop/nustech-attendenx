@@ -920,12 +920,41 @@ function TaskDetailInner() {
           </View>
         )}
 
-        {isCompleted && (
+        {isCompleted && task.latest_visit?.review_status !== 'revision_needed' && (
           <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
             <View style={{ backgroundColor: isDark ? C.green + '1A' : C.green + '14', borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.green + '4D' }}>
               <CheckCircle2 size={22} strokeWidth={2} color={C.green} />
               <Text style={{ color: C.green, fontWeight: '700', fontSize: 16 }}>Tugas Selesai</Text>
             </View>
+          </View>
+        )}
+
+        {isCompleted && task.latest_visit?.review_status === 'revision_needed' && isAssignee && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 14, gap: 10 }}>
+            <View style={{ backgroundColor: isDark ? C.orange + '1A' : '#FFF7ED', borderRadius: 18, padding: 16, borderWidth: 1.5, borderLeftWidth: 4, borderColor: C.orange + '4D', borderLeftColor: C.orange }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <AlertTriangle size={18} strokeWidth={2} color={C.orange} />
+                <Text style={{ color: C.orange, fontWeight: '700', fontSize: 15 }}>Laporan Kunjungan Perlu Diperbaiki</Text>
+              </View>
+              {task.latest_visit.review_rating != null && (
+                <View style={{ flexDirection: 'row', gap: 2, marginBottom: 6 }}>
+                  {[1,2,3,4,5].map((s) => (
+                    <Text key={s} style={{ fontSize: 14, opacity: s <= (task.latest_visit?.review_rating ?? 0) ? 1 : 0.2 }}>⭐</Text>
+                  ))}
+                </View>
+              )}
+              <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.7)' : '#92400E', lineHeight: 18 }}>
+                Buka detail kunjungan, perbaiki laporan dan foto yang diflag, lalu kirim untuk ditinjau ulang.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push(`/(main)/visits/${task.latest_visit!.id}` as never)}
+              activeOpacity={0.85}
+              style={{ backgroundColor: C.orange, borderRadius: 18, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, shadowColor: C.orange, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 }}
+            >
+              <AlertTriangle size={20} strokeWidth={2.2} color="#FFF" />
+              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>Perbaiki Laporan Kunjungan</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1142,9 +1171,9 @@ function TaskDetailInner() {
                 <ChevronRight size={14} strokeWidth={2} color={textSecondary as string} />
               </TouchableOpacity>
 
-              {v.status === 'completed' && (
+              {v.status === 'completed' && v.review_status === 'approved' && (
                 <TouchableOpacity
-                  onPress={() => router.push(`/(main)/visits/${v.id}` as never)}
+                  onPress={() => router.push({ pathname: '/(main)/service-reports', params: { visit_id: v.id } } as never)}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.green, borderRadius: 14, paddingVertical: 13, shadowColor: C.green, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 }}
                 >
                   <FileText size={16} strokeWidth={2} color="#FFF" />
