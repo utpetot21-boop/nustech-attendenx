@@ -315,11 +315,24 @@ export default function AttendanceScreen() {
       setPendingPayload(null);
       Alert.alert('Check-in Berhasil ✓', 'Absensi Anda telah tercatat.');
     },
-    onError: (err: any) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const msg = err?.response?.data?.message ?? 'Check-in gagal. Coba lagi.';
-      Alert.alert('Gagal', typeof msg === 'string' ? msg : 'Check-in gagal');
-      setUiState('idle');
+    onError: (err: any, variables) => {
+      const msg = err?.response?.data?.message ?? '';
+      // Backend detect terlambat tapi frontend belum (selisih jam device vs server)
+      // → tampilkan late modal agar user bisa isi alasan, bukan error alert
+      const isLateError = typeof msg === 'string' &&
+        (msg.includes('terlambat') || msg.includes('alasan keterlambatan'));
+
+      if (isLateError) {
+        setPendingPayload({ method: variables.method, lat: variables.lat, lng: variables.lng });
+        setLateNote('');
+        setGpsResult(null);
+        setUiState('idle');
+        setShowLateModal(true);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('Gagal', typeof msg === 'string' && msg ? msg : 'Check-in gagal. Coba lagi.');
+        setUiState('idle');
+      }
     },
   });
 
