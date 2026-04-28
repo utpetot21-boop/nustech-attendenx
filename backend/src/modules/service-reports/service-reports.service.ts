@@ -374,7 +374,7 @@ export class ServiceReportsService {
         phase: req.phase,
         photos: photos
           .filter((p) => p.photo_requirement_id === req.id)
-          .map((p) => ({ url: p.thumbnail_url ?? p.watermarked_url ?? p.original_url, caption: p.caption ?? '' })),
+          .map((p) => ({ url: p.watermarked_url ?? p.thumbnail_url ?? p.original_url, caption: p.caption ?? '' })),
       }))
       .filter((r) => r.photos.length > 0);
 
@@ -426,7 +426,7 @@ export class ServiceReportsService {
     const byPhase = (phase: string) =>
       photos
         .filter((p) => p.phase === phase)
-        .map((p) => ({ url: p.thumbnail_url ?? p.watermarked_url ?? p.original_url, caption: p.caption ?? '' }));
+        .map((p) => ({ url: p.watermarked_url ?? p.thumbnail_url ?? p.original_url, caption: p.caption ?? '' }));
 
     const visit = report.visit;
     const durationMin = visit.duration_minutes ?? 0;

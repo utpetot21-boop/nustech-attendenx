@@ -81,6 +81,14 @@ export class PdfGeneratorService {
     }
   }
 
+  private buildFooterTemplate(data: ServiceReportData): string {
+    return `<div style="width:100%;box-sizing:border-box;padding:0 32px;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#888;font-family:Arial,sans-serif;">
+      <span>${data.report_number}</span>
+      <span>Halaman <span class="pageNumber"></span> dari <span class="totalPages"></span></span>
+      <span>${data.company_name}</span>
+    </div>`;
+  }
+
   async generate(data: ServiceReportData): Promise<Buffer> {
     if (!this.template) this.loadTemplate();
 
@@ -139,8 +147,11 @@ export class PdfGeneratorService {
 
       const pdfBuffer = await page.pdf({
         format: 'A4',
-        margin: { top: '0', bottom: '0', left: '0', right: '0' },
+        margin: { top: '0', bottom: '14mm', left: '0', right: '0' },
         printBackground: true,
+        displayHeaderFooter: true,
+        headerTemplate: '<span></span>',
+        footerTemplate: this.buildFooterTemplate(data),
       });
 
       return Buffer.from(pdfBuffer);
