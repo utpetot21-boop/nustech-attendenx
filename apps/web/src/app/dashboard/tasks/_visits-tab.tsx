@@ -707,6 +707,12 @@ function DetailModal({ visit, onClose, onReviewed }: { visit: Visit; onClose: ()
                       Oleh {visit.reviewer.full_name} · {visit.reviewed_at ? new Date(visit.reviewed_at).toLocaleString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
                     </p>
                   )}
+                  {visit.review_status === 'revision_needed' && (
+                    <div className="flex items-center gap-2 bg-[#FFF7ED] border border-[#FF9500]/30 rounded-xl px-3 py-2.5">
+                      <AlertCircle size={13} className="text-[#FF9500] flex-shrink-0" />
+                      <p className="text-xs text-[#9A3412]">Menunggu teknisi memperbaiki laporan. Form evaluasi akan muncul kembali setelah revisi dikumpulkan.</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
