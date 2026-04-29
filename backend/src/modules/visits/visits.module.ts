@@ -13,7 +13,6 @@ import { TaskHoldEntity } from '../tasks/entities/task-hold.entity';
 import { AuditLogEntity } from '../audit/entities/audit-log.entity';
 import { VisitsService } from './visits.service';
 import { VisitsController } from './visits.controller';
-import { PhotoWatermarkService } from './photo-watermark.service';
 import { StorageService } from '../../services/storage.service';
 import { NominatimService } from '../../services/nominatim.service';
 import { OsrmService } from '../../services/osrm.service';
@@ -38,7 +37,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
   controllers: [VisitsController],
   providers: [
     VisitsService,
-    PhotoWatermarkService,
     StorageService,
     NominatimService,
     OsrmService,

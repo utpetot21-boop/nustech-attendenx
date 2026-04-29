@@ -17,9 +17,9 @@ import { UpdateVisitReportDto } from './dto/update-visit-report.dto';
 import { FormResponseItemDto } from './dto/save-form-responses.dto';
 import { GivePhotoFeedbackDto } from './dto/give-photo-feedback.dto';
 import { AdminUpdateVisitDto } from './dto/admin-update-visit.dto';
+import sharp from 'sharp';
 import { NominatimService } from '../../services/nominatim.service';
 import { StorageService } from '../../services/storage.service';
-import { PhotoWatermarkService } from './photo-watermark.service';
 import { ClientEntity } from '../clients/entities/client.entity';
 import { VisitFormResponseEntity } from '../templates/entities/visit-form-response.entity';
 import { TemplatePhotoRequirementEntity } from '../templates/entities/template-photo-requirement.entity';
@@ -60,7 +60,6 @@ export class VisitsService {
     private readonly nominatim: NominatimService,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
-    private readonly watermark: PhotoWatermarkService,
   ) {}
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -149,7 +148,7 @@ export class VisitsService {
     dto: AddPhotoDto,
     fileBuffer: Buffer,
   ): Promise<VisitPhotoEntity> {
-    const visit = await this.getOngoingVisit(userId, visitId);
+    await this.getOngoingVisit(userId, visitId);
 
     // Validasi batas foto — per requirement jika dikirim, fallback ke phase global
     if (dto.requirement_id) {
@@ -185,22 +184,20 @@ export class VisitsService {
     const takenAt = dto.taken_at ? new Date(dto.taken_at) : new Date();
     const source = dto.source ?? 'camera';
 
-    const { originalBuffer, watermarkedBuffer, thumbnailBuffer, fileSizeKb } =
-      await this.watermark.process({
-        imageBuffer: fileBuffer,
-        takenAt,
-        lat: dto.lat,
-        lng: dto.lng,
-        district: geo.district ?? '',
-        province: geo.province ?? '',
-        locationName: (await this.clientRepo.findOneOrFail({ where: { id: visit.client_id } })).name,
-        source,
-      });
+    const originalBuffer = await sharp(fileBuffer)
+      .rotate()
+      .resize({ width: 2400, withoutEnlargement: true })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    const thumbnailBuffer = await sharp(originalBuffer)
+      .resize({ width: 400 })
+      .jpeg({ quality: 75 })
+      .toBuffer();
+    const fileSizeKb = Math.ceil(originalBuffer.length / 1024);
 
     const folder = `visits/${visitId}/${dto.phase}`;
-    const [originalUrl, watermarkedUrl, thumbnailUrl] = await Promise.all([
+    const [originalUrl, thumbnailUrl] = await Promise.all([
       this.storage.upload(`${folder}/original`, 'jpg', originalBuffer),
-      this.storage.upload(`${folder}/watermarked`, 'jpg', watermarkedBuffer),
       this.storage.upload(`${folder}/thumbnail`, 'jpg', thumbnailBuffer),
     ]);
 
@@ -210,7 +207,7 @@ export class VisitsService {
       phase: dto.phase,
       seq_number: seqCount + 1,
       original_url: originalUrl,
-      watermarked_url: watermarkedUrl,
+      watermarked_url: originalUrl,
       thumbnail_url: thumbnailUrl,
       caption: dto.caption ?? null,
       taken_at: takenAt,
@@ -238,24 +235,21 @@ export class VisitsService {
     if (!visit) throw new NotFoundException('Kunjungan tidak ditemukan.');
 
     const takenAt = new Date();
-    const client = await this.clientRepo.findOneOrFail({ where: { id: visit.client_id } });
 
-    const { originalBuffer, watermarkedBuffer, thumbnailBuffer, fileSizeKb } =
-      await this.watermark.process({
-        imageBuffer: fileBuffer,
-        takenAt,
-        lat: 0,
-        lng: 0,
-        district: '',
-        province: '',
-        locationName: client.name,
-        source: 'admin',
-      });
+    const originalBuffer = await sharp(fileBuffer)
+      .rotate()
+      .resize({ width: 2400, withoutEnlargement: true })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    const thumbnailBuffer = await sharp(originalBuffer)
+      .resize({ width: 400 })
+      .jpeg({ quality: 75 })
+      .toBuffer();
+    const fileSizeKb = Math.ceil(originalBuffer.length / 1024);
 
     const folder = `visits/${visitId}/extra`;
-    const [originalUrl, watermarkedUrl, thumbnailUrl] = await Promise.all([
+    const [originalUrl, thumbnailUrl] = await Promise.all([
       this.storage.upload(`${folder}/original`, 'jpg', originalBuffer),
-      this.storage.upload(`${folder}/watermarked`, 'jpg', watermarkedBuffer),
       this.storage.upload(`${folder}/thumbnail`, 'jpg', thumbnailBuffer),
     ]);
 
@@ -265,7 +259,7 @@ export class VisitsService {
       phase: 'extra',
       seq_number: seqCount + 1,
       original_url: originalUrl,
-      watermarked_url: watermarkedUrl,
+      watermarked_url: originalUrl,
       thumbnail_url: thumbnailUrl,
       caption: null,
       taken_at: takenAt,
@@ -756,25 +750,22 @@ export class VisitsService {
       throw new BadRequestException('Hanya foto yang diflag "perlu ganti" yang dapat diganti.');
     }
 
-    const client = await this.clientRepo.findOneOrFail({ where: { id: visit.client_id } });
     const takenAt = new Date();
 
-    const { originalBuffer, watermarkedBuffer, thumbnailBuffer, fileSizeKb } =
-      await this.watermark.process({
-        imageBuffer: fileBuffer,
-        takenAt,
-        lat: 0,
-        lng: 0,
-        district: '',
-        province: '',
-        locationName: client.name,
-        source: 'gallery',
-      });
+    const originalBuffer = await sharp(fileBuffer)
+      .rotate()
+      .resize({ width: 2400, withoutEnlargement: true })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    const thumbnailBuffer = await sharp(originalBuffer)
+      .resize({ width: 400 })
+      .jpeg({ quality: 75 })
+      .toBuffer();
+    const fileSizeKb = Math.ceil(originalBuffer.length / 1024);
 
     const folder = `visits/${visitId}/${oldPhoto.phase}`;
-    const [originalUrl, watermarkedUrl, thumbnailUrl] = await Promise.all([
+    const [originalUrl, thumbnailUrl] = await Promise.all([
       this.storage.upload(`${folder}/original`, 'jpg', originalBuffer),
-      this.storage.upload(`${folder}/watermarked`, 'jpg', watermarkedBuffer),
       this.storage.upload(`${folder}/thumbnail`, 'jpg', thumbnailBuffer),
     ]);
 
@@ -782,9 +773,6 @@ export class VisitsService {
     void Promise.allSettled([
       this.storage.delete(oldPhoto.original_url),
       oldPhoto.thumbnail_url ? this.storage.delete(oldPhoto.thumbnail_url) : Promise.resolve(),
-      oldPhoto.watermarked_url !== oldPhoto.original_url
-        ? this.storage.delete(oldPhoto.watermarked_url)
-        : Promise.resolve(),
     ]);
 
     await this.photoRepo.delete(photoId);
@@ -794,7 +782,7 @@ export class VisitsService {
       phase: oldPhoto.phase,
       seq_number: oldPhoto.seq_number,
       original_url: originalUrl,
-      watermarked_url: watermarkedUrl,
+      watermarked_url: originalUrl,
       thumbnail_url: thumbnailUrl,
       caption: oldPhoto.caption,
       taken_at: takenAt,

@@ -65,7 +65,7 @@ export class VisitPhotoEntity {
   @JoinColumn({ name: 'photo_requirement_id' })
   photo_requirement: TemplatePhotoRequirementEntity | null;
 
-  // 'camera' = diambil langsung; 'gallery' = dari galeri HP (watermark berbeda); 'admin' = diupload admin web
+  // 'camera' = diambil langsung; 'gallery' = dari galeri HP; 'admin' = diupload admin web
   @Column({ type: 'varchar', length: 10, default: 'camera' })
   source: 'camera' | 'gallery' | 'admin';
 
