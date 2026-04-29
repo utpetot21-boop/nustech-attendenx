@@ -348,10 +348,20 @@ export class TasksService {
       throw new BadRequestException('Tugas tidak dalam status yang dapat diterima.');
     }
 
-    // For broadcast: mark this user's assignment as accepted, close others
+    // Atomic claim — hanya satu user yang menang jika dua accept bersamaan.
+    // taskRepo.update WHERE status masih pending/unassigned; yang kalah dapat 0 affected.
+    const claimResult = await this.taskRepo.update(
+      { id: taskId, status: In(['pending_confirmation', 'unassigned']) },
+      { assigned_to: userId, status: 'assigned', confirm_deadline: null },
+    );
+    if (claimResult.affected === 0) {
+      throw new BadRequestException('Tugas sudah diambil oleh orang lain.');
+    }
+
+    // Reject semua offered lain, kemudian set milik user ini ke accepted
     await this.assignRepo.update(
       { task_id: taskId, status: 'offered' },
-      { status: 'rejected', responded_at: new Date() },
+      { status: 'rejected', responded_at: new Date(), is_current: false },
     );
 
     const assignment = await this.assignRepo.findOne({
@@ -365,7 +375,6 @@ export class TasksService {
         is_current: true,
       });
     } else {
-      // Direct: create if not found
       await this.assignRepo.save(
         this.assignRepo.create({
           task_id: taskId,
@@ -377,12 +386,6 @@ export class TasksService {
         }),
       );
     }
-
-    await this.taskRepo.update(taskId, {
-      assigned_to: userId,
-      status: 'assigned',
-      confirm_deadline: null,
-    });
 
     const updated = await this.findOne(taskId);
     this.realtime?.emitTaskUpdated(taskId, { status: 'assigned', assigned_to: userId });
@@ -573,7 +576,14 @@ export class TasksService {
     };
     if (newAssignedTo) taskUpdate.assigned_to = newAssignedTo;
 
-    await this.taskRepo.update(taskId, taskUpdate as never);
+    // Guard: hanya update jika task masih on_hold — cegah approve saat task sudah cancel/complete
+    const holdUpdateResult = await this.taskRepo.update(
+      { id: taskId, status: 'on_hold' },
+      taskUpdate as never,
+    );
+    if (holdUpdateResult.affected === 0) {
+      throw new BadRequestException('Tugas sudah tidak dalam status ditunda.');
+    }
 
     const approverName = task.creator?.full_name ?? 'Manager';
     await this.notifications.send({
@@ -618,7 +628,13 @@ export class TasksService {
     // Hold dari in_progress (ada visit aktif) → kembalikan ke in_progress,
     // bukan assigned, agar status task konsisten dengan visit yang sedang berjalan
     const restoreStatus = hold.visit_id ? 'in_progress' : 'assigned';
-    await this.taskRepo.update(taskId, { status: restoreStatus });
+    const rejectUpdateResult = await this.taskRepo.update(
+      { id: taskId, status: 'on_hold' },
+      { status: restoreStatus },
+    );
+    if (rejectUpdateResult.affected === 0) {
+      throw new BadRequestException('Tugas sudah tidak dalam status ditunda.');
+    }
     if (hold.visit_id) {
       await this.visitRepo.update(hold.visit_id, { status: 'ongoing' });
     }

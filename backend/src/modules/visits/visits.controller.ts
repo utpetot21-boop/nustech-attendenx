@@ -142,23 +142,30 @@ export class VisitsController {
 
   // GET /visits/:id/photo-counts
   @Get(':id/photo-counts')
-  getPhotoCounts(@Param('id', ParseUUIDPipe) visitId: string) {
-    return this.visitsService.getPhotoCounts(visitId);
+  getPhotoCounts(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) visitId: string,
+  ) {
+    return this.visitsService.getPhotoCounts(visitId, userId);
   }
 
   // POST /visits/:id/form-responses — simpan jawaban formulir kunjungan
   @Post(':id/form-responses')
   saveFormResponses(
+    @CurrentUser('id') userId: string,
     @Param('id', ParseUUIDPipe) visitId: string,
     @Body() dto: SaveFormResponsesDto,
   ) {
-    return this.visitsService.saveFormResponses(visitId, dto.responses);
+    return this.visitsService.saveFormResponses(visitId, userId, dto.responses);
   }
 
   // GET /visits/:id/form-responses — ambil jawaban formulir kunjungan
   @Get(':id/form-responses')
-  getFormResponses(@Param('id', ParseUUIDPipe) visitId: string) {
-    return this.visitsService.getFormResponses(visitId);
+  getFormResponses(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) visitId: string,
+  ) {
+    return this.visitsService.getFormResponses(visitId, userId);
   }
 
   // POST /visits/:id/photos/admin — upload foto dokumentasi tambahan oleh admin

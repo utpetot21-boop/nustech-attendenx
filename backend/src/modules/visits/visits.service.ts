@@ -414,14 +414,15 @@ export class VisitsService {
     return visit;
   }
 
-  async getPhotoCounts(visitId: string): Promise<{
+  async getPhotoCounts(visitId: string, userId: string): Promise<{
     has_requirements: boolean;
     requirements: Array<{ id: string; label: string; phase: string; max_photos: number; is_required: boolean; count: number }>;
     before: { count: number; min: number; max: number };
     during: { count: number; min: number; max: number };
     after: { count: number; min: number; max: number };
   }> {
-    const visit = await this.visitRepo.findOne({ where: { id: visitId }, select: ['template_id'] });
+    const visit = await this.visitRepo.findOne({ where: { id: visitId }, select: ['id', 'user_id', 'template_id'] });
+    if (!visit || visit.user_id !== userId) throw new NotFoundException('Kunjungan tidak ditemukan.');
     const [b, d, a] = await Promise.all([
       this.photoRepo.count({ where: { visit_id: visitId, phase: 'before' } }),
       this.photoRepo.count({ where: { visit_id: visitId, phase: 'during' } }),
@@ -621,7 +622,9 @@ export class VisitsService {
   // ────────────────────────────────────────────────────────────────────────────
   // FORM RESPONSES
   // ────────────────────────────────────────────────────────────────────────────
-  async saveFormResponses(visitId: string, responses: FormResponseItemDto[]): Promise<void> {
+  async saveFormResponses(visitId: string, userId: string, responses: FormResponseItemDto[]): Promise<void> {
+    const visit = await this.visitRepo.findOne({ where: { id: visitId }, select: ['id', 'user_id'] });
+    if (!visit || visit.user_id !== userId) throw new NotFoundException('Kunjungan tidak ditemukan.');
     for (const r of responses) {
       await this.formResponseRepo.upsert(
         { visit_id: visitId, field_id: r.field_id, value: r.value ?? null },
@@ -630,7 +633,9 @@ export class VisitsService {
     }
   }
 
-  async getFormResponses(visitId: string): Promise<VisitFormResponseEntity[]> {
+  async getFormResponses(visitId: string, userId: string): Promise<VisitFormResponseEntity[]> {
+    const visit = await this.visitRepo.findOne({ where: { id: visitId }, select: ['id', 'user_id'] });
+    if (!visit || visit.user_id !== userId) throw new NotFoundException('Kunjungan tidak ditemukan.');
     return this.formResponseRepo.find({
       where: { visit_id: visitId },
       relations: ['field'],
