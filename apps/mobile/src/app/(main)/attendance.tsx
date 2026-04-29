@@ -204,6 +204,7 @@ export default function AttendanceScreen() {
   const [requestReason, setRequestReason] = useState('');
   const [requestEstTime, setRequestEstTime] = useState('');
   const [checkOutGpsLoading, setCheckOutGpsLoading] = useState(false);
+  const [checkOutGpsResult, setCheckOutGpsResult] = useState<{ isWithinRadius: boolean; distanceMeters: number; accuracy: number | null } | null>(null);
   // openHistoryParam dari notifikasi tap auto-expand riwayat
   const [showHistory, setShowHistory] = useState(openHistoryParam === '1');
   useEffect(() => {
@@ -288,6 +289,7 @@ export default function AttendanceScreen() {
   const todaySchedule = todaySchedules.find((s) => s.date === todayDateStr) ?? null;
 
   // Hitung apakah user sudah melewati toleransi keterlambatan saat ini
+  // Pakai aritmatika UTC+8 (WITA) agar tidak tergantung timezone device
   const computeIsLate = useCallback((): { isLate: boolean; lateMin: number; tolerance: number; shiftStart: string | null } => {
     const shiftStart = attendance?.shift_start ?? todaySchedule?.start_time ?? null;
     const tolerance = attendance?.tolerance_minutes ?? todaySchedule?.tolerance_minutes ?? 0;
@@ -296,10 +298,12 @@ export default function AttendanceScreen() {
     const h = parts[0] ?? 0;
     const m = parts[1] ?? 0;
     if (!Number.isFinite(h) || !Number.isFinite(m)) return { isLate: false, lateMin: 0, tolerance, shiftStart: null };
-    const toleranceEnd = new Date();
-    toleranceEnd.setHours(h, m + tolerance, 0, 0);
-    const diffMin = Math.floor((new Date().getTime() - toleranceEnd.getTime()) / 60000);
-    return { isLate: diffMin > 0, lateMin: diffMin, tolerance, shiftStart };
+    // Menit saat ini dalam WITA (UTC+8)
+    const witaNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const nowMin = witaNow.getUTCHours() * 60 + witaNow.getUTCMinutes();
+    const toleranceEndMin = h * 60 + m + tolerance;
+    const diffMin = Math.floor(nowMin - toleranceEndMin);
+    return { isLate: diffMin > 0, lateMin: Math.max(0, diffMin), tolerance, shiftStart };
   }, [attendance, todaySchedule]);
 
   // Mutations
@@ -344,10 +348,12 @@ export default function AttendanceScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['attendance-today'] });
       qc.invalidateQueries({ queryKey: ['checkout-info'] });
+      setCheckOutGpsResult(null);
       Alert.alert('Check-out Berhasil ✓', 'Sampai jumpa besok!');
     },
     onError: (err: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setCheckOutGpsResult(null);
       const data = err?.response?.data;
       if (data?.canCheckout === false) {
         const h = Math.floor(data.remainingSeconds / 3600);
@@ -363,6 +369,7 @@ export default function AttendanceScreen() {
   const handleCheckOut = useCallback(async () => {
     if (checkOutGpsLoading || checkOutMutation.isPending) return;
     setCheckOutGpsLoading(true);
+    setCheckOutGpsResult(null);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -395,6 +402,15 @@ export default function AttendanceScreen() {
         return;
       }
 
+      // Tampilkan GPSValidator (sama seperti check-in)
+      if (myOffice?.lat != null && myOffice?.lng != null) {
+        const { calculateDistance } = await import('@nustech/shared');
+        const distanceMeters = Math.round(calculateDistance(lat, lng, myOffice.lat, myOffice.lng));
+        setCheckOutGpsResult({ isWithinRadius: distanceMeters <= myOffice.radius_meter, distanceMeters, accuracy });
+      } else {
+        setCheckOutGpsResult({ isWithinRadius: true, distanceMeters: 0, accuracy });
+      }
+
       checkOutMutation.mutate({ lat, lng });
     } catch {
       Alert.alert(
@@ -404,7 +420,7 @@ export default function AttendanceScreen() {
     } finally {
       setCheckOutGpsLoading(false);
     }
-  }, [checkOutGpsLoading, checkOutMutation]);
+  }, [checkOutGpsLoading, checkOutMutation, myOffice]);
 
   // ── Flow check-in ─────────────────────────────────────────────
   const startCheckIn = useCallback(async () => {
@@ -555,16 +571,20 @@ export default function AttendanceScreen() {
   const alreadyCheckedOut = !!attendance?.check_out_at;
 
   // Hitung deadline pengajuan izin terlambat (15 menit sebelum shift)
+  // Pakai aritmatika UTC+8 (WITA) agar tidak tergantung timezone device
   const lateDeadlineInfo = useMemo(() => {
     if (alreadyCheckedIn) return null;
     const shiftStart = attendance?.shift_start ?? todaySchedule?.start_time ?? null;
     if (!shiftStart) return null;
     const [h, m] = shiftStart.split(':').map(Number);
     if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-    const deadline = new Date();
-    deadline.setHours(h, m - 15, 0, 0);
-    const passed = new Date() > deadline;
-    const deadlineStr = deadline.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Makassar' });
+    const witaNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    const nowMin = witaNow.getUTCHours() * 60 + witaNow.getUTCMinutes();
+    const deadlineMin = h * 60 + m - 15;
+    const passed = nowMin >= deadlineMin;
+    const dh = Math.floor(((deadlineMin % 1440) + 1440) % 1440 / 60);
+    const dm = ((deadlineMin % 60) + 60) % 60;
+    const deadlineStr = `${String(dh).padStart(2, '0')}:${String(dm).padStart(2, '0')}`;
     return { passed, deadlineStr };
   }, [attendance, todaySchedule, alreadyCheckedIn]);
 
@@ -798,6 +818,19 @@ export default function AttendanceScreen() {
           </View>
           );
         })()}
+
+        {/* ── GPS status check-out ────────────────────────────── */}
+        {(checkOutGpsLoading || checkOutGpsResult) && alreadyCheckedIn && !alreadyCheckedOut && (
+          <View style={{ marginBottom: 12 }}>
+            <GPSValidator
+              isLoading={checkOutGpsLoading}
+              isWithinRadius={checkOutGpsResult?.isWithinRadius ?? null}
+              distanceMeters={checkOutGpsResult?.distanceMeters ?? null}
+              accuracy={checkOutGpsResult?.accuracy}
+              officeName={myOffice?.office_name ?? 'Kantor'}
+            />
+          </View>
+        )}
 
         {/* ── Permohonan Izin Absen ───────────────────────────── */}
         <View style={{
