@@ -473,9 +473,14 @@ export default function VisitDetailScreen() {
       }
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    // Simpan form responses dulu jika ada template
+    // Simpan form responses dulu jika ada template — batalkan checkout jika save gagal
     if (templateId && Object.keys(formAnswers).length > 0) {
-      await saveFormMut.mutateAsync().catch(() => null);
+      try {
+        await saveFormMut.mutateAsync();
+      } catch {
+        Alert.alert('Gagal Menyimpan', 'Data formulir gagal disimpan. Periksa koneksi internet dan coba lagi.');
+        return;
+      }
     }
     checkOutMutation.mutate();
   }, [workDescription, template, formAnswers, templateId, saveFormMut, checkOutMutation]);

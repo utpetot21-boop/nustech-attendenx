@@ -909,13 +909,9 @@ export class TasksService {
       { is_current: false },
     );
 
-    // Batalkan visit yang masih berjalan (jika ada) supaya teknisi tidak bisa check-out lagi
+    // Batalkan semua visit aktif milik task ini dalam satu query
     await this.visitRepo.update(
-      { task_id: taskId, status: 'ongoing' },
-      { status: 'cancelled' },
-    );
-    await this.visitRepo.update(
-      { task_id: taskId, status: 'on_hold' },
+      { task_id: taskId, status: In(['ongoing', 'on_hold']) },
       { status: 'cancelled' },
     );
 
