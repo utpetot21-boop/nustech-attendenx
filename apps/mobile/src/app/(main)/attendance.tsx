@@ -644,9 +644,12 @@ export default function AttendanceScreen() {
               Toleransi s/d {(() => {
                 if (!attendance.shift_start) return '—';
                 const [h, m] = attendance.shift_start.split(':').map(Number);
-                const d = new Date();
-                d.setHours(h, m + attendance.tolerance_minutes, 0, 0);
-                return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' });
+                if (!Number.isFinite(h) || !Number.isFinite(m)) return '—';
+                // shift_start sudah WITA — cukup tambah menit toleransi, tanpa Date object
+                const totalMin = ((h * 60 + m + (attendance.tolerance_minutes ?? 0)) % 1440 + 1440) % 1440;
+                const th = Math.floor(totalMin / 60);
+                const tm = totalMin % 60;
+                return `${String(th).padStart(2, '0')}:${String(tm).padStart(2, '0')}`;
               })()} WITA
             </Text>
           )}
