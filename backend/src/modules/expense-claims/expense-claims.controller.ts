@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, ParseUUIDPipe,
+  BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe,
   Post, Query, Res, UploadedFile, UseGuards, UseInterceptors,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -38,6 +38,10 @@ export class ExpenseClaimsController {
   @RequirePermission('task:own', 'task:assign')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   async uploadReceipt(@UploadedFile() file: Express.Multer.File) {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      throw new BadRequestException('Hanya file JPEG, PNG, atau WebP yang diizinkan.');
+    }
     const url = await this.svc.uploadReceipt(file.buffer, file.mimetype);
     return { url };
   }

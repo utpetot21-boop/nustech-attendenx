@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Receipt, Plus, Clock, CheckCircle2, XCircle, CreditCard,
-  Info, Calendar, X, Camera,
+  Info, Calendar, X,
 } from 'lucide-react-native';
 import {
   getMyClaims, getConfig, createClaim, uploadReceipt,
@@ -47,7 +47,7 @@ export default function ExpenseClaimsScreen() {
   const textPrimary = lPrimary(isDark);
   const textSecondary = lSecondary(isDark);
 
-  const { data: claims = [], isLoading, refetch } = useQuery({
+  const { data: claims = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['my-claims', filter],
     queryFn: () => getMyClaims(filter),
   });
@@ -114,7 +114,15 @@ export default function ExpenseClaimsScreen() {
 
         {/* List */}
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
-          {claims.length === 0 && !isLoading && (
+          {isError && (
+            <EmptyState
+              icon={XCircle}
+              iconColor={C.red}
+              title="Gagal memuat data"
+              message="Periksa koneksi internet lalu tarik layar ke bawah untuk coba lagi."
+            />
+          )}
+          {!isError && claims.length === 0 && !isLoading && (
             <EmptyState
               icon={Receipt}
               iconColor={C.blue}

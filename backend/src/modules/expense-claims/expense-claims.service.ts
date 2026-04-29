@@ -61,11 +61,19 @@ export class ExpenseClaimsService {
   async create(userId: string, dto: CreateClaimDto): Promise<ExpenseClaimEntity> {
     const cfg = await this.configRepo.findOneBy({ category: dto.category });
     if (!cfg || !cfg.is_active) throw new BadRequestException('Kategori tidak aktif');
+    if (cfg.max_amount === 0) throw new BadRequestException('Kategori belum dikonfigurasi oleh admin. Hubungi administrator.');
     if (dto.amount > cfg.max_amount) {
       throw new BadRequestException(`Melebihi batas maksimum kategori ${cfg.category}: Rp ${cfg.max_amount.toLocaleString('id-ID')}`);
     }
     if (dto.amount >= cfg.receipt_required_above && (!dto.receipt_urls || dto.receipt_urls.length === 0)) {
       throw new BadRequestException(`Foto nota wajib untuk nominal ≥ Rp ${cfg.receipt_required_above.toLocaleString('id-ID')}`);
+    }
+
+    if (dto.visit_id) {
+      const [visit] = await this.ds.query<{ user_id: string }[]>(
+        'SELECT user_id FROM visits WHERE id = $1', [dto.visit_id],
+      );
+      if (!visit || visit.user_id !== userId) throw new BadRequestException('Kunjungan tidak valid.');
     }
 
     const claim = this.claimRepo.create({
@@ -190,6 +198,7 @@ export class ExpenseClaimsService {
   async review(claimId: string, reviewerId: string, dto: ReviewClaimDto): Promise<ExpenseClaimEntity> {
     const claim = await this.claimRepo.findOneBy({ id: claimId });
     if (!claim) throw new NotFoundException('Klaim tidak ditemukan');
+    if (claim.user_id === reviewerId) throw new ForbiddenException('Tidak dapat meninjau klaim milik sendiri');
 
     if (dto.action === ReviewAction.APPROVE) {
       if (claim.status !== 'pending') throw new BadRequestException('Hanya klaim pending yang bisa di-approve');
