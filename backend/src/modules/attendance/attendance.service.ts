@@ -341,7 +341,7 @@ export class AttendanceService {
     // Notif semua admin + super_admin jika lembur melebihi 3 jam
     if (rawOvertime > 180) {
       const admins = await this.userRepo.find({
-        where: { role: In(['admin', 'super_admin']), is_active: true },
+        where: { role: { name: In(['admin', 'super_admin']) }, is_active: true },
       });
       const employeeName = user?.full_name ?? 'Karyawan';
       for (const admin of admins) {
