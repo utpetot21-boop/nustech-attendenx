@@ -6,7 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 
 import { TaskEntity } from './entities/task.entity';
 import { TaskAssignmentEntity } from './entities/task-assignment.entity';
@@ -872,12 +872,20 @@ export class TasksService {
 
     const previousAssignee = task.assigned_to;
 
-    await this.taskRepo.update(taskId, {
-      status: 'cancelled',
-      cancelled_at: new Date(),
-      cancelled_by: userId,
-      cancel_reason: dto.reason,
-    });
+    // Atomic — hanya update jika status belum 'cancelled' atau 'completed'.
+    // Mencegah cancel menimpa status 'completed' akibat race dengan checkout.
+    const cancelResult = await this.taskRepo.update(
+      { id: taskId, status: Not(In(['cancelled', 'completed'])) },
+      {
+        status: 'cancelled',
+        cancelled_at: new Date(),
+        cancelled_by: userId,
+        cancel_reason: dto.reason,
+      },
+    );
+    if (cancelResult.affected === 0) {
+      throw new BadRequestException('Tugas sudah selesai atau dibatalkan.');
+    }
 
     // Tutup semua penugasan aktif — tidak ada lagi offered/accepted yang current
     await this.assignRepo.update(

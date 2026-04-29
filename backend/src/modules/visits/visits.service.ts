@@ -340,15 +340,28 @@ export class VisitsService {
       ? Math.round((checkOutAt.getTime() - visit.check_in_at.getTime()) / 60000)
       : null;
 
-    visit.check_out_at = checkOutAt;
-    visit.work_description = dto.work_description;
-    visit.findings = dto.findings ?? null;
-    visit.recommendations = dto.recommendations ?? null;
-    visit.materials_used = (dto.materials_used as Record<string, unknown>[] | undefined) ?? null;
-    visit.duration_minutes = durationMinutes;
-    visit.status = 'completed';
+    // Atomic update — hanya berhasil jika status masih 'ongoing' saat commit.
+    // Mencegah double-checkout jika dua request tiba bersamaan.
+    const result = await this.visitRepo.update(
+      { id: visitId, status: 'ongoing' },
+      {
+        check_out_at: checkOutAt,
+        work_description: dto.work_description,
+        findings: dto.findings ?? null,
+        recommendations: dto.recommendations ?? null,
+        materials_used: (dto.materials_used ?? null) as any,
+        duration_minutes: durationMinutes,
+        status: 'completed',
+      },
+    );
+    if (result.affected === 0) {
+      throw new BadRequestException('Kunjungan sudah di-checkout atau dibatalkan.');
+    }
 
-    const saved = await this.visitRepo.save(visit);
+    const saved = await this.visitRepo.findOne({
+      where: { id: visitId },
+      relations: ['client'],
+    }) as VisitEntity;
 
     // Sinkronkan task: status → completed + completed_at agar pekerjaan hilang
     // dari daftar aktif dan pindah ke riwayat "Selesai".
