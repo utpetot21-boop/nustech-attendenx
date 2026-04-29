@@ -182,7 +182,7 @@ export class AttendanceService {
     if (schedule.end_time) {
       const witaDateCo = checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
       const [coEh] = schedule.end_time.split(':').map(Number);
-      let shiftEndWita = new Date(`${witaDateCo}T${schedule.end_time}:00+08:00`);
+      let shiftEndWita = new Date(`${witaDateCo}T${schedule.end_time.slice(0, 5)}:00+08:00`);
       if (Number.isFinite(coEh) && coEh < 6) {
         shiftEndWita = new Date(shiftEndWita.getTime() + 24 * 60 * 60 * 1000);
       }
@@ -581,7 +581,7 @@ export class AttendanceService {
       let corrCheckoutEarliest = corrFrom8h;
       if (record.shift_end && record.date) {
         const [corrEh] = record.shift_end.split(':').map(Number);
-        let corrShiftEnd = new Date(`${record.date}T${record.shift_end}:00+08:00`);
+        let corrShiftEnd = new Date(`${record.date}T${record.shift_end.slice(0, 5)}:00+08:00`);
         if (Number.isFinite(corrEh) && corrEh < 6) {
           corrShiftEnd = new Date(corrShiftEnd.getTime() + 24 * 60 * 60 * 1000);
         }
@@ -625,7 +625,7 @@ export class AttendanceService {
     windowMinutes: number,
   ): { allowed: boolean; minutesEarly: number } {
     const witaDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
-    const shiftStartMs = new Date(`${witaDate}T${shiftStart}:00+08:00`);
+    const shiftStartMs = new Date(`${witaDate}T${shiftStart.slice(0, 5)}:00+08:00`);
     const minutesEarly = Math.floor((shiftStartMs.getTime() - now.getTime()) / 60000);
     return { allowed: minutesEarly <= windowMinutes, minutesEarly: Math.max(0, minutesEarly) };
   }
@@ -667,8 +667,9 @@ export class AttendanceService {
     if (!shiftStart) return { status: 'hadir', lateMinutes: 0 };
 
     // Bangun shift start dalam WITA — hindari setHours() yang bergantung timezone server
+    // slice(0,5) normalisasi "HH:MM:SS" → "HH:MM" sebelum append :00+08:00
     const witaDate = checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
-    const shiftStartMs = new Date(`${witaDate}T${shiftStart}:00+08:00`);
+    const shiftStartMs = new Date(`${witaDate}T${shiftStart.slice(0, 5)}:00+08:00`);
 
     const diffMinutes = Math.floor(
       (checkInAt.getTime() - shiftStartMs.getTime()) / 60000,
@@ -691,8 +692,9 @@ export class AttendanceService {
     if (!shiftEnd) return 0;
 
     // Gunakan +08:00 (WITA) agar tidak bergantung timezone server
+    // slice(0,5) normalisasi "HH:MM:SS" → "HH:MM" sebelum append :00+08:00
     const [eh] = shiftEnd.split(':').map(Number);
-    const shiftEndDate = new Date(`${date}T${shiftEnd}:00+08:00`);
+    const shiftEndDate = new Date(`${date}T${shiftEnd.slice(0, 5)}:00+08:00`);
 
     // Handle shift lintas tengah malam (misal berakhir 02:00 WITA)
     if (Number.isFinite(eh) && eh < 6) {
