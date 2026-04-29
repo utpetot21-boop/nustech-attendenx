@@ -38,6 +38,7 @@ export const NOTIF_ROUTE_MAP: Record<string, string> = {
   // Absensi check-in/out
   check_in_success:                '/(main)/attendance',
   check_out_success:               '/(main)/attendance',
+  overtime_exceeded:               '/(main)/attendance-history',
   // Absensi permohonan
   sp_reminder:                     '/(main)/attendance',
   alfa_detected:                   '/(main)/attendance',

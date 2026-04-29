@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, IsNull, Repository } from 'typeorm';
+import { Between, In, IsNull, Repository } from 'typeorm';
 
 import { AttendanceEntity } from './entities/attendance.entity';
 import { UserScheduleEntity } from '../schedule/entities/user-schedule.entity';
@@ -105,6 +105,14 @@ export class AttendanceService {
       throw new BadRequestException('Hari ini adalah hari libur Anda');
     }
 
+    // P1: Tolak check-in lebih dari 30 menit sebelum shift dimulai
+    const { allowed: earlyAllowed } = this.checkEarlyWindow(new Date(), schedule.start_time, 30);
+    if (!earlyAllowed) {
+      throw new BadRequestException(
+        `Check-in terlalu awal. Anda baru dapat check-in 30 menit sebelum shift dimulai pukul ${schedule.start_time} WITA.`,
+      );
+    }
+
     // Validasi GPS geofence — cek apakah user berada dalam radius lokasi kerjanya
     let gpsValid: boolean | null = null;
     if (dto.lat != null && dto.lng != null) {
@@ -167,8 +175,19 @@ export class AttendanceService {
       );
     }
 
-    // Checkout earliest = check_in_at + 8 jam
-    const checkoutEarliest = new Date(checkInAt.getTime() + 8 * 60 * 60 * 1000);
+    // P2: checkout_earliest = MAX(checkInAt + 8 jam, shiftEndTime WITA)
+    // Mencegah early check-in memungkinkan checkout sebelum shift selesai
+    const checkoutFrom8h = new Date(checkInAt.getTime() + 8 * 60 * 60 * 1000);
+    let checkoutEarliest = checkoutFrom8h;
+    if (schedule.end_time) {
+      const witaDateCo = checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+      const [coEh] = schedule.end_time.split(':').map(Number);
+      let shiftEndWita = new Date(`${witaDateCo}T${schedule.end_time}:00+08:00`);
+      if (Number.isFinite(coEh) && coEh < 6) {
+        shiftEndWita = new Date(shiftEndWita.getTime() + 24 * 60 * 60 * 1000);
+      }
+      checkoutEarliest = new Date(Math.max(checkoutFrom8h.getTime(), shiftEndWita.getTime()));
+    }
 
     // Cek apakah hari libur nasional → holiday work
     const holiday = await this.holidayRepo.findOne({
@@ -315,12 +334,25 @@ export class AttendanceService {
 
     const checkOutAt = now;
 
-    // Hitung overtime: actual_checkout - shift_end_time
-    const overtimeMinutes = this.calculateOvertime(
-      checkOutAt,
-      attendance.shift_end,
-      attendance.date,
-    );
+    // Hitung overtime: actual_checkout - shift_end_time, cap 3 jam (180 menit)
+    const rawOvertime = this.calculateOvertime(checkOutAt, attendance.shift_end, attendance.date);
+    const overtimeMinutes = Math.min(rawOvertime, 180);
+
+    // Notif semua admin + super_admin jika lembur melebihi 3 jam
+    if (rawOvertime > 180) {
+      const admins = await this.userRepo.find({
+        where: { role: In(['admin', 'super_admin']), is_active: true },
+      });
+      const employeeName = user?.full_name ?? 'Karyawan';
+      for (const admin of admins) {
+        this.notificationsService.send({
+          userId: admin.id,
+          type: 'overtime_exceeded',
+          title: 'Lembur Melebihi 3 Jam',
+          body: `${employeeName} lembur ${rawOvertime} menit (batas 180 menit). Mohon ditinjau.`,
+        }).catch(() => {});
+      }
+    }
 
     await this.attendanceRepo.update(attendance.id, {
       check_out_at: checkOutAt,
@@ -543,7 +575,19 @@ export class AttendanceService {
     if (dto.check_in_at !== undefined) {
       const newCheckIn = new Date(dto.check_in_at);
       updates.check_in_at = newCheckIn;
-      updates.checkout_earliest = new Date(newCheckIn.getTime() + 8 * 60 * 60 * 1000);
+
+      // P2: checkout_earliest = MAX(checkIn + 8 jam, shiftEnd WITA)
+      const corrFrom8h = new Date(newCheckIn.getTime() + 8 * 60 * 60 * 1000);
+      let corrCheckoutEarliest = corrFrom8h;
+      if (record.shift_end && record.date) {
+        const [corrEh] = record.shift_end.split(':').map(Number);
+        let corrShiftEnd = new Date(`${record.date}T${record.shift_end}:00+08:00`);
+        if (Number.isFinite(corrEh) && corrEh < 6) {
+          corrShiftEnd = new Date(corrShiftEnd.getTime() + 24 * 60 * 60 * 1000);
+        }
+        corrCheckoutEarliest = new Date(Math.max(corrFrom8h.getTime(), corrShiftEnd.getTime()));
+      }
+      updates.checkout_earliest = corrCheckoutEarliest;
 
       if (record.shift_start) {
         const { status: rawStatus, lateMinutes } = this.calculateStatus(
@@ -574,6 +618,18 @@ export class AttendanceService {
   }
 
   // ── Helpers ───────────────────────────────────────────────────
+  // Cek apakah check-in masih dalam window yang diizinkan (maks windowMinutes sebelum shift)
+  private checkEarlyWindow(
+    now: Date,
+    shiftStart: string,
+    windowMinutes: number,
+  ): { allowed: boolean; minutesEarly: number } {
+    const witaDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+    const shiftStartMs = new Date(`${witaDate}T${shiftStart}:00+08:00`);
+    const minutesEarly = Math.floor((shiftStartMs.getTime() - now.getTime()) / 60000);
+    return { allowed: minutesEarly <= windowMinutes, minutesEarly: Math.max(0, minutesEarly) };
+  }
+
   private getTodayString(): string {
     // Gunakan WITA (Asia/Makassar, UTC+8) bukan UTC
     // toISOString() selalu UTC — jika dipakai, check-in antara 00:00-07:59 WITA
@@ -610,9 +666,9 @@ export class AttendanceService {
   ): { status: string; lateMinutes: number } {
     if (!shiftStart) return { status: 'hadir', lateMinutes: 0 };
 
-    const [sh, sm] = shiftStart.split(':').map(Number);
-    const shiftStartMs = new Date(checkInAt);
-    shiftStartMs.setHours(sh, sm, 0, 0);
+    // Bangun shift start dalam WITA — hindari setHours() yang bergantung timezone server
+    const witaDate = checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+    const shiftStartMs = new Date(`${witaDate}T${shiftStart}:00+08:00`);
 
     const diffMinutes = Math.floor(
       (checkInAt.getTime() - shiftStartMs.getTime()) / 60000,
@@ -634,11 +690,14 @@ export class AttendanceService {
   ): number {
     if (!shiftEnd) return 0;
 
-    const [eh, em] = shiftEnd.split(':').map(Number);
-    const shiftEndDate = new Date(`${date}T${shiftEnd}`);
+    // Gunakan +08:00 (WITA) agar tidak bergantung timezone server
+    const [eh] = shiftEnd.split(':').map(Number);
+    const shiftEndDate = new Date(`${date}T${shiftEnd}:00+08:00`);
 
-    // Handle shift lintas tengah malam
-    if (eh < 6) shiftEndDate.setDate(shiftEndDate.getDate() + 1);
+    // Handle shift lintas tengah malam (misal berakhir 02:00 WITA)
+    if (Number.isFinite(eh) && eh < 6) {
+      shiftEndDate.setTime(shiftEndDate.getTime() + 24 * 60 * 60 * 1000);
+    }
 
     const diff = Math.floor((checkOutAt.getTime() - shiftEndDate.getTime()) / 60000);
     return Math.max(0, diff);
