@@ -35,7 +35,7 @@ function parseDate(dateStr: string) {
 export function WeekView({ days, selectedDate, onSelectDate }: Props) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
 
   return (
     <View

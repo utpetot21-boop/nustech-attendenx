@@ -143,16 +143,27 @@ export default function ScheduleScreen() {
     events: (scheduleByDate[date] ?? []).map(scheduleToEvent),
   }));
 
-  // Navigate week
+  // Navigate week — juga pindahkan selectedDate ke hari yang sama di minggu baru
+  const shiftSelectedDate = (newWeek: string) => {
+    const newDates = getWeekDates(newWeek);
+    if (newDates.length < 7) return;
+    // ISO week: Mon=index 0 … Sun=index 6; JS getDay(): Sun=0, Mon=1 … Sat=6
+    const dayJS = new Date(selectedDate + 'T00:00:00').getDay();
+    const idx = dayJS === 0 ? 6 : dayJS - 1;
+    setSelectedDate(newDates[idx]);
+  };
+
   const prevWeek = () => {
     const [y, w] = currentWeek.split('-W').map(Number);
-    if (w === 1) setCurrentWeek(`${y - 1}-W52`);
-    else setCurrentWeek(`${y}-W${String(w - 1).padStart(2, '0')}`);
+    const newWeek = w === 1 ? `${y - 1}-W52` : `${y}-W${String(w - 1).padStart(2, '0')}`;
+    setCurrentWeek(newWeek);
+    shiftSelectedDate(newWeek);
   };
   const nextWeek = () => {
     const [y, w] = currentWeek.split('-W').map(Number);
-    if (w >= 52) setCurrentWeek(`${y + 1}-W01`);
-    else setCurrentWeek(`${y}-W${String(w + 1).padStart(2, '0')}`);
+    const newWeek = w >= 52 ? `${y + 1}-W01` : `${y}-W${String(w + 1).padStart(2, '0')}`;
+    setCurrentWeek(newWeek);
+    shiftSelectedDate(newWeek);
   };
 
   // Navigate month
