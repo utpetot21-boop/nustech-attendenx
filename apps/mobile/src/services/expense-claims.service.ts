@@ -64,6 +64,21 @@ export async function getMyClaims(status?: string): Promise<ExpenseClaim[]> {
   return res.data;
 }
 
+export async function getAllClaims(status?: string): Promise<ExpenseClaim[]> {
+  const params = status ? `?status=${status}` : '';
+  const res = await apiClient.get(`/expense-claims${params}`);
+  return res.data;
+}
+
+export async function reviewClaim(
+  id: string,
+  action: 'approve' | 'reject' | 'paid',
+  note?: string,
+): Promise<ExpenseClaim> {
+  const res = await apiClient.post(`/expense-claims/${id}/review`, { action, note });
+  return res.data;
+}
+
 export function formatRupiah(amount: number | null | undefined): string {
   // L6: guard null/undefined — cegah "Rp NaN" di UI
   if (amount == null || isNaN(amount)) return 'Rp —';

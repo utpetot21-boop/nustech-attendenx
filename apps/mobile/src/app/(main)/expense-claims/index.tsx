@@ -1,7 +1,7 @@
 /**
  * M-08 · SCREEN KLAIM BIAYA
- * List klaim + form buat klaim baru
- * Redesigned UI — consistent with app design language
+ * Karyawan: list klaim sendiri + form buat klaim baru
+ * Approver: tambahan tab "Perlu Ditinjau" untuk approve/reject/paid
  */
 import React, { useState } from 'react';
 import { router } from 'expo-router';
@@ -18,13 +18,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Receipt, Plus, Clock, CheckCircle2, XCircle, CreditCard,
-  Info, Calendar, X,
+  Info, Calendar, X, Camera, User, ChevronDown,
 } from 'lucide-react-native';
 import {
-  getMyClaims, getConfig, createClaim, uploadReceipt,
+  getMyClaims, getAllClaims, getConfig, createClaim, uploadReceipt, reviewClaim,
   ExpenseClaim, ExpenseConfig, CATEGORY_LABELS, formatRupiah,
 } from '@/services/expense-claims.service';
-import { C, pageBg, lPrimary, lSecondary, gradients } from '@/constants/tokens';
+import { useAuthStore } from '@/store/auth.store';
+import { C, pageBg, cardBg, lPrimary, lSecondary, lTertiary, gradients, R, B } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -36,29 +37,100 @@ const STATUS_META = {
   paid:     { bg: C.purple + '26', bgLight: C.purple + '12', text: C.purple, label: 'Dibayar',   Icon: CreditCard },
 };
 
+const MINE_FILTERS = [
+  { label: 'Semua',    value: undefined },
+  { label: 'Menunggu', value: 'pending' },
+  { label: 'Disetujui',value: 'approved' },
+  { label: 'Dibayar',  value: 'paid' },
+  { label: 'Ditolak',  value: 'rejected' },
+];
+
+const REVIEW_FILTERS = [
+  { label: 'Semua',    value: undefined },
+  { label: 'Menunggu', value: 'pending' },
+  { label: 'Disetujui',value: 'approved' },
+  { label: 'Ditolak',  value: 'rejected' },
+  { label: 'Dibayar',  value: 'paid' },
+];
+
 export default function ExpenseClaimsScreen() {
   const isDark = useColorScheme() === 'dark';
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
-  const [filter, setFilter] = useState<string | undefined>(undefined);
+
+  const storeUser = useAuthStore((s) => s.user);
+  const isApprover = !!storeUser?.role?.can_approve;
+
+  const [activeTab, setActiveTab] = useState<'mine' | 'review'>('mine');
+  const [mineFilter, setMineFilter] = useState<string | undefined>(undefined);
+  const [reviewFilter, setReviewFilter] = useState<string | undefined>('pending');
   const [showForm, setShowForm] = useState(false);
+  const [reviewModal, setReviewModal] = useState<{ claim: ExpenseClaim; action: 'approve' | 'reject' | 'paid' } | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
 
   const bg = pageBg(isDark);
+  const card = cardBg(isDark);
   const textPrimary = lPrimary(isDark);
   const textSecondary = lSecondary(isDark);
+  const textTertiary = lTertiary(isDark);
+  const borderColor = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
 
-  const { data: claims = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['my-claims', filter],
-    queryFn: () => getMyClaims(filter),
+  const { data: myClaims = [], isLoading: myLoading, isError: myError, refetch: refetchMine } = useQuery({
+    queryKey: ['my-claims', mineFilter],
+    queryFn: () => getMyClaims(mineFilter),
+    enabled: activeTab === 'mine',
   });
 
-  const FILTER_OPTIONS = [
-    { label: 'Semua',    value: undefined },
-    { label: 'Menunggu', value: 'pending' },
-    { label: 'Disetujui',value: 'approved' },
-    { label: 'Dibayar',  value: 'paid' },
-    { label: 'Ditolak',  value: 'rejected' },
-  ];
+  const { data: allClaims = [], isLoading: allLoading, isError: allError, refetch: refetchAll } = useQuery({
+    queryKey: ['all-claims', reviewFilter],
+    queryFn: () => getAllClaims(reviewFilter),
+    enabled: isApprover && activeTab === 'review',
+  });
+
+  const reviewMut = useMutation({
+    mutationFn: ({ id, action, note }: { id: string; action: 'approve' | 'reject' | 'paid'; note?: string }) =>
+      reviewClaim(id, action, note),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setReviewModal(null);
+      setRejectNote('');
+      qc.invalidateQueries({ queryKey: ['all-claims'] });
+      qc.invalidateQueries({ queryKey: ['pending-expense-count'] });
+    },
+    onError: (err: any) => {
+      Alert.alert('Gagal', err?.response?.data?.message ?? 'Gagal memproses klaim');
+    },
+  });
+
+  const handleReview = (claim: ExpenseClaim, action: 'approve' | 'reject' | 'paid') => {
+    if (action === 'approve') {
+      Alert.alert(
+        'Setujui Klaim',
+        `Setujui klaim ${CATEGORY_LABELS[claim.category] ?? claim.category} sebesar ${formatRupiah(claim.amount)} dari ${claim.user?.full_name ?? 'karyawan'}?`,
+        [
+          { text: 'Batal', style: 'cancel' },
+          { text: 'Setujui', onPress: () => reviewMut.mutate({ id: claim.id, action: 'approve' }) },
+        ],
+      );
+    } else if (action === 'paid') {
+      Alert.alert(
+        'Tandai Dibayar',
+        `Tandai klaim ini sudah dibayarkan kepada ${claim.user?.full_name ?? 'karyawan'}?`,
+        [
+          { text: 'Batal', style: 'cancel' },
+          { text: 'Dibayar', onPress: () => reviewMut.mutate({ id: claim.id, action: 'paid' }) },
+        ],
+      );
+    } else {
+      setRejectNote('');
+      setReviewModal({ claim, action });
+    }
+  };
+
+  const isLoading = activeTab === 'mine' ? myLoading : allLoading;
+  const isError   = activeTab === 'mine' ? myError   : allError;
+  const refetch   = activeTab === 'mine' ? refetchMine : refetchAll;
+  const claims    = activeTab === 'mine' ? myClaims : allClaims;
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
@@ -77,43 +149,56 @@ export default function ExpenseClaimsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={isDark ? '#FFF' : C.purple} />}
       >
-        {/* Header */}
-        <View>
-          <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor={C.blue} onBack={() => router.navigate('/(main)/profile')} />
+        <BackHeader title="Klaim Biaya" subtitle="Klaim pengeluaran lapangan" accentColor={C.blue} onBack={() => router.navigate('/(main)/profile')} />
 
-          {/* Buat Klaim button */}
+        {/* Tab switcher — hanya muncul untuk approver */}
+        {isApprover && (
+          <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 8, marginBottom: 4, gap: 8 }}>
+            {(['mine', 'review'] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                style={{
+                  flex: 1, paddingVertical: 10, borderRadius: 14,
+                  backgroundColor: activeTab === tab ? C.purple : isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: activeTab === tab ? '#FFF' : textSecondary }}>
+                  {tab === 'mine' ? 'Klaim Saya' : 'Perlu Ditinjau'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Tombol buat klaim — hanya di tab "Klaim Saya" */}
+        {activeTab === 'mine' && (
           <TouchableOpacity
             onPress={() => setShowForm(true)}
             style={{
-              marginHorizontal: 20,
-              marginTop: 4,
-              marginBottom: 16,
-              backgroundColor: C.purple,
-              borderRadius: 18,
-              paddingVertical: 14,
-              alignItems: 'center',
-              flexDirection: 'row',
-              justifyContent: 'center',
-              gap: 8,
+              marginHorizontal: 20, marginTop: 8, marginBottom: 16,
+              backgroundColor: C.purple, borderRadius: 18, paddingVertical: 14,
+              alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
               shadowColor: C.purple, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6,
             }}
           >
             <Plus size={20} color="#FFF" />
             <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Buat Klaim Baru</Text>
           </TouchableOpacity>
-        </View>
+        )}
 
         {/* Filter chips */}
         <FilterChips
-          options={FILTER_OPTIONS}
-          value={filter}
-          onChange={setFilter}
-          accentColor={C.blue}
+          options={activeTab === 'mine' ? MINE_FILTERS : REVIEW_FILTERS}
+          value={activeTab === 'mine' ? mineFilter : reviewFilter}
+          onChange={activeTab === 'mine' ? setMineFilter : setReviewFilter}
+          accentColor={C.purple}
           isDark={isDark}
         />
 
         {/* List */}
-        <View style={{ paddingHorizontal: 20, gap: 12 }}>
+        <View style={{ paddingHorizontal: 20, gap: 12, marginTop: 4 }}>
           {isError && (
             <EmptyState
               icon={XCircle}
@@ -125,21 +210,29 @@ export default function ExpenseClaimsScreen() {
           {!isError && claims.length === 0 && !isLoading && (
             <EmptyState
               icon={Receipt}
-              iconColor={C.blue}
-              title="Belum ada klaim biaya"
-              message="Tekan 'Buat Klaim Baru' untuk mengajukan reimbursement."
+              iconColor={C.purple}
+              title={activeTab === 'mine' ? 'Belum ada klaim biaya' : 'Tidak ada klaim'}
+              message={activeTab === 'mine'
+                ? "Tekan 'Buat Klaim Baru' untuk mengajukan reimbursement."
+                : 'Tidak ada klaim yang perlu ditinjau saat ini.'}
             />
           )}
 
           {claims.map((c) => (
-            <ClaimCard key={c.id} claim={c} isDark={isDark} />
+            activeTab === 'review'
+              ? <AdminClaimCard
+                  key={c.id} claim={c} isDark={isDark}
+                  onAction={handleReview}
+                  isPending={reviewMut.isPending && reviewMut.variables?.id === c.id}
+                />
+              : <ClaimCard key={c.id} claim={c} isDark={isDark} />
           ))}
         </View>
 
         <View style={{ height: insets.bottom + 110 }} />
       </ScrollView>
 
-      {/* Create Form Modal */}
+      {/* Modal form buat klaim */}
       <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet">
         <CreateClaimForm
           onClose={() => setShowForm(false)}
@@ -149,22 +242,87 @@ export default function ExpenseClaimsScreen() {
           }}
         />
       </Modal>
+
+      {/* Modal reject — input alasan */}
+      <Modal
+        visible={reviewModal?.action === 'reject'}
+        animationType="slide"
+        transparent
+        onRequestClose={() => { setReviewModal(null); setRejectNote(''); }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}
+        >
+          <View style={{
+            backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+            borderTopLeftRadius: 28, borderTopRightRadius: 28,
+            padding: 24, paddingBottom: insets.bottom + 24,
+          }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.35)', alignSelf: 'center', marginBottom: 20 }} />
+            <Text style={{ fontSize: 20, fontWeight: '800', color: textPrimary, marginBottom: 6 }}>Tolak Klaim</Text>
+            {reviewModal?.claim && (
+              <Text style={{ fontSize: 14, color: textSecondary, marginBottom: 16 }}>
+                {CATEGORY_LABELS[reviewModal.claim.category] ?? reviewModal.claim.category} · {formatRupiah(reviewModal.claim.amount)} · {reviewModal.claim.user?.full_name ?? '—'}
+              </Text>
+            )}
+            <TextInput
+              value={rejectNote}
+              onChangeText={setRejectNote}
+              placeholder="Alasan penolakan (wajib)..."
+              placeholderTextColor={textTertiary}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              autoFocus
+              style={{
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F9FAFB',
+                borderRadius: 16, borderWidth: 1.5,
+                borderColor: rejectNote.trim() ? C.red : borderColor,
+                padding: 14, fontSize: 15, color: textPrimary,
+                minHeight: 88, marginBottom: 20,
+              }}
+            />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={{ flex: 1, paddingVertical: 15, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9', alignItems: 'center' }}
+                onPress={() => { setReviewModal(null); setRejectNote(''); }}
+              >
+                <Text style={{ color: textPrimary, fontWeight: '600', fontSize: 15 }}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 2, paddingVertical: 15, borderRadius: 16, alignItems: 'center',
+                  backgroundColor: rejectNote.trim() ? C.red : isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
+                  opacity: reviewMut.isPending ? 0.7 : 1,
+                }}
+                disabled={!rejectNote.trim() || reviewMut.isPending}
+                onPress={() => {
+                  if (reviewModal) reviewMut.mutate({ id: reviewModal.claim.id, action: 'reject', note: rejectNote.trim() });
+                }}
+              >
+                {reviewMut.isPending
+                  ? <ActivityIndicator color="#FFF" />
+                  : <Text style={{ color: rejectNote.trim() ? '#FFF' : textTertiary, fontWeight: '700', fontSize: 15 }}>Tolak Klaim</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
 
-// ── ClaimCard ─────────────────────────────────────────────────────────────────
+// ── ClaimCard (karyawan — klaim sendiri) ──────────────────────────────────────
 function ClaimCard({ claim, isDark }: { claim: ExpenseClaim; isDark: boolean }) {
   const s = STATUS_META[claim.status] ?? STATUS_META.pending;
-  const textPrimary = isDark ? '#FFFFFF' : '#0F172A';
-  const textSecondary = isDark ? 'rgba(255,255,255,0.5)' : '#64748B';
+  const textPrimary = lPrimary(isDark);
+  const textSecondary = lSecondary(isDark);
 
   return (
     <View style={{
-      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#FFFFFF',
-      borderRadius: 20, padding: 18,
-      borderWidth: 1.5,
-      borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0',
+      backgroundColor: cardBg(isDark), borderRadius: 20, padding: 18,
+      borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0',
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
         <View style={{ flex: 1 }}>
@@ -216,6 +374,108 @@ function ClaimCard({ claim, isDark }: { claim: ExpenseClaim; isDark: boolean }) 
   );
 }
 
+// ── AdminClaimCard (approver — tinjau klaim orang lain) ───────────────────────
+function AdminClaimCard({ claim, isDark, onAction, isPending }: {
+  claim: ExpenseClaim;
+  isDark: boolean;
+  onAction: (claim: ExpenseClaim, action: 'approve' | 'reject' | 'paid') => void;
+  isPending: boolean;
+}) {
+  const s = STATUS_META[claim.status] ?? STATUS_META.pending;
+  const textPrimary = lPrimary(isDark);
+  const textSecondary = lSecondary(isDark);
+
+  return (
+    <View style={{
+      backgroundColor: cardBg(isDark), borderRadius: 20, padding: 18,
+      borderWidth: B.default, borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0',
+    }}>
+      {/* Submitter */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.purple + '22', alignItems: 'center', justifyContent: 'center' }}>
+          <User size={15} color={C.purple} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: textPrimary }}>{claim.user?.full_name ?? '—'}</Text>
+          <Text style={{ fontSize: 11, color: textSecondary, fontFamily: 'monospace' }}>{claim.claim_number ?? '—'}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: isDark ? s.bg : s.bgLight }}>
+          <s.Icon size={13} color={s.text} />
+          <Text style={{ fontSize: 12, fontWeight: '700', color: s.text }}>{s.label}</Text>
+        </View>
+      </View>
+
+      {/* Kategori + Nominal */}
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+        <Text style={{ fontSize: 13, color: textSecondary }}>
+          {CATEGORY_LABELS[claim.category] ?? claim.category}
+        </Text>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: textPrimary, letterSpacing: -0.5, flex: 1 }}>
+          {formatRupiah(claim.amount)}
+        </Text>
+      </View>
+
+      {claim.description && (
+        <Text style={{ fontSize: 13, color: textSecondary, lineHeight: 19, marginBottom: 10 }} numberOfLines={2}>
+          {claim.description}
+        </Text>
+      )}
+
+      {claim.receipt_urls.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+          {claim.receipt_urls.map((url, i) => (
+            <Image key={i} source={{ uri: url }} style={{ width: 64, height: 64, borderRadius: 10, marginRight: 8 }} />
+          ))}
+        </ScrollView>
+      )}
+
+      {claim.review_note && (
+        <View style={{ backgroundColor: isDark ? C.red + '1F' : C.red + '12', borderRadius: 10, padding: 10, marginBottom: 10, flexDirection: 'row', gap: 6 }}>
+          <Info size={14} color={C.red} style={{ marginTop: 1 }} />
+          <Text style={{ fontSize: 13, color: C.red, flex: 1 }}>Catatan: {claim.review_note}</Text>
+        </View>
+      )}
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 14 }}>
+        <Calendar size={12} color={isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8'} />
+        <Text style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8' }}>
+          {new Date(claim.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Makassar' })}
+        </Text>
+      </View>
+
+      {/* Action buttons */}
+      {claim.status === 'pending' && (
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => onAction(claim, 'reject')}
+            disabled={isPending}
+            style={{ flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: isDark ? C.red + '22' : C.red + '12', borderWidth: 1.5, borderColor: C.red + '4D' }}
+          >
+            {isPending ? <ActivityIndicator size="small" color={C.red} /> : <Text style={{ fontSize: 14, fontWeight: '700', color: C.red }}>Tolak</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onAction(claim, 'approve')}
+            disabled={isPending}
+            style={{ flex: 2, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: C.green, shadowColor: C.green, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+          >
+            {isPending ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>Setujui</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {claim.status === 'approved' && (
+        <TouchableOpacity
+          onPress={() => onAction(claim, 'paid')}
+          disabled={isPending}
+          style={{ paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: C.purple, shadowColor: C.purple, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+        >
+          {isPending ? <ActivityIndicator color="#FFF" /> : <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>Tandai Sudah Dibayar</Text>}
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 // ── CreateClaimForm ───────────────────────────────────────────────────────────
 function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const isDark = useColorScheme() === 'dark';
@@ -227,7 +487,6 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [uploading, setUploading] = useState(false);
 
   const bg = isDark ? '#0A0A0F' : '#F0F4FF';
-  const cardBg = isDark ? 'rgba(255,255,255,0.07)' : '#FFFFFF';
   const textPrimary = isDark ? '#FFFFFF' : '#0F172A';
   const textSecondary = isDark ? 'rgba(255,255,255,0.5)' : '#64748B';
   const inputBg = isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF';
@@ -249,10 +508,9 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
     if (!perm.granted) { Alert.alert('Izin diperlukan', 'Akses kamera diperlukan'); return; }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
     if (!result.canceled && result.assets[0]) {
-      // P2-10: cek ukuran file sebelum ditambahkan
       const fileSize = result.assets[0].fileSize ?? 0;
       if (fileSize > 10 * 1024 * 1024) {
-        Alert.alert('File Terlalu Besar', 'Ukuran foto maksimal 10 MB. Coba foto ulang dengan kualitas lebih rendah.');
+        Alert.alert('File Terlalu Besar', 'Ukuran foto maksimal 10 MB.');
         return;
       }
       setReceiptUris((prev) => [...prev, result.assets[0].uri]);
@@ -300,7 +558,6 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
         />
       )}
 
-      {/* Header */}
       <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={{ fontSize: 22, fontWeight: '800', color: textPrimary, letterSpacing: -0.5 }}>Buat Klaim Biaya</Text>
         <TouchableOpacity onPress={onClose} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }}>
@@ -315,9 +572,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
       >
         {/* Kategori */}
         <View>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Kategori
-          </Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Kategori</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {configs.filter((c) => c.is_active).map((c) => (
@@ -347,9 +602,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
 
         {/* Nominal */}
         <View>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Nominal
-          </Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Nominal</Text>
           <TextInput
             value={amount}
             onChangeText={setAmount}
@@ -367,9 +620,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
 
         {/* Keterangan */}
         <View>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Keterangan (opsional)
-          </Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Keterangan (opsional)</Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
@@ -384,9 +635,7 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
 
         {/* Foto nota */}
         <View>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Foto Nota/Struk
-          </Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Foto Nota/Struk</Text>
           <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
             {receiptUris.map((uri, i) => (
               <View key={i} style={{ position: 'relative' }}>
