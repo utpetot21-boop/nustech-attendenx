@@ -1316,6 +1316,28 @@ export default function AttendancePage() {
   const [showFilters,   setShowFilters]   = useState(false);
   const [correctModal,  setCorrectModal]  = useState<AttendanceRecord | null>(null);
   const [deptId,        setDeptId]        = useState('');
+  const [isExporting,   setIsExporting]   = useState(false);
+
+  async function handleExportExcel() {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const qs = `month=${month}${deptId ? `&dept_id=${deptId}` : ''}`;
+      const res = await apiClient.get(`/reports/attendance/export/excel?${qs}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kehadiran-${month}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Gagal mengunduh laporan');
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['departments'],
@@ -1439,11 +1461,10 @@ export default function AttendancePage() {
             ))}
           </div>
           {/* Export */}
-          <a href={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/reports/attendance/export/excel?month=${month}${deptId ? `&dept_id=${deptId}` : ''}`}
-            target="_blank" rel="noreferrer"
-            className="h-9 px-3 rounded-xl text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5">
-            <Download size={13} /> Export
-          </a>
+          <button onClick={handleExportExcel} disabled={isExporting}
+            className="h-9 px-3 rounded-xl text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5 disabled:opacity-50">
+            <Download size={13} /> {isExporting ? 'Mengunduh...' : 'Export'}
+          </button>
         </div>
       </div>
 
@@ -1534,11 +1555,10 @@ export default function AttendancePage() {
               <Filter size={12} /> Filter
             </button>
             {/* Export — di sini agar tetap terlihat saat row wrap di viewport medium */}
-            <a href={`${process.env.NEXT_PUBLIC_API_URL ?? ''}/reports/attendance/export/excel?month=${month}${deptId ? `&dept_id=${deptId}` : ''}`}
-              target="_blank" rel="noreferrer"
-              className="h-9 px-3 rounded-lg text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5 flex-shrink-0">
-              <Download size={13} /> Excel
-            </a>
+            <button onClick={handleExportExcel} disabled={isExporting}
+              className="h-9 px-3 rounded-lg text-[12px] font-semibold text-white bg-[#30D158] hover:bg-green-600 transition-colors flex items-center gap-1.5 flex-shrink-0 disabled:opacity-50">
+              <Download size={13} /> {isExporting ? '...' : 'Excel'}
+            </button>
           </div>
         </div>
 

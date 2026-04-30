@@ -8,10 +8,13 @@ import {
   Text,
   ScrollView,
   RefreshControl,
+  TouchableOpacity,
   useColorScheme,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -24,6 +27,7 @@ import {
   FileX,
   ShieldCheck,
   Sun,
+  Download,
 } from 'lucide-react-native';
 import { C, R, B, cardBg, pageBg, lPrimary, lSecondary, lTertiary } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
@@ -94,7 +98,29 @@ function getMonthOptions(count = 6) {
   return opts;
 }
 
-// ── Record Card ──────────────────────────────────────────────────────────────
+// ── CSV Export ───────────────────────────────────────────────────────────────
+
+function buildCsv(records: AttendanceRecord[]): string {
+  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const headers = ['Tanggal', 'Hari', 'Status', 'Masuk', 'Pulang', 'Metode Masuk', 'Metode Pulang', 'Terlambat (menit)', 'Lembur (menit)'];
+  const rows = records.map((r) => {
+    const { weekday, date } = fmtDayDate(r.date);
+    const statusLabel = r.late_approved ? 'Izin Terlambat'
+      : r.early_departure_approved ? 'Izin Pulang Awal'
+      : STATUS_LABEL[r.status] ?? r.status;
+    return [
+      r.date, weekday, statusLabel,
+      fmtTime(r.check_in_at), fmtTime(r.check_out_at),
+      r.check_in_method ? (METHOD_LABEL[r.check_in_method] ?? r.check_in_method) : '—',
+      r.check_out_method ? (METHOD_LABEL[r.check_out_method] ?? r.check_out_method) : '—',
+      String(r.late_minutes ?? 0),
+      String(r.overtime_minutes ?? 0),
+    ];
+  });
+  return [headers, ...rows].map((row) => row.map(escape).join(',')).join('\r\n');
+}
+
+// ── Record Card ───────────────────────────────────────────────────────────────
 
 function RecordCard({ rec, isDark }: { rec: AttendanceRecord; isDark: boolean }) {
   const { weekday, date } = fmtDayDate(rec.date);
@@ -245,6 +271,7 @@ export default function AttendanceHistoryScreen() {
 
   const monthOptions = useMemo(() => getMonthOptions(6), []);
   const [month, setMonth] = useState<string | undefined>(monthOptions[0]?.value);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading, isFetching, isRefetching, refetch } = useQuery<AttendanceRecord[]>({
     queryKey: ['attendance-history', month],
@@ -257,6 +284,29 @@ export default function AttendanceHistoryScreen() {
   }, [refetch]);
 
   const records = data ?? [];
+
+  const handleExport = useCallback(async () => {
+    if (isExporting || records.length === 0) return;
+    setIsExporting(true);
+    try {
+      const csv = buildCsv(records);
+      const fileName = `absensi-${month ?? 'semua'}.csv`;
+      const filePath = `${FileSystem.cacheDirectory ?? ''}${fileName}`;
+      await FileSystem.writeAsStringAsync(filePath, csv, { encoding: 'utf8' });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Bagikan Riwayat Absensi',
+          UTI: 'public.comma-separated-values-text',
+        });
+      }
+    } catch {
+      // sharing cancelled or unavailable — no crash
+    } finally {
+      setIsExporting(false);
+    }
+  }, [records, month, isExporting]);
+
   const stats = useMemo(() => {
     const total = records.length;
     const hadir = records.filter((r) => r.status === 'hadir').length;
@@ -273,6 +323,24 @@ export default function AttendanceHistoryScreen() {
         title="Riwayat Absensi"
         subtitle={month ? `${stats.total} catatan bulan ini` : `${stats.total} catatan`}
         accentColor={C.blue}
+        right={records.length > 0 ? (
+          <TouchableOpacity
+            onPress={handleExport}
+            disabled={isExporting}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{
+              width: 36, height: 36, borderRadius: 18,
+              backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
+              alignItems: 'center', justifyContent: 'center',
+              opacity: isExporting ? 0.5 : 1,
+            }}
+          >
+            {isExporting
+              ? <ActivityIndicator size="small" color={C.blue} />
+              : <Download size={18} strokeWidth={2} color={C.blue} />}
+          </TouchableOpacity>
+        ) : undefined}
       />
 
       {/* Month filter */}
