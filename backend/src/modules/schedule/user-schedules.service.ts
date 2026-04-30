@@ -35,6 +35,7 @@ export class UserSchedulesService {
       const { start, end } = this.weekRange(week);
       return this.repo.find({
         where: { user_id: userId, date: Between(start, end) },
+        relations: ['shift_type'],
         order: { date: 'ASC' },
       });
     }
@@ -47,6 +48,7 @@ export class UserSchedulesService {
       const end = `${year}-${String(mon).padStart(2, '0')}-${lastDay}`;
       return this.repo.find({
         where: { user_id: userId, date: Between(start, end) },
+        relations: ['shift_type'],
         order: { date: 'ASC' },
       });
     }
@@ -58,6 +60,7 @@ export class UserSchedulesService {
     const futureStr = future.toISOString().split('T')[0];
     return this.repo.find({
       where: { user_id: userId, date: Between(today, futureStr) },
+      relations: ['shift_type'],
       order: { date: 'ASC' },
     });
   }

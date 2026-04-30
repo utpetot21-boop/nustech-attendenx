@@ -82,7 +82,7 @@ export default function ScheduleScreen() {
     const n = new Date();
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' }));
 
   const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
 
@@ -180,7 +180,7 @@ export default function ScheduleScreen() {
     return cells;
   }, [currentMonth]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
   const [y, m] = currentMonth.split('-').map(Number);
 
   const isLoading = loadingWeek || loadingMonth;
@@ -197,7 +197,9 @@ export default function ScheduleScreen() {
           title="Jadwal"
           subtitle={viewMode === 'month'
             ? `${MONTHS_ID[m - 1]} ${y}`
-            : `${weekDates[0].slice(5).replace('-', '/')} – ${weekDates[6].slice(5).replace('-', '/')}`}
+            : weekDates.length >= 7
+            ? `${weekDates[0].slice(5).replace('-', '/')} – ${weekDates[6].slice(5).replace('-', '/')}`
+            : undefined}
           accentColor={C.blue}
         />
 

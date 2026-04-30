@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, useColorScheme, InteractionManager } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, ActivityIndicator, useColorScheme, InteractionManager, Text, TouchableOpacity } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, useRouter, useSegments, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -99,6 +99,47 @@ function sanitizeSosParams(data: Record<string, string>): {
     lng:      lngOk ? String(lng) : '',
     userName: rawName.replace(/[\x00-\x1F\x7F]/g, '').slice(0, 80) || 'Rekan Anda',
   };
+}
+
+// ── Error boundary — cegah force-close di production ───────────────────────
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: '' };
+  }
+  static getDerivedStateFromError(e: unknown) {
+    return { hasError: true, error: String(e) };
+  }
+  componentDidCatch(e: unknown) {
+    if (__DEV__) console.error('[ErrorBoundary]', e);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#0A0A0F' }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#FFFFFF', marginBottom: 12 }}>Terjadi Kesalahan</Text>
+          <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', textAlign: 'center', marginBottom: 28 }}>
+            Aplikasi mengalami error. Silakan restart atau coba lagi.
+          </Text>
+          <TouchableOpacity
+            onPress={() => this.setState({ hasError: false, error: '' })}
+            style={{ paddingHorizontal: 28, paddingVertical: 14, borderRadius: 16, backgroundColor: '#007AFF' }}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>Coba Lagi</Text>
+          </TouchableOpacity>
+          {__DEV__ && (
+            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', marginTop: 20, textAlign: 'center' }}>
+              {this.state.error}
+            </Text>
+          )}
+        </View>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ── Auth guard — redirect berdasarkan status login ──────────────────────────
@@ -222,13 +263,15 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
     <QueryClientProvider client={queryClient}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      <AuthGuard>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(main)" options={{ headerShown: false }} />
-        </Stack>
-      </AuthGuard>
+      <AppErrorBoundary>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <AuthGuard>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(main)" options={{ headerShown: false }} />
+          </Stack>
+        </AuthGuard>
+      </AppErrorBoundary>
     </QueryClientProvider>
     </SafeAreaProvider>
     </GestureHandlerRootView>
