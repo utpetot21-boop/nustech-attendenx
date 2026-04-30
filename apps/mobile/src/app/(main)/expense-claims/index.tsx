@@ -24,7 +24,7 @@ import {
   getMyClaims, getAllClaims, getConfig, createClaim, uploadReceipt, reviewClaim,
   ExpenseClaim, ExpenseConfig, CATEGORY_LABELS, formatRupiah,
 } from '@/services/expense-claims.service';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuthStore } from '@/stores/auth.store';
 import { C, pageBg, cardBg, lPrimary, lSecondary, lTertiary, gradients, R, B } from '@/constants/tokens';
 import { BackHeader } from '@/components/ui/BackHeader';
 import { FilterChips } from '@/components/ui/FilterChips';
