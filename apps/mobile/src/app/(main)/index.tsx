@@ -966,7 +966,7 @@ export default function BerandaScreen() {
             <StatCard
               label="Tugas"     value="—"  sub="hari ini"
               accentColor={C.green}  icon={ClipboardList}
-              onPress={() => router.push('/(main)/tasks')}
+              onPress={() => router.push('/(main)/pekerjaan')}
               isDark={isDark}
             />
             <StatCard
