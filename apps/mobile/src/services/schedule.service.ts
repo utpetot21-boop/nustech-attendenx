@@ -51,6 +51,6 @@ export function getWeekDates(weekStr: string): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return d.toISOString().split('T')[0];
+    return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
   });
 }

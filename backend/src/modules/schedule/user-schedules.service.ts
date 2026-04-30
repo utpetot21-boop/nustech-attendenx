@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
+import { witaToday, toWitaDate } from '../../common/utils/date.util';
 
 import { UserScheduleEntity } from './entities/user-schedule.entity';
 import { ScheduleChangeLogEntity } from './entities/schedule-change-log.entity';
@@ -54,10 +55,9 @@ export class UserSchedulesService {
     }
 
     // Jika tidak ada filter → kembalikan 30 hari ke depan
-    const today = new Date().toISOString().split('T')[0];
-    const future = new Date();
-    future.setDate(future.getDate() + 30);
-    const futureStr = future.toISOString().split('T')[0];
+    const today = witaToday();
+    const future = new Date(Date.now() + 30 * 86_400_000);
+    const futureStr = toWitaDate(future);
     return this.repo.find({
       where: { user_id: userId, date: Between(today, futureStr) },
       relations: ['shift_type'],

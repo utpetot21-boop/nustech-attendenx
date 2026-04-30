@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 
 import { CompanyLeaveConfigEntity } from './entities/company-leave-config.entity';
 import { UpdateLeaveConfigDto } from './dto/update-leave-config.dto';
+import { witaToday } from '../../common/utils/date.util';
 
 @Injectable()
 export class LeaveConfigService {
@@ -45,7 +46,7 @@ export class LeaveConfigService {
         dto.objection_window_hours ?? current.objection_window_hours,
       expiry_reminder_days:
         dto.expiry_reminder_days ?? current.expiry_reminder_days,
-      effective_date: new Date().toISOString().split('T')[0],
+      effective_date: witaToday(),
       updated_by: adminId,
     });
 

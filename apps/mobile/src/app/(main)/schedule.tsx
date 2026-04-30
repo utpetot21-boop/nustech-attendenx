@@ -78,10 +78,9 @@ export default function ScheduleScreen() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentWeek, setCurrentWeek] = useState(getCurrentWeekString());
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [currentMonth, setCurrentMonth] = useState(() =>
+    new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' }).slice(0, 7),
+  );
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' }));
 
   const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);

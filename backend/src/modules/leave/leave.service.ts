@@ -20,6 +20,7 @@ import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { RejectLeaveDto } from './dto/review-leave.dto';
 import { CreateObjectionDto } from './dto/create-objection.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { witaToday, toWitaDate } from '../../common/utils/date.util';
 
 const LEAVE_TYPE_LABEL: Record<string, string> = {
   cuti: 'Cuti', izin: 'Izin', sakit: 'Sakit', dinas: 'Dinas',
@@ -461,7 +462,7 @@ export class LeaveService {
           balance_days: newBalance,
           accrued_monthly: balance.accrued_monthly + monthlyAmount,
           last_accrual_month: month,
-          last_accrual_date: now.toISOString().split('T')[0],
+          last_accrual_date: toWitaDate(now),
         });
         await this.writeLog(user.id, 'accrual_monthly', monthlyAmount, newBalance);
       }
@@ -532,7 +533,7 @@ export class LeaveService {
     const cursor = new Date(start);
     while (cursor <= end) {
       const dow = cursor.getDay();
-      const dateStr = cursor.toISOString().split('T')[0];
+      const dateStr = toWitaDate(cursor);
       if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) {
         count++;
       }

@@ -29,17 +29,12 @@ export function fmtDateWeekday(iso: string | number | Date): string {
   });
 }
 
-// Format ke string YYYY-MM-DD berbasis waktu lokal device (bukan UTC).
-// Penting untuk query tanggal tanpa pergeseran ke UTC.
+/** Date → YYYY-MM-DD dalam timezone WITA (UTC+8). */
 export function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
 }
 
-// Format YYYY-MM untuk query bulan berjalan.
+/** YYYY-MM bulan berjalan dalam timezone WITA. */
 export function currentMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' }).slice(0, 7);
 }

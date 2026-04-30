@@ -6,6 +6,7 @@ import { NationalHolidayEntity } from '../../schedule/entities/national-holiday.
 import { LeaveBalanceEntity } from '../entities/leave-balance.entity';
 import { LeaveBalanceLogEntity } from '../entities/leave-balance-log.entity';
 import { UserEntity } from '../../users/entities/user.entity';
+import { toWitaDate } from '../../../common/utils/date.util';
 
 @Injectable()
 export class CollectiveLeaveJob {
@@ -25,10 +26,9 @@ export class CollectiveLeaveJob {
   // Setiap hari 00:01 WITA — cek apakah besok cuti bersama
   @Cron('1 0 * * *', { timeZone: 'Asia/Makassar' })
   async handle(): Promise<void> {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    const year = tomorrow.getFullYear();
+    const tomorrow = new Date(Date.now() + 86_400_000);
+    const tomorrowStr = toWitaDate(tomorrow);
+    const year = parseInt(tomorrowStr.slice(0, 4), 10);
 
     const collectiveHoliday = await this.holidayRepo.findOne({
       where: {

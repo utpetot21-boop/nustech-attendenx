@@ -16,6 +16,7 @@ import { AttendanceViolationEntity } from '../attendance/entities/attendance-vio
 import { StorageService } from '../../services/storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateWarningLetterDto } from './dto/create-warning-letter.dto';
+import { witaToday } from '../../common/utils/date.util';
 
 @Injectable()
 export class WarningLettersService {
@@ -78,7 +79,7 @@ export class WarningLettersService {
       reason: dto.reason,
       reference_violation_id: dto.reference_violation_id ?? null,
       issued_by: issuedBy,
-      issued_at: dto.issued_at ?? new Date().toISOString().split('T')[0],
+      issued_at: dto.issued_at ?? witaToday(),
       valid_until: dto.valid_until ?? null,
       notes: dto.notes ?? null,
     });

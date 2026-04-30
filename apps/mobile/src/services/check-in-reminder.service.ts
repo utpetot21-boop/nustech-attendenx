@@ -60,15 +60,13 @@ function buildTriggerDate(
   const dm = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   const tm = startTime.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if (!dm || !tm) return null;
-  const y = Number(dm[1]);
-  const mo = Number(dm[2]) - 1;
-  const d = Number(dm[3]);
   const h = Number(tm[1]);
   const min = Number(tm[2]);
   const s = tm[3] ? Number(tm[3]) : 0;
-  // Offset di-apply di sini — bisa negatif (kurang menit) tanpa masalah
-  // karena Date otomatis normalisasi (misal min=-10 → jam sebelumnya 50).
-  const trigger = new Date(y, mo, d, h, min - offsetMin, s);
+  // Konstruksi timestamp WITA eksplisit (+08:00) — aman dari device timezone
+  const witaBase = new Date(`${date}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(s).padStart(2, '0')}+08:00`);
+  if (isNaN(witaBase.getTime())) return null;
+  const trigger = new Date(witaBase.getTime() - offsetMin * 60_000);
   return isNaN(trigger.getTime()) ? null : trigger;
 }
 

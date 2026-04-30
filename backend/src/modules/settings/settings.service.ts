@@ -7,6 +7,7 @@ import { BackupHistoryEntity } from './entities/backup-history.entity';
 import { UpdateAttendanceConfigDto } from './dto/update-attendance-config.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { BackupJob } from './jobs/backup.job';
+import { witaToday } from '../../common/utils/date.util';
 
 @Injectable()
 export class SettingsService {
@@ -57,7 +58,7 @@ export class SettingsService {
       check_in_radius_meter: dto.check_in_radius_meter ?? current.check_in_radius_meter,
       office_lat: dto.office_lat !== undefined ? dto.office_lat : current.office_lat,
       office_lng: dto.office_lng !== undefined ? dto.office_lng : current.office_lng,
-      effective_date: new Date().toISOString().split('T')[0],
+      effective_date: witaToday(),
       updated_by: adminId,
     });
     return this.attendanceConfigRepo.save(current);

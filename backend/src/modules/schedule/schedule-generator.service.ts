@@ -286,14 +286,14 @@ export class ScheduleGeneratorService {
 
   // ── Helpers ───────────────────────────────────────────────────
   private getTomorrow(): string {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    const tomorrow = new Date(Date.now() + 86_400_000);
+    return tomorrow.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
   }
 
   private getDayOfWeek(dateStr: string): string {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return days[new Date(dateStr).getDay()];
+    // Parse sebagai WITA midnight agar getDay() konsisten di semua server timezone
+    return days[new Date(dateStr + 'T00:00:00+08:00').getDay()];
   }
 
   /** Selisih hari antara dua tanggal YYYY-MM-DD (UTC-safe) */

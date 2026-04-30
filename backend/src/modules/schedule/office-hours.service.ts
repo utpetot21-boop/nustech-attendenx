@@ -5,6 +5,7 @@ import { MoreThanOrEqual, Repository } from 'typeorm';
 import { calculateShiftDuration, BUSINESS_CONSTANTS } from '@nustech/shared';
 import { OfficeHoursConfigEntity } from './entities/office-hours-config.entity';
 import type { CreateOfficeHoursDto } from './dto/create-office-hours.dto';
+import { witaToday } from '../../common/utils/date.util';
 
 @Injectable()
 export class OfficeHoursService {
@@ -88,7 +89,7 @@ export class OfficeHoursService {
         start_time: start,
         end_time: end,
         work_days: dto.work_days ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-        effective_date: dto.effective_date ?? new Date().toISOString().split('T')[0],
+        effective_date: dto.effective_date ?? witaToday(),
         duration_minutes: duration,
         created_by: createdBy,
         user_id: null,
