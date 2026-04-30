@@ -380,13 +380,20 @@ export default function SchedulePage() {
       const now = new Date();
       const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const r = await apiClient.post('/schedules/generate-month', { month: monthStr });
-      return { total: r.data?.generated ?? 0, month: now };
+      return { total: r.data?.generated ?? 0, no_oh_config: !!r.data?.no_oh_config, month: now };
     },
-    onSuccess: ({ total, month }: { total: number; month: Date }) => {
-      // Invalidate semua minggu yang mungkin terpengaruh
+    onSuccess: ({ total, no_oh_config, month }: { total: number; no_oh_config: boolean; month: Date }) => {
       qc.invalidateQueries({ queryKey: ['team-schedule'] });
       const label = month.toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' });
-      toast.success(total > 0 ? `Jadwal ${label} di-generate: ${total} entri baru` : `Jadwal ${label} sudah ter-generate`);
+      if (no_oh_config) {
+        toast.error('Konfigurasi Office Hours belum ada. Isi dulu jam kerja global di bagian Office Hours.');
+      } else if (total > 0) {
+        toast.success(`Jadwal ${label} di-generate: ${total} entri baru`);
+      } else if (ohUsers.length === 0) {
+        toast.warning('Tidak ada karyawan bertipe Office Hours. Pastikan tipe jadwal karyawan sudah diatur.');
+      } else {
+        toast.success(`Jadwal ${label} sudah ter-generate sebelumnya`);
+      }
     },
     onError: () => toast.error('Gagal generate jadwal bulanan'),
   });
@@ -613,7 +620,9 @@ export default function SchedulePage() {
                           const entry = scheduleByUser.get(user.id)?.[date];
                           const isHoliday = holidayDates.has(date);
                           const notGenerated = !entry;
-                          const isDayOff  = entry ? entry.is_day_off : !workDays.includes(DAYS_MAP[parseLocalDate(date).getDay()]);
+                          const dayIdx    = parseLocalDate(date).getDay(); // 0=Sun,6=Sat
+                          const isSunday  = dayIdx === 0;
+                          const isDayOff  = entry ? entry.is_day_off : !workDays.includes(DAYS_MAP[dayIdx]);
                           const cellType  = isHoliday ? 'national_holiday' : isDayOff ? 'day_off' : notGenerated ? 'not_generated' : 'work';
                           const isToday   = date === TODAY;
                           return (
@@ -626,6 +635,10 @@ export default function SchedulePage() {
                               {cellType === 'national_holiday' ? (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FEF2F2] dark:bg-[#FF3B30]/15 text-[#DC2626] dark:text-[#FCA5A5] border border-[#FECACA] dark:border-[#FF3B30]/30">
                                   Libur
+                                </span>
+                              ) : cellType === 'day_off' && isSunday ? (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/[0.07] text-gray-400 dark:text-white/30 border border-gray-200 dark:border-white/[0.10]">
+                                  Min
                                 </span>
                               ) : cellType === 'day_off' ? (
                                 <span className="text-[11px] text-gray-300 dark:text-white/20">—</span>
@@ -645,7 +658,8 @@ export default function SchedulePage() {
                 <div className="flex flex-wrap items-center gap-4 mt-2 px-1">
                   {[
                     { label: 'Kerja', sub: '= hari kerja · klik → tandai libur', cls: 'text-[10px] font-medium text-[#15803D]' },
-                    { label: '—', sub: '= libur mingguan · klik → paksa masuk', cls: 'text-[10px] text-gray-300' },
+                    { label: 'Min', sub: '= hari Minggu · klik → paksa masuk', cls: 'text-[10px] px-1 py-0.5 rounded-full bg-gray-100 dark:bg-white/[0.07] text-gray-400 border border-gray-200 dark:border-white/10' },
+                    { label: '—', sub: '= libur mingguan lain · klik → paksa masuk', cls: 'text-[10px] text-gray-300' },
                   ].map(({ label, sub, cls }) => (
                     <div key={label} className="flex items-center gap-1.5">
                       <span className={cls}>{label}</span>

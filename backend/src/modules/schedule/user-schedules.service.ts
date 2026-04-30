@@ -140,7 +140,7 @@ export class UserSchedulesService {
   /**
    * Generate jadwal untuk seluruh bulan (YYYY-MM)
    */
-  async generateForMonth(month: string): Promise<{ generated: number; skipped: number }> {
+  async generateForMonth(month: string): Promise<{ generated: number; skipped: number; no_oh_config: boolean }> {
     const [year, mon] = month.split('-').map(Number);
     const daysInMonth = new Date(year, mon, 0).getDate();
     let generated = 0;
@@ -155,7 +155,9 @@ export class UserSchedulesService {
         skipped++;
       }
     }
-    return { generated, skipped };
+    // Cek apakah ada konfigurasi OH global agar frontend bisa beri pesan yang tepat
+    const hasOhConfig = await this.generatorService.hasOfficeHoursConfig();
+    return { generated, skipped, no_oh_config: !hasOhConfig };
   }
 
   /**

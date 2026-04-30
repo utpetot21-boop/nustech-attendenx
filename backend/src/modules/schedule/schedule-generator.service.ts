@@ -69,8 +69,8 @@ export class ScheduleGeneratorService {
       if (existing) continue;
 
       if (user.schedule_type === 'office_hours') {
-        await this.generateOfficeHoursSchedule(user.id, dateStr, dayOfWeek, holiday);
-        generatedCount++;
+        const saved = await this.generateOfficeHoursSchedule(user.id, dateStr, dayOfWeek, holiday);
+        if (saved) generatedCount++;
       }
       // shift: hanya generate jika sudah di-assign admin (lihat assignShift)
     }
@@ -79,14 +79,15 @@ export class ScheduleGeneratorService {
   }
 
   /**
-   * Generate jadwal office_hours untuk satu karyawan
+   * Generate jadwal office_hours untuk satu karyawan.
+   * Return true jika berhasil disimpan, false jika config tidak ada.
    */
   private async generateOfficeHoursSchedule(
     userId: string,
     dateStr: string,
     dayOfWeek: string,
     holiday: NationalHolidayEntity | null,
-  ) {
+  ): Promise<boolean> {
     // Ambil config: prioritas user-specific → global (user_id IS NULL)
     const config =
       (await this.officeHoursRepo
@@ -103,7 +104,7 @@ export class ScheduleGeneratorService {
         .orderBy('oh.effective_date', 'DESC')
         .getOne());
 
-    if (!config) return; // Belum ada konfigurasi office hours sama sekali
+    if (!config) return false; // Belum ada konfigurasi office hours
 
     const isDayOff = !config.work_days.includes(dayOfWeek);
     const isHoliday = !!holiday;
@@ -120,6 +121,7 @@ export class ScheduleGeneratorService {
         is_day_off: isDayOff,
       }),
     );
+    return true;
   }
 
   /**
@@ -274,6 +276,12 @@ export class ScheduleGeneratorService {
     }
 
     return { generated };
+  }
+
+  /** Cek apakah minimal ada satu konfigurasi office hours global */
+  async hasOfficeHoursConfig(): Promise<boolean> {
+    const count = await this.officeHoursRepo.count({ where: { user_id: null as any, department_id: null as any } });
+    return count > 0;
   }
 
   // ── Helpers ───────────────────────────────────────────────────
