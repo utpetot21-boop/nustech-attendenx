@@ -28,7 +28,7 @@ export class ReportsService {
         COUNT(*) FILTER (WHERE a.status IN ('izin','sakit','dinas')) AS izin,
         COALESCE(SUM(a.overtime_minutes), 0) AS total_overtime_minutes
       FROM users u
-      LEFT JOIN departments d ON u.dept_id = d.id
+      LEFT JOIN departments d ON u.department_id = d.id
       LEFT JOIN attendances a
         ON a.user_id = u.id
         AND EXTRACT(YEAR  FROM a.date::date) = $1
@@ -40,7 +40,7 @@ export class ReportsService {
 
     if (filters.deptId) {
       params.push(filters.deptId);
-      sql += ` AND u.dept_id = $${params.length}`;
+      sql += ` AND u.department_id = $${params.length}`;
     }
     if (filters.userId) {
       params.push(filters.userId);
@@ -105,7 +105,7 @@ export class ReportsService {
          lb.accrued_holiday, lb.expired_days, lb.year
        FROM leave_balances lb
        JOIN users u ON lb.user_id = u.id
-       LEFT JOIN departments d ON u.dept_id = d.id
+       LEFT JOIN departments d ON u.department_id = d.id
        WHERE lb.year = $1
        ORDER BY d.name, u.full_name`,
       [year],
@@ -125,7 +125,7 @@ export class ReportsService {
         COALESCE(SUM(a.overtime_minutes), 0) AS total_minutes,
         ROUND(COALESCE(SUM(a.overtime_minutes), 0) / 60.0, 2) AS total_hours
       FROM users u
-      LEFT JOIN departments d ON u.dept_id = d.id
+      LEFT JOIN departments d ON u.department_id = d.id
       LEFT JOIN attendances a
         ON a.user_id = u.id
         AND EXTRACT(YEAR  FROM a.date::date) = $1
@@ -135,7 +135,7 @@ export class ReportsService {
     `;
 
     const params: (string | number)[] = [year, month];
-    if (filters.deptId) { params.push(filters.deptId); sql += ` AND u.dept_id = $${params.length}`; }
+    if (filters.deptId) { params.push(filters.deptId); sql += ` AND u.department_id = $${params.length}`; }
 
     sql += ` GROUP BY u.id, u.full_name, d.name
              HAVING COALESCE(SUM(a.overtime_minutes), 0) > 0
