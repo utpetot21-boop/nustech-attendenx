@@ -63,6 +63,9 @@ import { AttendanceRequestsModule } from './modules/attendance-requests/attendan
         synchronize: false, // Gunakan migrations, JANGAN synchronize di production
         logging: config.get('app.nodeEnv') === 'development',
         ssl: config.get('database.ssl') ? { rejectUnauthorized: false } : false,
+        // Force semua koneksi PostgreSQL ke UTC agar timestamptz dibaca/ditulis konsisten.
+        // Frontend + backend sudah handle konversi ke WITA secara eksplisit.
+        extra: { options: '-c timezone=UTC' },
       }),
     }),
 

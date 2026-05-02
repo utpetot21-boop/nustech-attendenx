@@ -38,3 +38,18 @@ export function toISODate(d: Date): string {
 export function currentMonth(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' }).slice(0, 7);
 }
+
+/**
+ * Format waktu dari ISO string ke "HH:MM" dalam WITA (UTC+8).
+ * Menggunakan aritmatika UTC langsung agar tidak bergantung pada dukungan
+ * timeZone option di Intl/Hermes pada device tertentu.
+ */
+export function fmtTimeWITA(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const ms = new Date(iso).getTime();
+  if (isNaN(ms)) return '—';
+  const witaDate = new Date(ms + 8 * 60 * 60 * 1000);
+  const h = String(witaDate.getUTCHours()).padStart(2, '0');
+  const m = String(witaDate.getUTCMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}

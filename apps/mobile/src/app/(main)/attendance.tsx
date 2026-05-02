@@ -563,9 +563,13 @@ export default function AttendanceScreen() {
     ? 'Selesai'
     : attendance.status === 'terlambat' ? 'Terlambat' : 'Hadir';
 
-  const formatTime = (iso: string | null) => iso
-    ? new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })
-    : '—';
+  const formatTime = (iso: string | null | undefined) => {
+    if (!iso) return '—';
+    const ms = new Date(iso).getTime();
+    if (isNaN(ms)) return '—';
+    const w = new Date(ms + 8 * 60 * 60 * 1000);
+    return `${String(w.getUTCHours()).padStart(2, '0')}:${String(w.getUTCMinutes()).padStart(2, '0')}`;
+  };
 
   const alreadyCheckedIn = !!attendance?.check_in_at;
   const alreadyCheckedOut = !!attendance?.check_out_at;
@@ -794,7 +798,7 @@ export default function AttendanceScreen() {
               <>
                 <Text style={{ fontSize: 14, color: isDark ? 'rgba(255,255,255,0.70)' : '#374151', marginBottom: 6 }}>
                   Tersedia pukul {checkoutInfo?.checkoutEarliest
-                    ? new Date(checkoutInfo.checkoutEarliest).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar' })
+                    ? formatTime(checkoutInfo.checkoutEarliest)
                     : '—'} WITA
                 </Text>
                 <Text style={{

@@ -68,12 +68,10 @@ const METHOD_LABEL: Record<string, string> = {
 
 function fmtTime(iso: string | null) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Makassar',
-  });
+  const ms = new Date(iso).getTime();
+  if (isNaN(ms)) return '—';
+  const w = new Date(ms + 8 * 60 * 60 * 1000);
+  return `${String(w.getUTCHours()).padStart(2, '0')}:${String(w.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 function fmtDayDate(dateStr: string) {
