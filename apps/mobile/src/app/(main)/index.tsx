@@ -40,7 +40,8 @@ import {
 } from 'lucide-react-native';
 import WeatherBanner, { getPeriodLabel } from '@/components/home/WeatherBanner';
 
-import { attendanceService, type AttendanceRecord } from '@/services/attendance.service';
+import { attendanceService, type AttendanceRecord, type TeamAttendanceRecord } from '@/services/attendance.service';
+import CheckedInCarousel from '@/components/home/CheckedInCarousel';
 import { scheduleService, getCurrentWeekString } from '@/services/schedule.service';
 import { attendanceRequestsService, type AttendanceRequest } from '@/services/attendance-requests.service';
 import { leaveService, type LeaveBalance } from '@/services/leave.service';
@@ -439,6 +440,14 @@ export default function BerandaScreen() {
     queryFn: () =>
       api.get('/expense-claims', { params: { status: 'pending' } })
         .then((r) => (Array.isArray(r.data) ? r.data.length : 0) as number),
+    enabled: isApprover,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const { data: teamToday, isLoading: loadingTeam } = useQuery<TeamAttendanceRecord[]>({
+    queryKey: ['team-attendance-today', todayDate],
+    queryFn: () => attendanceService.getTeamToday(todayDate),
     enabled: isApprover,
     refetchInterval: 60_000,
     staleTime: 30_000,
@@ -860,6 +869,15 @@ export default function BerandaScreen() {
                 badge={pendingExpenseCount}
               />
             </>
+          )}
+
+          {/* ── HADIR HARI INI (approver only) ──────────────────────────── */}
+          {isApprover && (
+            <CheckedInCarousel
+              records={teamToday}
+              isLoading={loadingTeam && !teamToday}
+              isDark={isDark}
+            />
           )}
 
           {/* ── JADWAL HARI INI ────────────────────────────────────────────── */}

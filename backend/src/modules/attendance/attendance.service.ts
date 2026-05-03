@@ -414,6 +414,7 @@ export class AttendanceService {
       .createQueryBuilder('a')
       .leftJoinAndSelect('a.user', 'u')
       .leftJoinAndMapOne('u.department', 'u.department', 'dept')
+      .leftJoinAndMapOne('u.position', 'u.position', 'pos')
       .orderBy('a.date', 'DESC')
       .addOrderBy('u.full_name', 'ASC'); // column renamed via migration 022
 

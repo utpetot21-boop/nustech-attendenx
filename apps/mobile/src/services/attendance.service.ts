@@ -40,6 +40,18 @@ export interface OfficeGeofence {
   office_name: string;
 }
 
+export interface TeamAttendanceRecord {
+  id: string;
+  check_in_at: string;
+  status: 'hadir' | 'terlambat' | 'dinas';
+  user: {
+    full_name: string;
+    avatar_url: string | null;
+    position?: { name: string } | null;
+    department?: { name: string } | null;
+  };
+}
+
 export const attendanceService = {
   checkIn(payload: { method: string; lat: number | null; lng: number | null; device_id?: string; notes?: string }) {
     return api.post<AttendanceRecord>('/attendance/check-in', payload).then((r) => r.data);
@@ -67,5 +79,24 @@ export const attendanceService = {
     if (params.from) q.set('from', params.from);
     if (params.to) q.set('to', params.to);
     return api.get<AttendanceRecord[]>(`/attendance/history?${q}`).then((r) => r.data);
+  },
+
+  getTeamToday(date: string): Promise<TeamAttendanceRecord[]> {
+    return api.get<any[]>(`/attendance/admin/list?date=${date}`).then((r) =>
+      (r.data as any[])
+        .filter((a) => ['hadir', 'terlambat', 'dinas'].includes(a.status) && a.check_in_at)
+        .sort((a, b) => new Date(a.check_in_at).getTime() - new Date(b.check_in_at).getTime())
+        .map((a) => ({
+          id: a.id as string,
+          check_in_at: a.check_in_at as string,
+          status: a.status as TeamAttendanceRecord['status'],
+          user: {
+            full_name: (a.user?.full_name ?? '—') as string,
+            avatar_url: (a.user?.avatar_url ?? null) as string | null,
+            position: a.user?.position ? { name: a.user.position.name as string } : null,
+            department: a.user?.department ? { name: a.user.department.name as string } : null,
+          },
+        }))
+    );
   },
 };
