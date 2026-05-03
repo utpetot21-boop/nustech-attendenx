@@ -186,6 +186,10 @@ export class NotificationsService {
       'expense_claim_submitted', 'expense_claim_approved', 'expense_claim_rejected', 'expense_claim_paid',
       // FYI ke manager/admin/super_admin setelah review
       'leave_fyi', 'attendance_request_fyi', 'expense_claim_fyi',
+      // Surat tugas / perjalanan dinas
+      'business_trip_submitted', 'business_trip_approved', 'business_trip_rejected',
+      // Berita Acara
+      'ba_sent_to_client',
     ];
     if (critical.includes(type)) return ['push', 'whatsapp'];
     if (push.includes(type)) return ['push'];

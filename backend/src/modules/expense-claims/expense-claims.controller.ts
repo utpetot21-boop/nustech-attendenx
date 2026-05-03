@@ -91,6 +91,17 @@ export class ExpenseClaimsController {
     res.send(buffer);
   }
 
+  // POST /expense-claims/:id/receipts  (admin/manager — tambah URL receipt)
+  @Post(':id/receipts')
+  @RequirePermission('task:assign')
+  addReceipt(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('url') url: string,
+  ) {
+    if (!url) throw new BadRequestException('url wajib diisi');
+    return this.svc.addReceiptUrl(id, url);
+  }
+
   // POST /expense-claims/:id/review  (admin/manager)
   @Post(':id/review')
   @RequirePermission('task:assign')

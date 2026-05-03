@@ -9,12 +9,14 @@ import { Repository } from 'typeorm';
 import { BusinessTripEntity } from './entities/business-trip.entity';
 import { CreateBusinessTripDto } from './dto/create-business-trip.dto';
 import { UpdateBusinessTripDto } from './dto/update-business-trip.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BusinessTripsService {
   constructor(
     @InjectRepository(BusinessTripEntity)
     private readonly tripRepo: Repository<BusinessTripEntity>,
+    private readonly notifService: NotificationsService,
   ) {}
 
   private async generateTripNumber(): Promise<string> {
@@ -109,7 +111,15 @@ export class BusinessTripsService {
     }
 
     await this.tripRepo.update(id, { status: 'pending_approval' });
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    const name = updated.user?.full_name ?? 'Karyawan';
+    const viewers = await this.notifService.getFyiViewerIds([userId]);
+    this.notifService.sendMany(viewers, 'business_trip_submitted',
+      'Surat Tugas Baru',
+      `${name} mengajukan surat tugas: ${updated.trip_number}`,
+      { trip_id: updated.id },
+    ).catch(() => {});
+    return updated;
   }
 
   // ── APPROVE ───────────────────────────────────────────────────────────────────
@@ -126,7 +136,21 @@ export class BusinessTripsService {
       approved_at: new Date(),
     });
 
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    this.notifService.send({
+      userId: updated.user_id,
+      type: 'business_trip_approved',
+      title: 'Surat Tugas Disetujui',
+      body: `Surat tugas ${updated.trip_number} telah disetujui.`,
+      data: { trip_id: updated.id },
+    }).catch(() => {});
+    const fyi = await this.notifService.getFyiViewerIds([approverId, updated.user_id]);
+    this.notifService.sendMany(fyi, 'business_trip_approved',
+      'Surat Tugas Disetujui',
+      `${updated.user?.full_name ?? 'Karyawan'} — ${updated.trip_number}`,
+      { trip_id: updated.id },
+    ).catch(() => {});
+    return updated;
   }
 
   // ── REJECT ────────────────────────────────────────────────────────────────────
@@ -143,7 +167,15 @@ export class BusinessTripsService {
       rejection_reason: reason ?? null,
     });
 
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    this.notifService.send({
+      userId: updated.user_id,
+      type: 'business_trip_rejected',
+      title: 'Surat Tugas Ditolak',
+      body: `Surat tugas ${updated.trip_number} ditolak.${reason ? ` Alasan: ${reason}` : ''}`,
+      data: { trip_id: updated.id },
+    }).catch(() => {});
+    return updated;
   }
 
   // ── DEPART (approved → ongoing) ───────────────────────────────────────────────

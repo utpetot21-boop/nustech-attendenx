@@ -499,22 +499,40 @@ function CreateClaimForm({ onClose, onSuccess }: { onClose: () => void; onSucces
 
   const selectedConfig = configs.find((c) => c.category === category);
 
-  const addReceipt = async () => {
+  const handlePickResult = (asset: ImagePicker.ImagePickerAsset) => {
+    if ((asset.fileSize ?? 0) > 10 * 1024 * 1024) {
+      Alert.alert('File Terlalu Besar', 'Ukuran foto maksimal 10 MB.');
+      return;
+    }
+    setReceiptUris((prev) => [...prev, asset.uri]);
+  };
+
+  const addReceipt = () => {
     if (receiptUris.length >= 5) {
       Alert.alert('Batas Maksimum', 'Maksimal 5 foto receipt per klaim.');
       return;
     }
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) { Alert.alert('Izin diperlukan', 'Akses kamera diperlukan'); return; }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
-    if (!result.canceled && result.assets[0]) {
-      const fileSize = result.assets[0].fileSize ?? 0;
-      if (fileSize > 10 * 1024 * 1024) {
-        Alert.alert('File Terlalu Besar', 'Ukuran foto maksimal 10 MB.');
-        return;
-      }
-      setReceiptUris((prev) => [...prev, result.assets[0].uri]);
-    }
+    Alert.alert('Tambah Foto Bukti', 'Pilih sumber foto', [
+      {
+        text: 'Kamera',
+        onPress: async () => {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) { Alert.alert('Izin diperlukan', 'Akses kamera diperlukan'); return; }
+          const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
+          if (!result.canceled && result.assets[0]) handlePickResult(result.assets[0]);
+        },
+      },
+      {
+        text: 'Galeri',
+        onPress: async () => {
+          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!perm.granted) { Alert.alert('Izin diperlukan', 'Akses galeri diperlukan'); return; }
+          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+          if (!result.canceled && result.assets[0]) handlePickResult(result.assets[0]);
+        },
+      },
+      { text: 'Batal', style: 'cancel' },
+    ]);
   };
 
   const createMut = useMutation({

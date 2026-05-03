@@ -289,6 +289,16 @@ export class ExpenseClaimsService {
     return saved;
   }
 
+  // ── Tambah URL receipt oleh admin ────────────────────────────────────────
+  async addReceiptUrl(id: string, url: string): Promise<ExpenseClaimEntity> {
+    const claim = await this.claimRepo.findOneBy({ id });
+    if (!claim) throw new NotFoundException('Klaim tidak ditemukan');
+    await this.claimRepo.update(id, {
+      receipt_urls: [...(claim.receipt_urls ?? []), url],
+    });
+    return this.claimRepo.findOne({ where: { id }, relations: ['user', 'reviewer'] }) as Promise<ExpenseClaimEntity>;
+  }
+
   // ── Private: generate claim number ───────────────────────────────────────
   private async generateClaimNumber(claimId: string): Promise<string> {
     const year = new Date().getFullYear();

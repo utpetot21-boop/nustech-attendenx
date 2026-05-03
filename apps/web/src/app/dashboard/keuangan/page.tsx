@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Briefcase, Clock, CheckCircle2, XCircle, Plus,
   MapPin, Calendar, Wallet, X, Check, ChevronRight,
-  ExternalLink, Send,
+  ExternalLink, Send, Upload,
   Receipt, Download, CreditCard, BarChart3,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
@@ -730,6 +730,8 @@ function KlaimBiayaSection() {
   const [detail, setDetail] = useState<Claim | null>(null);
   const [rejectNote, setRejectNote] = useState('');
   const [showReject, setShowReject] = useState(false);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: claims = [], isLoading } = useQuery<Claim[]>({
     queryKey: ['expense-claims', tab, month],
@@ -757,6 +759,29 @@ function KlaimBiayaSection() {
       setRejectNote('');
     },
   });
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !detail) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) { toast.error('Hanya JPEG, PNG, atau WebP'); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error('Ukuran file maksimal 10 MB'); return; }
+    setUploadingReceipt(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await apiClient.post('/expense-claims/upload-receipt', form);
+      await apiClient.post(`/expense-claims/${detail.id}/receipts`, { url: data.url });
+      setDetail((prev) => prev ? { ...prev, receipt_urls: [...prev.receipt_urls, data.url] } : prev);
+      qc.invalidateQueries({ queryKey: ['expense-claims'] });
+      toast.success('Foto bukti berhasil diupload');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setUploadingReceipt(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const downloadPayroll = () => {
     apiClient.get(`/expense-claims/payroll/export?month=${month}`, { responseType: 'blob' }).then((r) => {
@@ -959,9 +984,24 @@ function KlaimBiayaSection() {
                   <p className="text-sm text-[#9A3412] dark:text-[#FF9500]/90">{detail.review_note}</p>
                 </div>
               )}
-              {detail.receipt_urls.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wide mb-2">Foto Nota</p>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-semibold text-gray-400 dark:text-white/30 uppercase tracking-wide">Foto Nota</p>
+                  {['pending', 'approved'].includes(detail.status) && detail.receipt_urls.length < 10 && (
+                    <>
+                      <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleReceiptUpload} />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingReceipt}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-[#007AFF] hover:opacity-80 transition disabled:opacity-40"
+                      >
+                        <Upload size={11} />
+                        {uploadingReceipt ? 'Mengupload...' : 'Upload Bukti'}
+                      </button>
+                    </>
+                  )}
+                </div>
+                {detail.receipt_urls.length > 0 ? (
                   <div className="flex gap-2 flex-wrap">
                     {detail.receipt_urls.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noreferrer" className="group relative">
@@ -970,8 +1010,10 @@ function KlaimBiayaSection() {
                       </a>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-white/25">Belum ada foto nota</p>
+                )}
+              </div>
               {detail.status === 'pending' && (
                 <div className="space-y-3 pt-2">
                   {showReject && (

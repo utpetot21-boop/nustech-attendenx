@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems:     'center',
     justifyContent: 'center',
-    paddingVertical:   64,
+    paddingVertical:   32,
     paddingHorizontal: 32,
   },
   iconBox: {

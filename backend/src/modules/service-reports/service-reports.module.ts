@@ -11,11 +11,13 @@ import { VisitEntity } from '../visits/entities/visit.entity';
 import { VisitPhotoEntity } from '../visits/entities/visit-photo.entity';
 import { StorageService } from '../../services/storage.service';
 import { EmailService } from '../notifications/email.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { CompanyProfileEntity } from '../settings/entities/company-profile.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ServiceReportEntity, VisitEntity, VisitPhotoEntity, CompanyProfileEntity]),
+    NotificationsModule,
     MulterModule.register({ dest: '/tmp' }),
     JwtModule.registerAsync({
       inject: [ConfigService],

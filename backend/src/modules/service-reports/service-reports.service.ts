@@ -15,6 +15,7 @@ import { PdfGeneratorService, ServiceReportData } from './pdf-generator.service'
 import { CreateServiceReportDto } from './dto/create-service-report.dto';
 import { SignClientDto, ClientSignatureType } from './dto/sign-client.dto';
 import { EmailService } from '../notifications/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CompanyProfileEntity } from '../settings/entities/company-profile.entity';
 import { TemplatePhotoRequirementEntity } from '../templates/entities/template-photo-requirement.entity';
 
@@ -35,6 +36,7 @@ export class ServiceReportsService {
     private readonly pdfGen: PdfGeneratorService,
     private readonly email: EmailService,
     private readonly jwtService: JwtService,
+    private readonly notifService: NotificationsService,
   ) {}
 
   // ── Create draft BA ─────────────────────────────────────────────────────────
@@ -112,6 +114,23 @@ export class ServiceReportsService {
     this.generateAndStorePdf(saved.id).catch((e) =>
       console.error('PDF generation error for', saved.id, e),
     );
+
+    // Notif ke teknisi
+    this.notifService.send({
+      userId: saved.technician_id,
+      type: 'ba_generated',
+      title: 'Berita Acara Selesai',
+      body: 'BA telah ditandatangani klien dan siap diunduh.',
+      data: { report_id: saved.id },
+    }).catch(() => {});
+    // FYI ke manager/admin
+    this.notifService.getFyiViewerIds([saved.technician_id]).then((fyi) =>
+      this.notifService.sendMany(fyi, 'ba_generated',
+        'BA Selesai',
+        `Teknisi ${saved.technician?.full_name ?? ''} — BA terkunci.`,
+        { report_id: saved.id },
+      ),
+    ).catch(() => {});
 
     return saved;
   }
@@ -254,6 +273,15 @@ export class ServiceReportsService {
     );
 
     await this.reportRepo.update(reportId, { sent_to_client: true, sent_at: new Date() });
+
+    this.notifService.send({
+      userId: report.technician_id,
+      type: 'ba_sent_to_client',
+      title: 'BA Terkirim ke Klien',
+      body: 'Berita Acara berhasil dikirim ke email klien.',
+      data: { report_id: reportId },
+    }).catch(() => {});
+
     return { success: true, sent_to: clientEmail };
   }
 

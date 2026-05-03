@@ -37,6 +37,8 @@ import {
   Calendar,
   Pause,
   ArrowRightLeft,
+  Plane,
+  Send,
   type LucideIcon,
 } from 'lucide-react-native';
 import {
@@ -260,8 +262,13 @@ export default function NotificationsScreen() {
     leave_fyi:                 { Icon: Info,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
     attendance_request_fyi:    { Icon: Info,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
     expense_claim_fyi:         { Icon: Info,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
+    // Surat Tugas / Perjalanan Dinas
+    business_trip_submitted:   { Icon: Plane,          color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
+    business_trip_approved:    { Icon: CheckCircle2,   color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    business_trip_rejected:    { Icon: XCircle,        color: C.red,    bg: isDark ? 'rgba(255,59,48,0.18)'  : '#FEF2F2' },
     // Berita Acara
-    ba_generated:              { Icon: FileText,       color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#ECFEFF' },
+    ba_generated:              { Icon: FileText,       color: C.green,  bg: isDark ? 'rgba(52,199,89,0.18)'  : '#DCFCE7' },
+    ba_sent_to_client:         { Icon: Send,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
     default:                   { Icon: Bell,           color: C.blue,   bg: isDark ? 'rgba(0,122,255,0.18)'  : '#EFF6FF' },
   }), [isDark]);
 

@@ -72,8 +72,13 @@ export const NOTIF_ROUTE_MAP: Record<string, string> = {
   // Kunjungan / Visit review
   visit_reviewed:                  '/(main)/tasks',
   visit_revision_submitted:        '/(main)/tasks',
+  // Surat Tugas / Perjalanan Dinas
+  business_trip_submitted:         '/(main)/business-trips',
+  business_trip_approved:          '/(main)/business-trips',
+  business_trip_rejected:          '/(main)/business-trips',
   // Berita Acara
   ba_generated:                    '/(main)/service-reports',
+  ba_sent_to_client:               '/(main)/service-reports',
   // SOS
   sos:                             '/(main)/sos',
   sos_alert:                       '/(main)/sos-alert',
