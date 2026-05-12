@@ -83,28 +83,42 @@ export class AttendanceService {
   async checkIn(userId: string, dto: CheckInDto): Promise<AttendanceEntity> {
     const today = this.getTodayString();
 
-    // Ambil jadwal hari ini
-    let schedule = await this.scheduleRepo.findOne({
-      where: { user_id: userId, date: today },
+    const yesterday = this.getYesterdayString();
+
+    // Cek jadwal kemarin lebih dulu untuk kasus shift malam lintas tengah malam.
+    // Contoh: shift 23:00 May12 - 07:00 May13. Karyawan check-in 01:12 May13.
+    // Jika hari ini juga ada jadwal (misal shift 23:00 May13), jadwal hari ini tidak boleh
+    // diprioritaskan — karyawan masih berada dalam shift malam kemarin.
+    const ySchedule = await this.scheduleRepo.findOne({
+      where: { user_id: userId, date: yesterday },
       relations: ['shift_type'],
     });
 
-    // Shift malam lintas tengah malam: jadwal tersimpan dengan tanggal kemarin
-    // (misal shift 22:00-02:00 → date="kemarin"), karyawan check-in setelah 00:00 (terlambat/tepat).
-    // Izinkan check-in sepanjang hari ini — jika melewati jam shift berakhir, tetap diterima
-    // tapi wajib isi alasan (ditangani oleh validateStatus → notes wajib jika terlambat).
+    let schedule: UserScheduleEntity | null = null;
     let scheduleDate = today;
-    if (!schedule) {
-      const yesterday = this.getYesterdayString();
-      const ySchedule = await this.scheduleRepo.findOne({
-        where: { user_id: userId, date: yesterday },
+
+    // Masih dalam window shift malam kemarin jika: cross-midnight DAN sebelum jam shift berakhir
+    const shiftEndToday = ySchedule && ySchedule.end_time < ySchedule.start_time
+      ? new Date(`${today}T${ySchedule.end_time.slice(0, 5)}:00+08:00`).getTime()
+      : null;
+    const inYesterdayShift = !!shiftEndToday && !ySchedule!.is_day_off && Date.now() < shiftEndToday;
+
+    if (inYesterdayShift) {
+      schedule = ySchedule!;
+      scheduleDate = yesterday;
+    } else {
+      // Ambil jadwal hari ini
+      schedule = await this.scheduleRepo.findOne({
+        where: { user_id: userId, date: today },
         relations: ['shift_type'],
       });
-      if (ySchedule && !ySchedule.is_day_off) {
-        if (ySchedule.end_time < ySchedule.start_time) {
-          schedule = ySchedule;
-          scheduleDate = yesterday;
-        }
+      scheduleDate = today;
+
+      // Tidak ada jadwal hari ini → gunakan shift malam kemarin (terlambat setelah shift berakhir,
+      // tidak ada jadwal baru hari ini untuk digunakan sebagai referensi)
+      if (!schedule && ySchedule && !ySchedule.is_day_off && ySchedule.end_time < ySchedule.start_time) {
+        schedule = ySchedule;
+        scheduleDate = yesterday;
       }
     }
 
