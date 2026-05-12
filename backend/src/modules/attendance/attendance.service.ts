@@ -83,19 +83,31 @@ export class AttendanceService {
   async checkIn(userId: string, dto: CheckInDto): Promise<AttendanceEntity> {
     const today = this.getTodayString();
 
-    // Cegah double check-in
-    const existing = await this.attendanceRepo.findOne({
-      where: { user_id: userId, date: today },
-    });
-    if (existing?.check_in_at) {
-      throw new BadRequestException('Anda sudah check-in hari ini');
-    }
-
     // Ambil jadwal hari ini
-    const schedule = await this.scheduleRepo.findOne({
+    let schedule = await this.scheduleRepo.findOne({
       where: { user_id: userId, date: today },
       relations: ['shift_type'],
     });
+
+    // Shift malam lintas tengah malam: jadwal tersimpan dengan tanggal kemarin
+    // (misal shift 22:00-02:00 → date="kemarin"), karyawan check-in setelah 00:00 (terlambat/tepat).
+    // Izinkan check-in sepanjang hari ini — jika melewati jam shift berakhir, tetap diterima
+    // tapi wajib isi alasan (ditangani oleh validateStatus → notes wajib jika terlambat).
+    let scheduleDate = today;
+    if (!schedule) {
+      const yesterday = this.getYesterdayString();
+      const ySchedule = await this.scheduleRepo.findOne({
+        where: { user_id: userId, date: yesterday },
+        relations: ['shift_type'],
+      });
+      if (ySchedule && !ySchedule.is_day_off) {
+        const [endH] = ySchedule.end_time.split(':').map(Number);
+        if (Number.isFinite(endH) && endH < 6) {
+          schedule = ySchedule;
+          scheduleDate = yesterday;
+        }
+      }
+    }
 
     if (!schedule) {
       throw new BadRequestException('Tidak ada jadwal untuk hari ini');
@@ -105,8 +117,16 @@ export class AttendanceService {
       throw new BadRequestException('Hari ini adalah hari libur Anda');
     }
 
+    // Cegah double check-in — gunakan scheduleDate (bisa kemarin untuk shift malam)
+    const existing = await this.attendanceRepo.findOne({
+      where: { user_id: userId, date: scheduleDate },
+    });
+    if (existing?.check_in_at) {
+      throw new BadRequestException('Anda sudah check-in hari ini');
+    }
+
     // P1: Tolak check-in lebih dari 30 menit sebelum shift dimulai
-    const { allowed: earlyAllowed } = this.checkEarlyWindow(new Date(), schedule.start_time, 30);
+    const { allowed: earlyAllowed } = this.checkEarlyWindow(new Date(), schedule.start_time, 30, scheduleDate);
     if (!earlyAllowed) {
       throw new BadRequestException(
         `Check-in terlalu awal. Anda baru dapat check-in 30 menit sebelum shift dimulai pukul ${schedule.start_time} WITA.`,
@@ -152,17 +172,18 @@ export class AttendanceService {
       }
     }
 
-    // Cek apakah ada izin terlambat yang diapprove hari ini
+    // Cek apakah ada izin terlambat yang diapprove — gunakan scheduleDate (shift malam = kemarin)
     const approvedLate = await this.attendanceRequestRepo.findOne({
-      where: { user_id: userId, date: today, type: 'late_arrival', status: 'approved' },
+      where: { user_id: userId, date: scheduleDate, type: 'late_arrival', status: 'approved' },
     });
 
-    // Hitung status berdasarkan keterlambatan
+    // Hitung status berdasarkan keterlambatan — pass scheduleDate agar shift malam dihitung benar
     const checkInAt = new Date();
     const { status: rawStatus, lateMinutes } = this.calculateStatus(
       checkInAt,
       schedule.start_time,
       schedule.tolerance_minutes,
+      scheduleDate,
     );
     // Jika terlambat tapi ada izin approved → tetap terlambat tapi flag late_approved = true
     const status = rawStatus;
@@ -180,18 +201,25 @@ export class AttendanceService {
     const checkoutFrom8h = new Date(checkInAt.getTime() + 8 * 60 * 60 * 1000);
     let checkoutEarliest = checkoutFrom8h;
     if (schedule.end_time) {
-      const witaDateCo = checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
       const [coEh] = schedule.end_time.split(':').map(Number);
-      let shiftEndWita = new Date(`${witaDateCo}T${schedule.end_time.slice(0, 5)}:00+08:00`);
-      if (Number.isFinite(coEh) && coEh < 6) {
-        shiftEndWita = new Date(shiftEndWita.getTime() + 24 * 60 * 60 * 1000);
+      let shiftEndWita: Date;
+      if (scheduleDate !== today && Number.isFinite(coEh) && coEh < 6) {
+        // Shift lintas tengah malam yang check-in setelah 00:00:
+        // jam berakhir (misal 02:00) sudah berada di tanggal 'today', tidak perlu +24 jam lagi
+        shiftEndWita = new Date(`${today}T${schedule.end_time.slice(0, 5)}:00+08:00`);
+      } else {
+        const witaDateCo = checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+        shiftEndWita = new Date(`${witaDateCo}T${schedule.end_time.slice(0, 5)}:00+08:00`);
+        if (Number.isFinite(coEh) && coEh < 6) {
+          shiftEndWita = new Date(shiftEndWita.getTime() + 24 * 60 * 60 * 1000);
+        }
       }
       checkoutEarliest = new Date(Math.max(checkoutFrom8h.getTime(), shiftEndWita.getTime()));
     }
 
-    // Cek apakah hari libur nasional → holiday work
+    // Cek apakah hari libur nasional → gunakan scheduleDate (shift malam = kemarin)
     const holiday = await this.holidayRepo.findOne({
-      where: { date: today, is_active: true },
+      where: { date: scheduleDate, is_active: true },
     });
     const isHolidayWork = !!holiday;
 
@@ -223,7 +251,7 @@ export class AttendanceService {
         this.attendanceRepo.create({
           user_id: userId,
           user_schedule_id: schedule.id,
-          date: today,
+          date: scheduleDate,
           schedule_type: schedule.schedule_type as any,
           shift_start: schedule.start_time,
           shift_end: schedule.end_time,
@@ -334,8 +362,8 @@ export class AttendanceService {
 
     const checkOutAt = now;
 
-    // Hitung overtime: actual_checkout - shift_end_time, cap 3 jam (180 menit)
-    const rawOvertime = this.calculateOvertime(checkOutAt, attendance.shift_end, attendance.date);
+    // Hitung overtime: actual_checkout - checkout_earliest (MAX(check_in+8h, shift_end)), cap 3 jam
+    const rawOvertime = this.calculateOvertime(checkOutAt, attendance.checkout_earliest);
     const overtimeMinutes = Math.min(rawOvertime, 180);
 
     // Notif semua admin + super_admin jika lembur melebihi 3 jam
@@ -604,7 +632,9 @@ export class AttendanceService {
     if (dto.check_out_at !== undefined) {
       const newCheckOut = new Date(dto.check_out_at);
       updates.check_out_at = newCheckOut;
-      updates.overtime_minutes = this.calculateOvertime(newCheckOut, record.shift_end, record.date);
+      // Jika check_in juga dikoreksi, pakai checkout_earliest yang baru dihitung; jika tidak, pakai yang tersimpan
+      const effectiveCheckoutEarliest = updates.checkout_earliest ?? record.checkout_earliest;
+      updates.overtime_minutes = this.calculateOvertime(newCheckOut, effectiveCheckoutEarliest);
     }
 
     if (dto.status) updates.status = dto.status as any;
@@ -620,12 +650,14 @@ export class AttendanceService {
 
   // ── Helpers ───────────────────────────────────────────────────
   // Cek apakah check-in masih dalam window yang diizinkan (maks windowMinutes sebelum shift)
+  // scheduleDate: tanggal jadwal (gunakan untuk shift lintas tengah malam agar tidak dihitung salah)
   private checkEarlyWindow(
     now: Date,
     shiftStart: string,
     windowMinutes: number,
+    scheduleDate?: string,
   ): { allowed: boolean; minutesEarly: number } {
-    const witaDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+    const witaDate = scheduleDate ?? now.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
     const shiftStartMs = new Date(`${witaDate}T${shiftStart.slice(0, 5)}:00+08:00`);
     const minutesEarly = Math.floor((shiftStartMs.getTime() - now.getTime()) / 60000);
     return { allowed: minutesEarly <= windowMinutes, minutesEarly: Math.max(0, minutesEarly) };
@@ -660,16 +692,19 @@ export class AttendanceService {
     return todayAtt ?? null;
   }
 
+  // scheduleDate: tanggal jadwal (bukan tanggal check-in) — wajib untuk shift lintas tengah malam
+  // agar shiftStartMs tidak dihitung pada hari yang salah
   private calculateStatus(
     checkInAt: Date,
     shiftStart: string | null,
     toleranceMinutes: number,
+    scheduleDate?: string,
   ): { status: string; lateMinutes: number } {
     if (!shiftStart) return { status: 'hadir', lateMinutes: 0 };
 
     // Bangun shift start dalam WITA — hindari setHours() yang bergantung timezone server
     // slice(0,5) normalisasi "HH:MM:SS" → "HH:MM" sebelum append :00+08:00
-    const witaDate = checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
+    const witaDate = scheduleDate ?? checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
     const shiftStartMs = new Date(`${witaDate}T${shiftStart.slice(0, 5)}:00+08:00`);
 
     const diffMinutes = Math.floor(
@@ -685,24 +720,12 @@ export class AttendanceService {
     return { status: 'terlambat', lateMinutes: diffMinutes };
   }
 
-  private calculateOvertime(
-    checkOutAt: Date,
-    shiftEnd: string | null,
-    date: string,
-  ): number {
-    if (!shiftEnd) return 0;
-
-    // Gunakan +08:00 (WITA) agar tidak bergantung timezone server
-    // slice(0,5) normalisasi "HH:MM:SS" → "HH:MM" sebelum append :00+08:00
-    const [eh] = shiftEnd.split(':').map(Number);
-    const shiftEndDate = new Date(`${date}T${shiftEnd.slice(0, 5)}:00+08:00`);
-
-    // Handle shift lintas tengah malam (misal berakhir 02:00 WITA)
-    if (Number.isFinite(eh) && eh < 6) {
-      shiftEndDate.setTime(shiftEndDate.getTime() + 24 * 60 * 60 * 1000);
-    }
-
-    const diff = Math.floor((checkOutAt.getTime() - shiftEndDate.getTime()) / 60000);
+  // Lembur dihitung dari checkout_earliest (= MAX(check_in + 8 jam, shift_end)).
+  // Ini memastikan karyawan yang terlambat dan hanya menggenapi 8 jam tidak dihitung lembur —
+  // lembur sejati baru dimulai setelah kewajiban 8 jam DAN shift selesai terpenuhi.
+  private calculateOvertime(checkOutAt: Date, checkoutEarliest: Date | null): number {
+    if (!checkoutEarliest) return 0;
+    const diff = Math.floor((checkOutAt.getTime() - checkoutEarliest.getTime()) / 60000);
     return Math.max(0, diff);
   }
 }
