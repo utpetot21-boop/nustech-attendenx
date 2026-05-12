@@ -101,8 +101,7 @@ export class AttendanceService {
         relations: ['shift_type'],
       });
       if (ySchedule && !ySchedule.is_day_off) {
-        const [endH] = ySchedule.end_time.split(':').map(Number);
-        if (Number.isFinite(endH) && endH < 6) {
+        if (ySchedule.end_time < ySchedule.start_time) {
           schedule = ySchedule;
           scheduleDate = yesterday;
         }
@@ -201,16 +200,16 @@ export class AttendanceService {
     const checkoutFrom8h = new Date(checkInAt.getTime() + 8 * 60 * 60 * 1000);
     let checkoutEarliest = checkoutFrom8h;
     if (schedule.end_time) {
-      const [coEh] = schedule.end_time.split(':').map(Number);
+      const isCrossMidnight = schedule.end_time < schedule.start_time;
       let shiftEndWita: Date;
-      if (scheduleDate !== today && Number.isFinite(coEh) && coEh < 6) {
-        // Shift lintas tengah malam yang check-in setelah 00:00:
-        // jam berakhir (misal 02:00) sudah berada di tanggal 'today', tidak perlu +24 jam lagi
+      if (scheduleDate !== today && isCrossMidnight) {
+        // Shift lintas tengah malam, check-in setelah 00:00:
+        // jam berakhir sudah berada di tanggal 'today', tidak perlu +24 jam lagi
         shiftEndWita = new Date(`${today}T${schedule.end_time.slice(0, 5)}:00+08:00`);
       } else {
         const witaDateCo = checkInAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Makassar' });
         shiftEndWita = new Date(`${witaDateCo}T${schedule.end_time.slice(0, 5)}:00+08:00`);
-        if (Number.isFinite(coEh) && coEh < 6) {
+        if (isCrossMidnight) {
           shiftEndWita = new Date(shiftEndWita.getTime() + 24 * 60 * 60 * 1000);
         }
       }
@@ -609,9 +608,8 @@ export class AttendanceService {
       const corrFrom8h = new Date(newCheckIn.getTime() + 8 * 60 * 60 * 1000);
       let corrCheckoutEarliest = corrFrom8h;
       if (record.shift_end && record.date) {
-        const [corrEh] = record.shift_end.split(':').map(Number);
         let corrShiftEnd = new Date(`${record.date}T${record.shift_end.slice(0, 5)}:00+08:00`);
-        if (Number.isFinite(corrEh) && corrEh < 6) {
+        if (record.shift_start && record.shift_end < record.shift_start) {
           corrShiftEnd = new Date(corrShiftEnd.getTime() + 24 * 60 * 60 * 1000);
         }
         corrCheckoutEarliest = new Date(Math.max(corrFrom8h.getTime(), corrShiftEnd.getTime()));
