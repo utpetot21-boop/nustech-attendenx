@@ -300,9 +300,14 @@ export default function AttendanceScreen() {
     if (!Number.isFinite(h) || !Number.isFinite(m)) return { isLate: false, lateMin: 0, tolerance, shiftStart: null };
     // Menit saat ini dalam WITA (UTC+8)
     const witaNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
-    const nowMin = witaNow.getUTCHours() * 60 + witaNow.getUTCMinutes();
+    const nowH = witaNow.getUTCHours();
+    const nowMin = nowH * 60 + witaNow.getUTCMinutes();
+    // Shift malam lintas tengah malam (misal 23:00): shift mulai ≥18:00 dan sekarang dini hari <12:00
+    // → tambah 1440 menit agar perbandingan tidak negatif (01:12 = 72 mnt vs 23:00 = 1380 mnt)
+    const crossedMidnight = h >= 18 && nowH < 12;
+    const effectiveNowMin = crossedMidnight ? nowMin + 24 * 60 : nowMin;
     const toleranceEndMin = h * 60 + m + tolerance;
-    const diffMin = Math.floor(nowMin - toleranceEndMin);
+    const diffMin = Math.floor(effectiveNowMin - toleranceEndMin);
     return { isLate: diffMin > 0, lateMin: Math.max(0, diffMin), tolerance, shiftStart };
   }, [attendance, todaySchedule]);
 
